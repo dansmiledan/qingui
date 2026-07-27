@@ -103,4 +103,47 @@ impl Ui {
             }
         }
     }
+
+    pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style = style;
+        }
+    }
+    pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style_pressed = style;
+        }
+    }
+    pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style_focused = style;
+        }
+    }
+    pub fn set_state(&mut self, obj: ObjRef, state: u8, on: bool) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            if on {
+                n.state |= state;
+            } else {
+                n.state &= !state;
+            }
+        }
+    }
+    pub fn state(&self, obj: ObjRef) -> u8 {
+        self.arena.get(obj).map(|n| n.state).unwrap_or(0)
+    }
+    pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
+        let Some(n) = self.arena.get(obj) else {
+            return crate::style::ResolvedStyle::default();
+        };
+        use crate::node::state;
+        // pressed 优先于 focused
+        let overlay = if n.state & state::PRESSED != 0 {
+            Some(&n.style_pressed)
+        } else if n.state & state::FOCUSED != 0 {
+            Some(&n.style_focused)
+        } else {
+            None
+        };
+        crate::style::resolve(&n.style, overlay)
+    }
 }

@@ -4,6 +4,7 @@ extern crate alloc;
 pub mod arena;
 pub mod geometry;
 pub mod node;
+pub mod style;
 pub mod ui;
 pub use arena::ObjRef;
 pub use geometry::{Color, Point, Rect};

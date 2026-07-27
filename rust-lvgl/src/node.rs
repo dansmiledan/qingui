@@ -25,6 +25,9 @@ pub struct Node {
     pub state: u8,
     pub flags: u8,
     pub kind: WidgetKind,
+    pub style: crate::style::Style,
+    pub style_pressed: crate::style::Style,
+    pub style_focused: crate::style::Style,
 }
 
 impl Node {
@@ -36,6 +39,9 @@ impl Node {
             state: 0,
             flags: 0,
             kind,
+            style: crate::style::Style::default(),
+            style_pressed: crate::style::Style::default(),
+            style_focused: crate::style::Style::default(),
         }
     }
 }
