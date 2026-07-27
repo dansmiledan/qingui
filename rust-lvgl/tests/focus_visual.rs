@@ -16,7 +16,8 @@ impl Flush for SharedFlush {
 
 fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
     let chunks = &rec.borrow().chunks;
-    for (area, buf) in chunks {
+    // 反向查找：后渲染的 chunk 覆盖先渲染的
+    for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
             return buf[((y - area.y) * area.w + (x - area.x)) as usize];
         }
@@ -54,4 +55,20 @@ fn switch_shows_focus_border() {
     ui.render();
     // 聚焦态：白色边框，轨道顶边中点
     assert_eq!(px(&rec, 30, 10), Color::WHITE);
+}
+
+#[test]
+fn slider_knob_overflow_area_redrawn_on_move() {
+    let (mut ui, rec) = setup();
+    let s = ui.create_slider(ui.screen(), 0, 100);
+    ui.set_pos(s, 10, 10);
+    ui.render();
+    // 初始 knob 在 x 6..14, y 8..24（轨道上方溢出 2px）
+    assert_eq!(px(&rec, 10, 8), Color::WHITE);
+    ui.set_value(s, 50);
+    ui.render();
+    // 旧 knob 溢出区域被重绘为背景（不留残影）
+    assert_eq!(px(&rec, 10, 8), Color::BLACK);
+    // 新 knob 位置（kx = 10+50 = 60，knob x 56..64）
+    assert_eq!(px(&rec, 60, 8), Color::WHITE);
 }

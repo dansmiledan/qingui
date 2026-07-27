@@ -570,7 +570,7 @@ impl Ui {
 
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
         let old = self.value(obj);
-        self.invalidate_obj(obj);
+        self.invalidate_value_area(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             match &mut n.kind {
                 WidgetKind::Slider { min, max, value } | WidgetKind::Bar { min, max, value } => {
@@ -579,9 +579,20 @@ impl Ui {
                 _ => {}
             }
         }
-        self.invalidate_obj(obj);
+        self.invalidate_value_area(obj);
         if self.value(obj) != old {
             self.send_event(obj, crate::event::EventKind::ValueChanged);
+        }
+    }
+
+    /// 值变化时的标脏区域：Slider 的旋钮超出轨道（±4px 横向，±2px 纵向），需扩大标脏
+    fn invalidate_value_area(&mut self, obj: ObjRef) {
+        let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
+        if is_slider && self.is_valid(obj) {
+            let r = self.abs_rect(obj);
+            self.invalidate_area(Rect::new(r.x - 4, r.y - 2, r.w + 8, r.h + 4));
+        } else {
+            self.invalidate_obj(obj);
         }
     }
 
