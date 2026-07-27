@@ -1,5 +1,5 @@
-use rust_lvgl::draw::DrawBuf;
-use rust_lvgl::{Color, Rect};
+use qingui::draw::DrawBuf;
+use qingui::{Color, Rect};
 
 fn buf(w: i32, h: i32) -> (Vec<Color>, Rect) {
     (vec![Color::BLACK; (w * h) as usize], Rect::new(0, 0, w, h))

@@ -1,4 +1,4 @@
-use rust_lvgl::{Rect, Ui};
+use qingui::{Rect, Ui};
 
 #[test]
 fn move_obj_marks_old_and_new_area() {
@@ -12,13 +12,13 @@ fn move_obj_marks_old_and_new_area() {
     let dirty = ui.take_dirty();
     // 旧区域与新区域不相交 → 两个独立脏矩形
     assert_eq!(dirty.len(), 2);
-    assert!(dirty.iter().any(|r| r.contains(rust_lvgl::Point { x: 10, y: 10 })));
-    assert!(dirty.iter().any(|r| r.contains(rust_lvgl::Point { x: 60, y: 60 })));
+    assert!(dirty.iter().any(|r| r.contains(qingui::Point { x: 10, y: 10 })));
+    assert!(dirty.iter().any(|r| r.contains(qingui::Point { x: 60, y: 60 })));
 }
 
 #[test]
 fn disjoint_areas_stay_separate_until_cap() {
-    use rust_lvgl::dirty::DirtyQueue;
+    use qingui::dirty::DirtyQueue;
     let mut q = DirtyQueue::new(Rect::new(0, 0, 320, 240), 2);
     q.add(Rect::new(0, 0, 10, 10));
     q.add(Rect::new(100, 0, 10, 10));
@@ -43,8 +43,8 @@ fn style_change_invalidates_obj() {
     ui.set_pos(o, 10, 10);
     ui.set_size(o, 20, 20);
     ui.take_dirty();
-    let mut s = rust_lvgl::style::Style::default();
-    s.bg_color = Some(rust_lvgl::Color::RED);
+    let mut s = qingui::style::Style::default();
+    s.bg_color = Some(qingui::Color::RED);
     ui.set_style(o, s);
     assert_eq!(ui.take_dirty(), vec![Rect::new(10, 10, 20, 20)]);
 }

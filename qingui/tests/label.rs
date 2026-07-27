@@ -1,5 +1,5 @@
-use rust_lvgl::display::Flush;
-use rust_lvgl::{Color, Rect, Ui};
+use qingui::display::Flush;
+use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -16,14 +16,14 @@ impl Flush for SharedFlush {
 
 #[test]
 fn text_size_multiline() {
-    let (w, h) = rust_lvgl::font::text_size("AB\nABC");
+    let (w, h) = qingui::font::text_size("AB\nABC");
     assert_eq!(w, 3 * 8);
     assert_eq!(h, 2 * 8);
 }
 
 #[test]
 fn non_ascii_falls_back_to_question_mark() {
-    assert_eq!(rust_lvgl::font::glyph('中'), rust_lvgl::font::glyph('?'));
+    assert_eq!(qingui::font::glyph('中'), qingui::font::glyph('?'));
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn label_renders_glyph_pixels() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 48); // 单行缓冲：1 个 chunk
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    let mut bg = rust_lvgl::style::Style::default();
+    let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     ui.set_style(ui.screen(), bg);
     let l = ui.create_label(ui.screen(), "A");
@@ -40,7 +40,7 @@ fn label_renders_glyph_pixels() {
     let chunks = &rec.borrow().chunks;
     let px = &chunks[chunks.len() - 1].1;
     // 'A' 的 8x8 字模：第一行 0x0C → 第 2、3 个像素点亮（bit 从低位起）
-    let glyph = rust_lvgl::font::glyph('A');
+    let glyph = qingui::font::glyph('A');
     assert_eq!(glyph[0], 0x0C);
     assert_eq!(px[2], Color::WHITE); // (x=2, y=0)
     assert_eq!(px[3], Color::WHITE);
@@ -61,5 +61,5 @@ fn set_text_invalidates_and_resizes() {
     let dirty = ui.take_dirty();
     // 旧区域 (10,10,8,8) 与新区域 (10,10,32,8) 共边合并
     assert_eq!(dirty.len(), 1);
-    assert!(dirty[0].contains(rust_lvgl::Point { x: 41, y: 10 }));
+    assert!(dirty[0].contains(qingui::Point { x: 41, y: 10 }));
 }

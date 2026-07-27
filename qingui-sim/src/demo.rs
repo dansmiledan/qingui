@@ -1,7 +1,7 @@
-use rust_lvgl::anim::{Anim, AnimProp, Easing};
-use rust_lvgl::layout::{Align, Flex, FlexDir};
-use rust_lvgl::style::Layout;
-use rust_lvgl::{EventKind, Ui};
+use qingui::anim::{Anim, AnimProp, Easing};
+use qingui::layout::{Align, Flex, FlexDir};
+use qingui::style::Layout;
+use qingui::{EventKind, Ui};
 
 fn column() -> Layout {
     Layout::Flex(Flex {
@@ -13,7 +13,7 @@ fn column() -> Layout {
 pub fn build(ui: &mut Ui) {
     let screen = ui.screen();
 
-    let title = ui.create_label(screen, "rust-lvgl demo");
+    let title = ui.create_label(screen, "qingui demo");
     ui.set_pos(title, 8, 8);
 
     let menu = ui.create_list(screen, &["Settings", "About", "Animate", "LongList"]);
@@ -55,7 +55,7 @@ pub fn build(ui: &mut Ui) {
     ui.set_layout(page_about, column());
     let la = ui.create_label(
         page_about,
-        "rust-lvgl subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
+        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
     );
     let _ = la;
 

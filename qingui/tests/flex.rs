@@ -1,12 +1,12 @@
-use rust_lvgl::layout::{Align, Flex, FlexDir};
-use rust_lvgl::style::Layout;
-use rust_lvgl::Ui;
+use qingui::layout::{Align, Flex, FlexDir};
+use qingui::style::Layout;
+use qingui::Ui;
 
 fn flex(dir: FlexDir, main: Align, cross: Align, gap: i32) -> Layout {
     Layout::Flex(Flex { dir, wrap: false, main, cross, track: Align::Start, gap })
 }
 
-fn row_of(ui: &mut Ui, n: usize, w: i32, h: i32) -> Vec<rust_lvgl::ObjRef> {
+fn row_of(ui: &mut Ui, n: usize, w: i32, h: i32) -> Vec<qingui::ObjRef> {
     let c = ui.create_obj(ui.screen());
     ui.set_pos(c, 0, 0);
     ui.set_size(c, 200, 100);

@@ -1,7 +1,7 @@
 use minifb::{Key as MKey, Scale, Window, WindowOptions};
-use rust_lvgl::display::Flush;
-use rust_lvgl::input::Key;
-use rust_lvgl::{Color, Rect, Ui};
+use qingui::display::Flush;
+use qingui::input::Key;
+use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
@@ -72,7 +72,7 @@ const KEYS: [MKey; 8] = [
 
 fn main() {
     let mut window = Window::new(
-        "rust-lvgl sim",
+        "qingui sim",
         WIDTH,
         HEIGHT,
         WindowOptions { scale: Scale::X2, ..Default::default() },
@@ -110,7 +110,7 @@ fn main() {
 
         frames += 1;
         if fps_ts.elapsed().as_secs() >= 1 {
-            window.set_title(&format!("rust-lvgl sim — {} fps", frames));
+            window.set_title(&format!("qingui sim — {} fps", frames));
             frames = 0;
             fps_ts = Instant::now();
         }

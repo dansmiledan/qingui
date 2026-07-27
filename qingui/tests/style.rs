@@ -1,5 +1,5 @@
-use rust_lvgl::style::{theme_button, theme_button_pressed, Style};
-use rust_lvgl::{Color, Ui};
+use qingui::style::{theme_button, theme_button_pressed, Style};
+use qingui::{Color, Ui};
 
 #[test]
 fn default_button_resolves_theme() {
@@ -36,7 +36,7 @@ fn state_override_wins_then_falls_back() {
     ui.set_style_pressed(b, pressed);
     assert_eq!(ui.resolved_style(b).bg_color, Color::BLUE);
 
-    ui.set_state(b, rust_lvgl::node::state::PRESSED, true);
+    ui.set_state(b, qingui::node::state::PRESSED, true);
     assert_eq!(ui.resolved_style(b).bg_color, Color::GREEN);
     // pressed 未覆盖的字段仍回落到 base
     assert_eq!(ui.resolved_style(b).radius, base.radius.unwrap());

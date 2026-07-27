@@ -1,7 +1,7 @@
-use rust_lvgl::anim::{Anim, AnimProp, Easing};
-use rust_lvgl::Ui;
+use qingui::anim::{Anim, AnimProp, Easing};
+use qingui::Ui;
 
-fn anim_to(target: rust_lvgl::ObjRef, prop: AnimProp, end: i32, dur: u32) -> Anim {
+fn anim_to(target: qingui::ObjRef, prop: AnimProp, end: i32, dur: u32) -> Anim {
     Anim { target, prop, start: 0, end, duration_ms: dur, delay_ms: 0,
            repeat: 1, playback: false, easing: Easing::Linear, on_done: None }
 }

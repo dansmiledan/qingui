@@ -1,6 +1,6 @@
-use rust_lvgl::display::Flush;
-use rust_lvgl::style::theme_screen;
-use rust_lvgl::{Color, Rect, Ui};
+use qingui::display::Flush;
+use qingui::style::theme_screen;
+use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -26,7 +26,7 @@ fn chunked_render_covers_dirty_area() {
     let o = ui.create_obj(ui.screen());
     ui.set_pos(o, 8, 8);
     ui.set_size(o, 16, 16);
-    let mut s = rust_lvgl::style::Style::default();
+    let mut s = qingui::style::Style::default();
     s.bg_color = Some(Color::RED);
     s.bg_opa = Some(255);
     ui.set_style(o, s);
@@ -77,7 +77,7 @@ fn small_dirty_flushes_only_that_area() {
     let o = ui.create_obj(ui.screen());
     ui.set_pos(o, 40, 40);
     ui.set_size(o, 8, 8);
-    let mut s = rust_lvgl::style::Style::default();
+    let mut s = qingui::style::Style::default();
     s.bg_color = Some(Color::GREEN);
     ui.set_style(o, s);
     ui.render();

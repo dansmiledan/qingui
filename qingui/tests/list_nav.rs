@@ -1,5 +1,5 @@
-use rust_lvgl::input::Key;
-use rust_lvgl::{EventKind, Ui};
+use qingui::input::Key;
+use qingui::{EventKind, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -49,7 +49,7 @@ fn selection_keeps_visible_with_scroll() {
     assert_eq!(ui.list_selected(l), 7);
     // scroll 已下滚保证第 7 行可见：scroll > 0
     let scroll = match &ui.debug_kind(l) {
-        rust_lvgl::node::WidgetKind::List { scroll, .. } => *scroll,
+        qingui::node::WidgetKind::List { scroll, .. } => *scroll,
         _ => panic!(),
     };
     assert!(scroll > 0);

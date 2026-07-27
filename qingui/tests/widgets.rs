@@ -1,5 +1,5 @@
-use rust_lvgl::display::Flush;
-use rust_lvgl::{Color, Rect, Ui};
+use qingui::display::Flush;
+use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -18,7 +18,7 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    let mut bg = rust_lvgl::style::Style::default();
+    let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     ui.set_style(ui.screen(), bg);
     (ui, rec)
@@ -104,7 +104,7 @@ fn button_renders_text_centered() {
     // 文字 "OK" 宽 16px，居中：起始 x = 10 + (w-16)/2；'O' 第一行有像素点亮
     assert!(r.w > 16);
     let text_x = 10 + (r.w - 16) / 2;
-    let g = rust_lvgl::font::glyph('O');
+    let g = qingui::font::glyph('O');
     assert!(g.iter().any(|&row| row != 0));
     // 文字颜色（白）应出现在文本区域内某处
     let mut found_white = false;

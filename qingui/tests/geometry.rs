@@ -1,4 +1,4 @@
-use rust_lvgl::{Color, Point, Rect};
+use qingui::{Color, Point, Rect};
 
 #[test]
 fn rect_intersect_overlap() {

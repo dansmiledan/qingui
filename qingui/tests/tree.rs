@@ -1,4 +1,4 @@
-use rust_lvgl::{Rect, Ui};
+use qingui::{Rect, Ui};
 
 #[test]
 fn create_and_hierarchy() {

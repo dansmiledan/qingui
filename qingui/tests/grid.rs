@@ -1,6 +1,6 @@
-use rust_lvgl::layout::{Grid, Track};
-use rust_lvgl::style::Layout;
-use rust_lvgl::Ui;
+use qingui::layout::{Grid, Track};
+use qingui::style::Layout;
+use qingui::Ui;
 
 fn grid(cols: Vec<Track>, rows: Vec<Track>, gap: i32) -> Layout {
     Layout::Grid(Grid { cols, rows, col_gap: gap, row_gap: gap })

@@ -364,6 +364,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "qingui"
+version = "0.1.0"
+dependencies = [
+ "font8x8",
+]
+
+[[package]]
+name = "qingui-sim"
+version = "0.1.0"
+dependencies = [
+ "minifb",
+ "qingui",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -391,21 +406,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5102a6aaa05aa011a238e178e6bca86d2cb56fc9f586d37cb80f5bca6e07759"
 dependencies = [
  "bitflags 2.13.1",
-]
-
-[[package]]
-name = "rust-lvgl"
-version = "0.1.0"
-dependencies = [
- "font8x8",
-]
-
-[[package]]
-name = "rust-lvgl-sim"
-version = "0.1.0"
-dependencies = [
- "minifb",
- "rust-lvgl",
 ]
 
 [[package]]

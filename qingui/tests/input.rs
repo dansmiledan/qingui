@@ -1,11 +1,11 @@
-use rust_lvgl::input::Key;
-use rust_lvgl::{EventKind, Ui};
+use qingui::input::Key;
+use qingui::{EventKind, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 type Log = Rc<RefCell<Vec<EventKind>>>;
 
-fn logger(log: &Log) -> impl FnMut(&mut Ui, rust_lvgl::ObjRef, EventKind) + 'static {
+fn logger(log: &Log) -> impl FnMut(&mut Ui, qingui::ObjRef, EventKind) + 'static {
     let l = log.clone();
     move |_ui, _t, k| l.borrow_mut().push(k)
 }
@@ -38,7 +38,7 @@ fn focus_events_and_state_flag() {
     ui.group_add(b);
     ui.keypad_input(Key::Next);
     assert_eq!(*log.borrow(), vec![EventKind::Defocused, EventKind::Focused]);
-    assert_eq!(ui.state(b) & rust_lvgl::node::state::FOCUSED, rust_lvgl::node::state::FOCUSED);
+    assert_eq!(ui.state(b) & qingui::node::state::FOCUSED, qingui::node::state::FOCUSED);
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn slider_edit_mode() {
     ui.keypad_input(Key::Right);
     assert_eq!(ui.value(s), 0); // 非编辑态：Right 是焦点移动（组内仅一个对象，值不变）
     ui.keypad_input(Key::Enter); // 进入编辑态
-    assert_ne!(ui.state(s) & rust_lvgl::node::state::EDITED, 0);
+    assert_ne!(ui.state(s) & qingui::node::state::EDITED, 0);
     ui.keypad_input(Key::Right);
     assert_eq!(ui.value(s), 1);
     ui.keypad_input(Key::Right);
@@ -70,7 +70,7 @@ fn slider_edit_mode() {
     assert_eq!(ui.value(s), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged, EventKind::ValueChanged, EventKind::ValueChanged]);
     ui.keypad_input(Key::Esc); // 退出编辑态
-    assert_eq!(ui.state(s) & rust_lvgl::node::state::EDITED, 0);
+    assert_eq!(ui.state(s) & qingui::node::state::EDITED, 0);
 }
 
 #[test]

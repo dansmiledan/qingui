@@ -1,8 +1,8 @@
 [package]
-name = "rust-lvgl-sim"
+name = "qingui-sim"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rust-lvgl = { path = "../rust-lvgl" }
+qingui = { path = "../qingui" }
 minifb = "0.28"
