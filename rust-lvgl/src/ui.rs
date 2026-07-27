@@ -419,9 +419,6 @@ impl Ui {
             if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
                 d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
             }
-            if resolved.border_width > 0 {
-                d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
-            }
             match kind_snap {
                 WidgetKind::Label { text } => {
                     d.draw_text_opa(crate::geometry::Point { x: abs.x, y: abs.y }, &text, resolved.text_color, ap(255), clip);
@@ -482,6 +479,10 @@ impl Ui {
                 }
                 WidgetKind::Obj => {}
             }
+            // 边框最后画（对齐 LVGL：border 在内容之上），避免被控件内容覆盖
+            if resolved.border_width > 0 {
+                d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
+            }
         }
         for c in self.children(obj) {
             self.draw_node(c, clip, len);
@@ -540,12 +541,14 @@ impl Ui {
         let r = self.insert_node(parent, Rect::new(0, 0, 100, 12),
             WidgetKind::Slider { min, max, value: min });
         self.set_style(r, crate::style::theme_slider());
+        self.set_style_focused(r, crate::style::theme_slider_focused());
         r
     }
 
     pub fn create_switch(&mut self, parent: ObjRef) -> ObjRef {
         let r = self.insert_node(parent, Rect::new(0, 0, 40, 20), WidgetKind::Switch { on: false });
         self.set_style(r, crate::style::theme_switch());
+        self.set_style_focused(r, crate::style::theme_switch_focused());
         r
     }
 

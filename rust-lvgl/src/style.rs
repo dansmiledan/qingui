@@ -143,10 +143,24 @@ pub fn theme_slider() -> Style {
     s
 }
 
+pub fn theme_slider_focused() -> Style {
+    let mut s = Style::default();
+    s.border_color = Some(Color::WHITE);
+    s.border_width = Some(2);
+    s
+}
+
 pub fn theme_switch() -> Style {
     let mut s = Style::default();
     s.bg_color = Some(Color::rgb(90, 90, 90));
     s.radius = Some(10); // 高度 20 的全圆角
+    s
+}
+
+pub fn theme_switch_focused() -> Style {
+    let mut s = Style::default();
+    s.border_color = Some(Color::WHITE);
+    s.border_width = Some(2);
     s
 }
 
