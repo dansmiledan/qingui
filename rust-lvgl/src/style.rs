@@ -133,3 +133,40 @@ pub fn theme_button_focused() -> Style {
     s.border_width = Some(2);
     s
 }
+
+pub fn theme_slider() -> Style {
+    let mut s = Style::default();
+    s.bg_color = Some(Color::rgb(70, 70, 80));
+    s.radius = Some(6);
+    s
+}
+
+pub fn theme_switch() -> Style {
+    let mut s = Style::default();
+    s.bg_color = Some(Color::rgb(90, 90, 90));
+    s.radius = Some(10); // 高度 20 的全圆角
+    s
+}
+
+pub fn theme_bar() -> Style {
+    let mut s = Style::default();
+    s.bg_color = Some(Color::rgb(70, 70, 80));
+    s.radius = Some(4);
+    s
+}
+
+pub fn theme_list() -> Style {
+    let mut s = Style::default();
+    s.bg_color = Some(Color::rgb(34, 34, 44));
+    s.radius = Some(4);
+    s.border_color = Some(Color::rgb(70, 70, 90));
+    s.border_width = Some(1);
+    s.text_color = Some(Color::WHITE);
+    s
+}
+
+pub fn theme_list_focused() -> Style {
+    let mut s = Style::default();
+    s.border_color = Some(Color::WHITE);
+    s
+}

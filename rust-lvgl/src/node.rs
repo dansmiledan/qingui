@@ -17,6 +17,11 @@ pub mod flag {
 pub enum WidgetKind {
     Obj,
     Label { text: alloc::string::String },
+    Button { text: alloc::string::String },
+    Slider { min: i32, max: i32, value: i32 },
+    Switch { on: bool },
+    Bar { min: i32, max: i32, value: i32 },
+    List { items: Vec<alloc::string::String>, selected: usize, scroll: i32 },
 }
 
 pub struct Node {
