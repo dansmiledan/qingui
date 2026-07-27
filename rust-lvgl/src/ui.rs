@@ -6,17 +6,22 @@ use crate::node::{flag, Node, WidgetKind};
 pub struct Ui {
     pub(crate) arena: Arena<Node>,
     screen: ObjRef,
+    #[allow(dead_code)]
     width: i32,
+    #[allow(dead_code)]
     height: i32,
     #[allow(dead_code)]
     buf_rows: u32,
+    dirty: crate::dirty::DirtyQueue,
 }
 
 impl Ui {
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
         let mut arena = Arena::new();
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), WidgetKind::Obj));
-        Ui { arena, screen, width, height, buf_rows }
+        let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
+        dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
+        Ui { arena, screen, width, height, buf_rows, dirty }
     }
 
     pub fn screen(&self) -> ObjRef {
@@ -39,6 +44,7 @@ impl Ui {
         if obj == self.screen || !self.is_valid(obj) {
             return;
         }
+        self.invalidate_obj(obj);
         // 先级联收集子树
         let mut stack = alloc::vec![obj];
         let mut all = Vec::new();
@@ -81,17 +87,37 @@ impl Ui {
     }
 
     pub fn set_pos(&mut self, obj: ObjRef, x: i32, y: i32) {
+        self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.rect.x = x;
             n.rect.y = y;
         }
+        self.invalidate_obj(obj);
     }
 
     pub fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
+        self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.rect.w = w;
             n.rect.h = h;
         }
+        self.invalidate_obj(obj);
+    }
+
+    pub fn invalidate_area(&mut self, rect: Rect) {
+        self.dirty.add(rect);
+    }
+    pub fn invalidate_obj(&mut self, obj: ObjRef) {
+        if self.is_valid(obj) {
+            let r = self.abs_rect(obj);
+            self.dirty.add(r);
+        }
+    }
+    pub fn take_dirty(&mut self) -> Vec<Rect> {
+        self.dirty.take()
+    }
+    pub fn dirty_is_empty(&self) -> bool {
+        self.dirty.is_empty()
     }
 
     pub fn set_hidden(&mut self, obj: ObjRef, hidden: bool) {
@@ -102,22 +128,26 @@ impl Ui {
                 n.flags &= !flag::HIDDEN;
             }
         }
+        self.invalidate_obj(obj);
     }
 
     pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style = style;
         }
+        self.invalidate_obj(obj);
     }
     pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_pressed = style;
         }
+        self.invalidate_obj(obj);
     }
     pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_focused = style;
         }
+        self.invalidate_obj(obj);
     }
     pub fn set_state(&mut self, obj: ObjRef, state: u8, on: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
@@ -127,6 +157,7 @@ impl Ui {
                 n.state &= !state;
             }
         }
+        self.invalidate_obj(obj);
     }
     pub fn state(&self, obj: ObjRef) -> u8 {
         self.arena.get(obj).map(|n| n.state).unwrap_or(0)

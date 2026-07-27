@@ -2,6 +2,7 @@
 extern crate alloc;
 
 pub mod arena;
+pub mod dirty;
 pub mod geometry;
 pub mod node;
 pub mod style;
