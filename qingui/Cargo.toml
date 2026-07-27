@@ -2,6 +2,12 @@
 name = "qingui"
 version = "0.1.0"
 edition = "2021"
+description = "A lightweight embedded GUI library (LVGL-inspired subset): PFB rendering, dirty rects, animation, keypad input"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dansmiledan/qingui"
+keywords = ["gui", "embedded", "no_std", "lvgl", "framebuffer"]
+categories = ["embedded", "graphics", "no-std"]
+readme = "README.md"
 
 [dependencies]
 font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }
