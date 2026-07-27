@@ -2995,7 +2995,7 @@ fn enter_on_list_fires_clicked() {
     let l2 = log.clone();
     let mut ui = Ui::new(160, 120, 120);
     let l = ui.create_list(ui.screen(), &["a", "b", "c"]);
-    ui.add_event_cb(l, EventKind::Clicked, move |_ui, _t, k| l2.borrow_mut().push(k));
+    ui.add_event_cb(l, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(l);
     ui.keypad_input(Key::Down);
     ui.keypad_input(Key::Enter);

@@ -737,12 +737,48 @@ impl Ui {
             }
             return;
         }
+        let is_list = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::List { .. }));
+        if is_list {
+            match key {
+                Key::Up => {
+                    let cur = self.list_selected(f);
+                    let n = self.list_len(f);
+                    if n > 0 {
+                        self.list_select(f, (cur + n - 1) % n);
+                    }
+                    return;
+                }
+                Key::Down => {
+                    let cur = self.list_selected(f);
+                    let n = self.list_len(f);
+                    if n > 0 {
+                        self.list_select(f, (cur + 1) % n);
+                    }
+                    return;
+                }
+                _ => {}
+            }
+        }
         match key {
             Key::Next | Key::Right | Key::Down => self.group_focus_next(),
             Key::Prev | Key::Left | Key::Up => self.group_focus_prev(),
             Key::Enter => self.activate(f),
             Key::Esc => {}
         }
+    }
+
+    pub fn list_len(&self, obj: ObjRef) -> usize {
+        if let Some(n) = self.arena.get(obj) {
+            if let WidgetKind::List { items, .. } = &n.kind {
+                return items.len();
+            }
+        }
+        0
+    }
+
+    /// 测试/调试用：返回对象 kind 的引用。不稳定 API。
+    pub fn debug_kind(&self, obj: ObjRef) -> &WidgetKind {
+        &self.arena.get(obj).expect("invalid ObjRef").kind
     }
 
     fn activate(&mut self, obj: ObjRef) {
