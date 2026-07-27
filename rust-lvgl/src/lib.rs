@@ -5,6 +5,7 @@ pub mod arena;
 pub mod dirty;
 pub mod display;
 pub mod draw;
+pub mod font;
 pub mod geometry;
 pub mod node;
 pub mod style;

@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-font8x8 = { version = "0.3", default-features = false }
+font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }

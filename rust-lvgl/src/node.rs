@@ -16,6 +16,7 @@ pub mod flag {
 
 pub enum WidgetKind {
     Obj,
+    Label { text: alloc::string::String },
 }
 
 pub struct Node {

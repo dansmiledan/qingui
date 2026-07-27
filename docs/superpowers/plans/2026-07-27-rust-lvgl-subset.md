@@ -14,7 +14,7 @@
 
 - 核心库 `rust-lvgl`：`#![no_std]` + `extern crate alloc;`；除 `font8x8` 外无外部依赖。
 - 模拟器 `rust-lvgl-sim`：仅依赖 `rust-lvgl` + `minifb = "29"`。
-- 字体决策：使用 `font8x8 = { version = "0.3", default-features = false }`（public-domain 8x8 ASCII 字模表，编译期内置，等价于规格 §11 的"编译期生成字模表"）。
+- 字体决策：使用 `font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }`（public-domain 8x8 ASCII 字模表，编译期内置，等价于规格 §11 的"编译期生成字模表"；`unicode` feature 提供 `UnicodeFonts::get`）。
 - 颜色内部一律 RGB888（`Color { r, g, b }`）；flush 推送 `&[Color]`，由后端转换格式（RGB565 转换函数随核心库提供）。
 - 测试一律放在 `rust-lvgl/tests/` 集成测试目录（宿主 std 环境），核心库内部不写 `#[cfg(test)]`。
 - 每个 Task 完成后按步骤里的命令提交（conventional commits）。
@@ -79,7 +79,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-font8x8 = { version = "0.3", default-features = false }
+font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }
 ```
 
 `rust-lvgl/src/lib.rs`:

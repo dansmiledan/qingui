@@ -118,4 +118,25 @@ impl DrawBuf<'_> {
             }
         }
     }
+
+    /// 逐行绘制文本，支持 '\n'。glyph bit0 = 最左像素。
+    pub fn draw_text(&mut self, pos: crate::geometry::Point, s: &str, c: Color, clip: Rect) {
+        let mut y = pos.y;
+        for line in s.split('\n') {
+            let mut x = pos.x;
+            for ch in line.chars() {
+                let g = crate::font::glyph(ch);
+                for row in 0..8i32 {
+                    let bits = g[row as usize];
+                    for col in 0..8i32 {
+                        if bits & (1 << col) != 0 {
+                            self.put_clipped(x + col, y + row, c, 255, clip);
+                        }
+                    }
+                }
+                x += crate::font::GLYPH_W;
+            }
+            y += crate::font::LINE_H;
+        }
+    }
 }

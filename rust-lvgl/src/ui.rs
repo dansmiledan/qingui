@@ -233,6 +233,10 @@ impl Ui {
             return;
         }
         if abs.intersect(&clip).is_some() {
+            let label_text = match &self.arena.get(obj).unwrap().kind {
+                WidgetKind::Label { text } => Some(text.clone()),
+                _ => None,
+            };
             let mut d = crate::draw::DrawBuf {
                 pixels: &mut self.buf[..len],
                 area: clip,
@@ -244,6 +248,14 @@ impl Ui {
             if resolved.border_width > 0 {
                 d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, 255, clip);
             }
+            if let Some(text) = label_text {
+                d.draw_text(
+                    crate::geometry::Point { x: abs.x, y: abs.y },
+                    &text,
+                    resolved.text_color,
+                    clip,
+                );
+            }
         }
         for c in self.children(obj) {
             self.draw_node(c, clip, len);
@@ -254,5 +266,41 @@ impl Ui {
         self.arena.get(obj).map(|n| {
             (self.abs_rect(obj), n.flags, self.resolved_style(obj))
         })
+    }
+
+    pub fn create_label(&mut self, parent: ObjRef, text: &str) -> ObjRef {
+        let (w, h) = crate::font::text_size(text);
+        let r = self.arena.insert(Node::new(
+            Some(parent),
+            Rect::new(0, 0, w, h),
+            WidgetKind::Label { text: text.into() },
+        ));
+        if let Some(p) = self.arena.get_mut(parent) {
+            p.children.push(r);
+        }
+        self.set_style(r, crate::style::theme_label());
+        r
+    }
+
+    pub fn set_text(&mut self, obj: ObjRef, text: &str) {
+        self.invalidate_obj(obj);
+        let (w, h) = crate::font::text_size(text);
+        if let Some(n) = self.arena.get_mut(obj) {
+            if let WidgetKind::Label { text: t } = &mut n.kind {
+                *t = text.into();
+                n.rect.w = w;
+                n.rect.h = h;
+            }
+        }
+        self.invalidate_obj(obj);
+    }
+
+    pub fn text(&self, obj: ObjRef) -> alloc::string::String {
+        if let Some(n) = self.arena.get(obj) {
+            if let WidgetKind::Label { text } = &n.kind {
+                return text.clone();
+            }
+        }
+        alloc::string::String::new()
     }
 }
