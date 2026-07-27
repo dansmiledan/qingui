@@ -144,3 +144,99 @@ fn align_offset(item: i32, line: i32, align: Align) -> i32 {
         _ => 0, // Space* 对单 item 无意义
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Track {
+    Px(i32),
+    Fr(u8),
+    Content,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Grid {
+    pub cols: Vec<Track>,
+    pub rows: Vec<Track>,
+    pub col_gap: i32,
+    pub row_gap: i32,
+}
+
+/// 轨道尺寸求解：返回每条轨道的像素尺寸
+fn solve_tracks(
+    tracks: &[Track],
+    child_sizes: &[(u8, u8, i32)], // (起始, 跨度, 尺寸)，仅 span=1 参与 Content
+    gap: i32,
+    area: i32,
+) -> Vec<i32> {
+    let mut sizes: Vec<i32> = tracks
+        .iter()
+        .map(|t| match t {
+            Track::Px(p) => *p,
+            Track::Fr(_) | Track::Content => 0,
+        })
+        .collect();
+    // Content：取该轨道 span=1 子对象最大尺寸
+    for (start, span, size) in child_sizes {
+        if *span == 1 {
+            if let Some(Track::Content) = tracks.get(*start as usize) {
+                sizes[*start as usize] = sizes[*start as usize].max(*size);
+            }
+        }
+    }
+    let fixed: i32 = sizes.iter().sum::<i32>() + gap * (tracks.len() as i32 - 1).max(0);
+    let remaining = (area - fixed).max(0);
+    let fr_total: u32 = tracks
+        .iter()
+        .filter_map(|t| if let Track::Fr(w) = t { Some(*w as u32) } else { None })
+        .sum();
+    if fr_total > 0 {
+        let mut used = 0i32;
+        let last_fr = tracks.iter().rposition(|t| matches!(t, Track::Fr(_)));
+        for (i, t) in tracks.iter().enumerate() {
+            if let Track::Fr(w) = t {
+                if Some(i) == last_fr {
+                    sizes[i] = remaining - used; // 最后一条吃掉取整误差
+                } else {
+                    sizes[i] = remaining * *w as i32 / fr_total as i32;
+                    used += sizes[i];
+                }
+            }
+        }
+    }
+    sizes
+}
+
+fn track_offset(sizes: &[i32], idx: u8, gap: i32) -> i32 {
+    sizes[..idx as usize].iter().sum::<i32>() + gap * idx as i32
+}
+
+pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
+    let style = ui.resolved_style(container);
+    let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
+    let area_h = ui.rect(container).h - style.pad_top - style.pad_bottom;
+    let kids: Vec<ObjRef> = ui.children(container).into_iter().filter(|&k| !ui.is_hidden(k)).collect();
+
+    let col_sizes_in: Vec<(u8, u8, i32)> = kids
+        .iter()
+        .map(|&k| {
+            let (c, s) = ui.grid_cell(k).0;
+            (c, s, ui.rect(k).w)
+        })
+        .collect();
+    let row_sizes_in: Vec<(u8, u8, i32)> = kids
+        .iter()
+        .map(|&k| {
+            let (r, s) = ui.grid_cell(k).1;
+            (r, s, ui.rect(k).h)
+        })
+        .collect();
+
+    let col_px = solve_tracks(&g.cols, &col_sizes_in, g.col_gap, area_w);
+    let row_px = solve_tracks(&g.rows, &row_sizes_in, g.row_gap, area_h);
+
+    for &k in &kids {
+        let ((ci, _), (ri, _)) = ui.grid_cell(k);
+        let x = style.pad_left + track_offset(&col_px, ci, g.col_gap);
+        let y = style.pad_top + track_offset(&row_px, ri, g.row_gap);
+        ui.set_pos(k, x, y);
+    }
+}

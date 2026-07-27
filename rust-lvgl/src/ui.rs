@@ -233,12 +233,25 @@ impl Ui {
     }
     fn layout_subtree(&mut self, obj: ObjRef) {
         let layout = self.arena.get(obj).and_then(|n| n.style.layout.clone());
-        if let Some(crate::style::Layout::Flex(f)) = layout {
-            crate::layout::layout_flex(self, obj, &f);
+        match layout {
+            Some(crate::style::Layout::Flex(f)) => crate::layout::layout_flex(self, obj, &f),
+            Some(crate::style::Layout::Grid(g)) => crate::layout::layout_grid(self, obj, &g),
+            _ => {}
         }
         for c in self.children(obj) {
             self.layout_subtree(c);
         }
+    }
+
+    pub fn grid_cell(&self, obj: ObjRef) -> ((u8, u8), (u8, u8)) {
+        self.arena.get(obj).map(|n| (n.grid_col, n.grid_row)).unwrap_or(((0, 1), (0, 1)))
+    }
+    pub fn set_grid_cell(&mut self, obj: ObjRef, col: (u8, u8), row: (u8, u8)) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.grid_col = (col.0, col.1.max(1));
+            n.grid_row = (row.0, row.1.max(1));
+        }
+        self.layout_dirty = true;
     }
 
     pub fn set_layout(&mut self, obj: ObjRef, layout: crate::style::Layout) {

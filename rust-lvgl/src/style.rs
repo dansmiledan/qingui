@@ -5,7 +5,7 @@ use crate::geometry::Color;
 pub enum Layout {
     None,
     Flex(crate::layout::Flex),
-    // Grid 变体在 Task 13 追加
+    Grid(crate::layout::Grid),
 }
 
 impl Default for Layout {
