@@ -3424,6 +3424,10 @@ pub enum Layout {
 
 `lib.rs` 追加：`pub mod layout;`
 
+> 实施勘误（已在代码中修正）：
+> 1. `layout_flex` 里 `main_of/cross_of` 闭包持有 `ui` 的不可变借用，与后面的 `ui.set_pos` 冲突（E0502）。实现时先快照子对象尺寸（`Vec<(w,h)>`），闭包改为按索引查快照。
+> 2. `insert_node` 末尾的 `layout_dirty = true` 必须放在尾表达式 `r` 之前。
+
 - [ ] **Step 4: 运行确认通过**
 
 Run: `cargo test -p rust-lvgl`（全部）

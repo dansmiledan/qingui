@@ -10,6 +10,7 @@ pub mod event;
 pub mod font;
 pub mod geometry;
 pub mod input;
+pub mod layout;
 pub mod node;
 pub mod style;
 pub mod ui;

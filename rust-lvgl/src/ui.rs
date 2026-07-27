@@ -17,6 +17,7 @@ pub struct Ui {
     anims: Vec<crate::anim::RunningAnim>,
     group: Vec<ObjRef>,
     focused_idx: Option<usize>,
+    layout_dirty: bool,
 }
 
 impl Ui {
@@ -26,7 +27,7 @@ impl Ui {
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None }
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false }
     }
 
     pub fn screen(&self) -> ObjRef {
@@ -38,11 +39,7 @@ impl Ui {
     }
 
     pub fn create_obj(&mut self, parent: ObjRef) -> ObjRef {
-        let r = self.arena.insert(Node::new(Some(parent), Rect::default(), WidgetKind::Obj));
-        if let Some(p) = self.arena.get_mut(parent) {
-            p.children.push(r);
-        }
-        r
+        self.insert_node(parent, Rect::default(), WidgetKind::Obj)
     }
 
     pub fn delete(&mut self, obj: ObjRef) {
@@ -74,6 +71,7 @@ impl Ui {
         for r in all {
             self.group_remove(r);
         }
+        self.layout_dirty = true;
     }
 
     pub fn children(&self, obj: ObjRef) -> Vec<ObjRef> {
@@ -102,6 +100,7 @@ impl Ui {
             n.rect.y = y;
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
 
     pub fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
@@ -111,6 +110,7 @@ impl Ui {
             n.rect.h = h;
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
 
     pub fn invalidate_area(&mut self, rect: Rect) {
@@ -138,6 +138,7 @@ impl Ui {
             }
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
 
     pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
@@ -145,18 +146,21 @@ impl Ui {
             n.style = style;
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
     pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_pressed = style;
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
     pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_focused = style;
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
     pub fn set_state(&mut self, obj: ObjRef, state: u8, on: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
@@ -167,6 +171,7 @@ impl Ui {
             }
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
     pub fn state(&self, obj: ObjRef) -> u8 {
         self.arena.get(obj).map(|n| n.state).unwrap_or(0)
@@ -214,8 +219,36 @@ impl Ui {
 
     pub fn timer_handler(&mut self) -> u32 {
         self.step_anims();
+        if self.layout_dirty {
+            self.layout_pass();
+            self.layout_dirty = false;
+        }
         self.render();
         if self.anim_running() { 0 } else { u32::MAX }
+    }
+
+    fn layout_pass(&mut self) {
+        let screen = self.screen;
+        self.layout_subtree(screen);
+    }
+    fn layout_subtree(&mut self, obj: ObjRef) {
+        let layout = self.arena.get(obj).and_then(|n| n.style.layout.clone());
+        if let Some(crate::style::Layout::Flex(f)) = layout {
+            crate::layout::layout_flex(self, obj, &f);
+        }
+        for c in self.children(obj) {
+            self.layout_subtree(c);
+        }
+    }
+
+    pub fn set_layout(&mut self, obj: ObjRef, layout: crate::style::Layout) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style.layout = Some(layout);
+        }
+        self.layout_dirty = true;
+    }
+    pub fn is_hidden(&self, obj: ObjRef) -> bool {
+        self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)
     }
 
     fn step_anims(&mut self) {
@@ -473,6 +506,7 @@ impl Ui {
             p.children.push(r);
         }
         self.invalidate_obj(r);
+        self.layout_dirty = true;
         r
     }
 
@@ -602,6 +636,7 @@ impl Ui {
             }
         }
         self.invalidate_obj(obj);
+        self.layout_dirty = true;
     }
 
     pub fn text(&self, obj: ObjRef) -> alloc::string::String {

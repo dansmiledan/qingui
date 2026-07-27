@@ -1,9 +1,11 @@
 use crate::geometry::Color;
 
-/// 布局描述。Task 13 追加 Flex/Grid 变体与参数类型。
+/// 布局描述。
 #[derive(Clone, PartialEq, Debug)]
 pub enum Layout {
     None,
+    Flex(crate::layout::Flex),
+    // Grid 变体在 Task 13 追加
 }
 
 impl Default for Layout {
