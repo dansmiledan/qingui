@@ -1,0 +1,53 @@
+use rust_lvgl::{Color, Point, Rect};
+
+#[test]
+fn rect_intersect_overlap() {
+    let a = Rect::new(0, 0, 10, 10);
+    let b = Rect::new(5, 5, 10, 10);
+    assert_eq!(a.intersect(&b), Some(Rect::new(5, 5, 5, 5)));
+}
+
+#[test]
+fn rect_intersect_disjoint() {
+    let a = Rect::new(0, 0, 10, 10);
+    let b = Rect::new(20, 0, 5, 5);
+    assert_eq!(a.intersect(&b), None);
+}
+
+#[test]
+fn rect_intersect_touching_edges_is_none() {
+    let a = Rect::new(0, 0, 10, 10);
+    let b = Rect::new(10, 0, 5, 5);
+    assert_eq!(a.intersect(&b), None);
+}
+
+#[test]
+fn rect_union() {
+    let a = Rect::new(0, 0, 10, 10);
+    let b = Rect::new(5, 5, 10, 10);
+    assert_eq!(a.union(&b), Rect::new(0, 0, 15, 15));
+}
+
+#[test]
+fn rect_contains_point_and_translate() {
+    let r = Rect::new(0, 0, 10, 10);
+    assert!(r.contains(Point { x: 9, y: 9 }));
+    assert!(!r.contains(Point { x: 10, y: 0 }));
+    assert_eq!(r.translate(3, -2), Rect::new(3, -2, 10, 10));
+}
+
+#[test]
+fn color_rgb565() {
+    assert_eq!(Color::rgb(255, 255, 255).to_rgb565(), 0xFFFF);
+    assert_eq!(Color::rgb(0, 0, 0).to_rgb565(), 0x0000);
+    assert_eq!(Color::rgb(255, 0, 0).to_rgb565(), 0xF800);
+}
+
+#[test]
+fn color_blend() {
+    let bg = Color::BLACK;
+    assert_eq!(bg.blend(Color::WHITE, 255), Color::WHITE);
+    assert_eq!(bg.blend(Color::WHITE, 0), Color::BLACK);
+    let half = bg.blend(Color::rgb(200, 100, 50), 128);
+    assert_eq!(half, Color::rgb(100, 50, 25));
+}
