@@ -121,6 +121,11 @@ impl DrawBuf<'_> {
 
     /// 逐行绘制文本，支持 '\n'。glyph bit0 = 最左像素。
     pub fn draw_text(&mut self, pos: crate::geometry::Point, s: &str, c: Color, clip: Rect) {
+        self.draw_text_opa(pos, s, c, 255, clip);
+    }
+
+    /// draw_text 的带透明度版本
+    pub fn draw_text_opa(&mut self, pos: crate::geometry::Point, s: &str, c: Color, opa: u8, clip: Rect) {
         let mut y = pos.y;
         for line in s.split('\n') {
             let mut x = pos.x;
@@ -130,7 +135,7 @@ impl DrawBuf<'_> {
                     let bits = g[row as usize];
                     for col in 0..8i32 {
                         if bits & (1 << col) != 0 {
-                            self.put_clipped(x + col, y + row, c, 255, clip);
+                            self.put_clipped(x + col, y + row, c, opa, clip);
                         }
                     }
                 }

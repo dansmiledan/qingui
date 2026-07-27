@@ -34,6 +34,7 @@ pub struct Node {
     pub style: crate::style::Style,
     pub style_pressed: crate::style::Style,
     pub style_focused: crate::style::Style,
+    pub opa: u8,
 }
 
 impl Node {
@@ -48,6 +49,7 @@ impl Node {
             style: crate::style::Style::default(),
             style_pressed: crate::style::Style::default(),
             style_focused: crate::style::Style::default(),
+            opa: 255,
         }
     }
 }

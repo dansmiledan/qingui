@@ -2,6 +2,7 @@
 extern crate alloc;
 
 pub mod arena;
+pub mod anim;
 pub mod dirty;
 pub mod display;
 pub mod draw;

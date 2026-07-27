@@ -2335,10 +2335,11 @@ fn anim_value_updates_widget_and_dirty() {
     let s = ui.create_slider(ui.screen(), 0, 100);
     ui.take_dirty();
     ui.anim_start(anim_to(s, AnimProp::Value, 100, 100));
+    // anim_start 立即应用起始值 → 标脏（动画与脏矩形联动）
+    assert!(!ui.dirty_is_empty());
     ui.tick_inc(100);
     ui.timer_handler();
     assert_eq!(ui.value(s), 100);
-    assert!(!ui.dirty_is_empty());
 }
 ```
 
