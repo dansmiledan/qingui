@@ -2647,8 +2647,8 @@ fn focus_events_and_state_flag() {
     let mut ui = Ui::new(160, 120, 120);
     let a = ui.create_button(ui.screen(), "A");
     let b = ui.create_button(ui.screen(), "B");
-    ui.add_event_cb(a, EventKind::Defocused, logger(&log));
-    ui.add_event_cb(b, EventKind::Focused, logger(&log));
+    ui.add_event_cb(a, EventKind::Defocused, Box::new(logger(&log)));
+    ui.add_event_cb(b, EventKind::Focused, Box::new(logger(&log)));
     ui.group_add(a);
     ui.group_add(b);
     ui.keypad_input(Key::Next);
@@ -2661,7 +2661,7 @@ fn enter_clicks_button() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let a = ui.create_button(ui.screen(), "A");
-    ui.add_event_cb(a, EventKind::Clicked, logger(&log));
+    ui.add_event_cb(a, EventKind::Clicked, Box::new(logger(&log)));
     ui.group_add(a);
     ui.keypad_input(Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::Clicked]);
@@ -2672,7 +2672,7 @@ fn slider_edit_mode() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let s = ui.create_slider(ui.screen(), 0, 100);
-    ui.add_event_cb(s, EventKind::ValueChanged, logger(&log));
+    ui.add_event_cb(s, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.group_add(s);
     ui.keypad_input(Key::Right);
     assert_eq!(ui.value(s), 0); // 非编辑态：Right 是焦点移动（组内仅一个对象，值不变）
@@ -2693,7 +2693,7 @@ fn switch_toggles_on_enter() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let sw = ui.create_switch(ui.screen());
-    ui.add_event_cb(sw, EventKind::ValueChanged, logger(&log));
+    ui.add_event_cb(sw, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.group_add(sw);
     ui.keypad_input(Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
@@ -2707,7 +2707,7 @@ fn set_value_fires_value_changed() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let b = ui.create_bar(ui.screen(), 0, 100);
-    ui.add_event_cb(b, EventKind::ValueChanged, logger(&log));
+    ui.add_event_cb(b, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.set_value(b, 42);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
 }

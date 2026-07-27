@@ -35,6 +35,7 @@ pub struct Node {
     pub style_pressed: crate::style::Style,
     pub style_focused: crate::style::Style,
     pub opa: u8,
+    pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
 }
 
 impl Node {
@@ -50,6 +51,7 @@ impl Node {
             style_pressed: crate::style::Style::default(),
             style_focused: crate::style::Style::default(),
             opa: 255,
+            events: Vec::new(),
         }
     }
 }

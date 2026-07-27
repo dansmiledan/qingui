@@ -15,6 +15,8 @@ pub struct Ui {
     buf: Vec<crate::geometry::Color>,
     time_ms: u64,
     anims: Vec<crate::anim::RunningAnim>,
+    group: Vec<ObjRef>,
+    focused_idx: Option<usize>,
 }
 
 impl Ui {
@@ -24,7 +26,7 @@ impl Ui {
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new() }
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None }
     }
 
     pub fn screen(&self) -> ObjRef {
@@ -65,8 +67,12 @@ impl Ui {
                 }
             }
         }
-        for r in all {
+        for r in all.clone() {
             self.arena.remove(r);
+        }
+        // 焦点组同步移除
+        for r in all {
+            self.group_remove(r);
         }
     }
 
@@ -513,6 +519,7 @@ impl Ui {
     }
 
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
+        let old = self.value(obj);
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             match &mut n.kind {
@@ -523,12 +530,16 @@ impl Ui {
             }
         }
         self.invalidate_obj(obj);
+        if self.value(obj) != old {
+            self.send_event(obj, crate::event::EventKind::ValueChanged);
+        }
     }
 
     pub fn value(&self, obj: ObjRef) -> i32 {
         if let Some(n) = self.arena.get(obj) {
             match &n.kind {
                 WidgetKind::Slider { value, .. } | WidgetKind::Bar { value, .. } => *value,
+                WidgetKind::Switch { on } => *on as i32,
                 _ => 0,
             }
         } else {
@@ -600,5 +611,169 @@ impl Ui {
             }
         }
         alloc::string::String::new()
+    }
+
+    pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.events.push((kind, cb));
+        }
+    }
+
+    pub fn send_event(&mut self, obj: ObjRef, kind: crate::event::EventKind) {
+        use crate::event::EventKind;
+        let mut cursor = 0usize;
+        loop {
+            // 找到下一个匹配的回调并取出（先移出 arena，避免回调内 &mut Ui 冲突）
+            let taken = {
+                let Some(n) = self.arena.get_mut(obj) else { return };
+                let mut found = None;
+                let mut i = cursor;
+                while i < n.events.len() {
+                    let matches = match (&n.events[i].0, &kind) {
+                        (EventKind::Key(_), EventKind::Key(_)) => true, // Key 按类别通配
+                        (a, b) => a == b,
+                    };
+                    if matches {
+                        found = Some(n.events.remove(i).1);
+                        cursor = i;
+                        break;
+                    }
+                    i += 1;
+                }
+                found
+            };
+            let Some(mut cb) = taken else { return };
+            cb(self, obj, kind);
+            // 放回（对象可能已被回调删除；回调内新注册的回调本轮不触发）
+            if let Some(n) = self.arena.get_mut(obj) {
+                let idx = cursor.min(n.events.len());
+                n.events.insert(idx, (stored_label(kind), cb));
+            } else {
+                return;
+            }
+            cursor += 1;
+        }
+    }
+
+    pub fn group_add(&mut self, obj: ObjRef) {
+        if self.is_valid(obj) && !self.group.contains(&obj) {
+            self.group.push(obj);
+            if self.focused_idx.is_none() {
+                self.focused_idx = Some(self.group.len() - 1);
+                self.set_state(obj, crate::node::state::FOCUSED, true);
+                self.send_event(obj, crate::event::EventKind::Focused);
+            }
+        }
+    }
+    pub fn group_remove(&mut self, obj: ObjRef) {
+        if let Some(pos) = self.group.iter().position(|&o| o == obj) {
+            self.group.remove(pos);
+            if self.focused_idx == Some(pos) {
+                self.focused_idx = None;
+                self.set_state(obj, crate::node::state::FOCUSED, false);
+                if !self.group.is_empty() {
+                    let ni = pos.min(self.group.len() - 1);
+                    self.focused_idx = Some(ni);
+                    let f = self.group[ni];
+                    self.set_state(f, crate::node::state::FOCUSED, true);
+                }
+            } else if let Some(fi) = self.focused_idx {
+                if pos < fi {
+                    self.focused_idx = Some(fi - 1);
+                }
+            }
+        }
+    }
+    pub fn focused(&self) -> Option<ObjRef> {
+        self.focused_idx.and_then(|i| self.group.get(i).copied())
+    }
+    pub fn group_focus(&mut self, obj: ObjRef) {
+        if let Some(pos) = self.group.iter().position(|&o| o == obj) {
+            self.focus_to(pos);
+        }
+    }
+    pub fn group_focus_next(&mut self) {
+        if !self.group.is_empty() {
+            let cur = self.focused_idx.unwrap_or(0);
+            self.focus_to((cur + 1) % self.group.len());
+        }
+    }
+    pub fn group_focus_prev(&mut self) {
+        if !self.group.is_empty() {
+            let cur = self.focused_idx.unwrap_or(0);
+            self.focus_to((cur + self.group.len() - 1) % self.group.len());
+        }
+    }
+    fn focus_to(&mut self, idx: usize) {
+        if self.focused_idx == Some(idx) {
+            return;
+        }
+        if let Some(old) = self.focused() {
+            self.set_state(old, crate::node::state::FOCUSED, false);
+            self.set_state(old, crate::node::state::EDITED, false);
+            self.send_event(old, crate::event::EventKind::Defocused);
+        }
+        self.focused_idx = Some(idx);
+        if let Some(new) = self.focused() {
+            self.set_state(new, crate::node::state::FOCUSED, true);
+            self.send_event(new, crate::event::EventKind::Focused);
+        }
+    }
+
+    pub fn keypad_input(&mut self, key: crate::input::Key) {
+        use crate::input::Key;
+        let Some(f) = self.focused() else { return };
+        if !self.is_valid(f) {
+            return;
+        }
+        let edited = self.state(f) & crate::node::state::EDITED != 0;
+        self.send_event(f, crate::event::EventKind::Key(key));
+        if edited {
+            match key {
+                Key::Left => { let v = self.value(f); self.set_value(f, v - 1); }
+                Key::Right => { let v = self.value(f); self.set_value(f, v + 1); }
+                Key::Enter | Key::Esc => self.set_state(f, crate::node::state::EDITED, false),
+                _ => {}
+            }
+            return;
+        }
+        match key {
+            Key::Next | Key::Right | Key::Down => self.group_focus_next(),
+            Key::Prev | Key::Left | Key::Up => self.group_focus_prev(),
+            Key::Enter => self.activate(f),
+            Key::Esc => {}
+        }
+    }
+
+    fn activate(&mut self, obj: ObjRef) {
+        // 按控件类型分派；List 的行为在 Task 11 扩展
+        let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
+        let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch { .. }));
+        if is_slider {
+            self.set_state(obj, crate::node::state::EDITED, true);
+        } else if is_switch {
+            self.toggle_switch(obj);
+        } else {
+            self.send_event(obj, crate::event::EventKind::Clicked);
+        }
+    }
+
+    pub fn toggle_switch(&mut self, obj: ObjRef) {
+        self.invalidate_obj(obj);
+        if let Some(n) = self.arena.get_mut(obj) {
+            if let WidgetKind::Switch { on } = &mut n.kind {
+                *on = !*on;
+            }
+        }
+        self.invalidate_obj(obj);
+        self.send_event(obj, crate::event::EventKind::ValueChanged);
+    }
+}
+
+/// Key 事件统一存储为占位值，匹配按类别通配（见 send_event）
+fn stored_label(kind: crate::event::EventKind) -> crate::event::EventKind {
+    match kind {
+        crate::event::EventKind::Key(_) => crate::event::EventKind::Key(crate::input::Key::Enter),
+        k => k,
     }
 }
