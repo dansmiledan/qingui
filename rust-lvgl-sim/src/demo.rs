@@ -16,7 +16,7 @@ pub fn build(ui: &mut Ui) {
     let title = ui.create_label(screen, "rust-lvgl demo");
     ui.set_pos(title, 8, 8);
 
-    let menu = ui.create_list(screen, &["Settings", "About", "Animate"]);
+    let menu = ui.create_list(screen, &["Settings", "About", "Animate", "LongList"]);
     ui.set_pos(menu, 8, 32);
     ui.set_size(menu, 100, 200);
 
@@ -71,8 +71,21 @@ pub fn build(ui: &mut Ui) {
     a.playback = true;
     ui.anim_start(a);
 
+    // ---- LongList 页：20 项超长列表（可见 5 行，验证滚动） ----
+    let page_longlist = ui.create_obj(panel);
+    ui.set_size(page_longlist, 188, 192);
+    ui.set_layout(page_longlist, column());
+    let long_list = ui.create_list(page_longlist, &[
+        "Item 01", "Item 02", "Item 03", "Item 04", "Item 05",
+        "Item 06", "Item 07", "Item 08", "Item 09", "Item 10",
+        "Item 11", "Item 12", "Item 13", "Item 14", "Item 15",
+        "Item 16", "Item 17", "Item 18", "Item 19", "Item 20",
+    ]);
+    ui.set_size(long_list, 160, 5 * 16 + 8);
+
     ui.set_hidden(page_about, true);
     ui.set_hidden(page_animate, true);
+    ui.set_hidden(page_longlist, true);
 
     // 菜单点击 → 切页 + 面板滑入动画
     ui.add_event_cb(menu, EventKind::Clicked, Box::new(move |ui, m, _| {
@@ -80,14 +93,16 @@ pub fn build(ui: &mut Ui) {
         ui.set_hidden(page_settings, idx != 0);
         ui.set_hidden(page_about, idx != 1);
         ui.set_hidden(page_animate, idx != 2);
+        ui.set_hidden(page_longlist, idx != 3);
         ui.set_pos(panel, 320, 32);
         let mut a = Anim::new(panel, AnimProp::X, 320, 116, 200);
         a.easing = Easing::EaseOutQuad;
         ui.anim_start(a);
     }));
 
-    // 焦点组：菜单 → slider → switch
+    // 焦点组：菜单 → slider → switch → 超长列表
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);
+    ui.group_add(long_list);
 }
