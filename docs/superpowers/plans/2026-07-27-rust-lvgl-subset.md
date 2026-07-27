@@ -1331,9 +1331,11 @@ use std::rc::Rc;
 struct RecFlush {
     chunks: Vec<(Rect, Vec<Color>)>,
 }
-impl Flush for Rc<RefCell<RecFlush>> {
+/// Rc 不是 fundamental type，orphan rule 要求包一层本地 newtype
+struct SharedFlush(Rc<RefCell<RecFlush>>);
+impl Flush for SharedFlush {
     fn flush(&mut self, area: Rect, pixels: &[Color]) {
-        self.borrow_mut().chunks.push((area, pixels.to_vec()));
+        self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
 
@@ -1341,7 +1343,7 @@ impl Flush for Rc<RefCell<RecFlush>> {
 fn chunked_render_covers_dirty_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16); // 缓冲 16 行 → 全屏 48 行 = 3 chunks
-    ui.set_flush(Box::new(rec.clone()));
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.set_style(ui.screen(), theme_screen());
     let o = ui.create_obj(ui.screen());
     ui.set_pos(o, 8, 8);
@@ -1368,7 +1370,7 @@ fn chunked_render_covers_dirty_area() {
 fn partial_last_chunk_height() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 50, 16); // 48 + 2 行
-    ui.set_flush(Box::new(rec.clone()));
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.render();
     let chunks = &rec.borrow().chunks;
     assert_eq!(chunks.len(), 4);
@@ -1380,7 +1382,7 @@ fn partial_last_chunk_height() {
 fn no_dirty_no_flush() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16);
-    ui.set_flush(Box::new(rec.clone()));
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.render();
     assert_eq!(rec.borrow().chunks.len(), 3);
     ui.render(); // 无脏矩形
@@ -1391,7 +1393,7 @@ fn no_dirty_no_flush() {
 fn small_dirty_flushes_only_that_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16);
-    ui.set_flush(Box::new(rec.clone()));
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.set_style(ui.screen(), theme_screen());
     ui.render();
     let o = ui.create_obj(ui.screen());
@@ -1402,9 +1404,9 @@ fn small_dirty_flushes_only_that_area() {
     ui.set_style(o, s);
     ui.render();
     let chunks = &rec.borrow().chunks;
-    // 只有 1 个 chunk，恰好覆盖对象脏区
-    assert_eq!(chunks.len(), 1);
-    assert_eq!(chunks[0].0, Rect::new(40, 40, 8, 8));
+    // 累计 3（首帧全屏）+ 1：最后一个 chunk 恰好覆盖对象脏区
+    assert_eq!(chunks.len(), 4);
+    assert_eq!(chunks[3].0, Rect::new(40, 40, 8, 8));
 }
 ```
 
@@ -1561,9 +1563,11 @@ use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush { chunks: Vec<(Rect, Vec<Color>)> }
-impl Flush for Rc<RefCell<RecFlush>> {
+/// Rc 不是 fundamental type，orphan rule 要求包一层本地 newtype
+struct SharedFlush(Rc<RefCell<RecFlush>>);
+impl Flush for SharedFlush {
     fn flush(&mut self, area: Rect, pixels: &[Color]) {
-        self.borrow_mut().chunks.push((area, pixels.to_vec()));
+        self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
 
@@ -1583,7 +1587,7 @@ fn non_ascii_falls_back_to_question_mark() {
 fn label_renders_glyph_pixels() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 48); // 单行缓冲：1 个 chunk
-    ui.set_flush(Box::new(rec.clone()));
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = rust_lvgl::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     ui.set_style(ui.screen(), bg);
@@ -1796,16 +1800,18 @@ use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush { chunks: Vec<(Rect, Vec<Color>)> }
-impl Flush for Rc<RefCell<RecFlush>> {
+/// Rc 不是 fundamental type，orphan rule 要求包一层本地 newtype
+struct SharedFlush(Rc<RefCell<RecFlush>>);
+impl Flush for SharedFlush {
     fn flush(&mut self, area: Rect, pixels: &[Color]) {
-        self.borrow_mut().chunks.push((area, pixels.to_vec()));
+        self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
 
 fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(160, 120, 120);
-    ui.set_flush(Box::new(rec.clone()));
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = rust_lvgl::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     ui.set_style(ui.screen(), bg);

@@ -10,9 +10,9 @@ pub struct Ui {
     width: i32,
     #[allow(dead_code)]
     height: i32,
-    #[allow(dead_code)]
-    buf_rows: u32,
     dirty: crate::dirty::DirtyQueue,
+    flush: Option<alloc::boxed::Box<dyn crate::display::Flush>>,
+    buf: Vec<crate::geometry::Color>,
 }
 
 impl Ui {
@@ -21,7 +21,8 @@ impl Ui {
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), WidgetKind::Obj));
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
-        Ui { arena, screen, width, height, buf_rows, dirty }
+        let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
+        Ui { arena, screen, width, height, dirty, flush: None, buf }
     }
 
     pub fn screen(&self) -> ObjRef {
@@ -176,5 +177,82 @@ impl Ui {
             None
         };
         crate::style::resolve(&n.style, overlay)
+    }
+
+    pub fn set_flush(&mut self, f: alloc::boxed::Box<dyn crate::display::Flush>) {
+        self.flush = Some(f);
+    }
+
+    pub fn render(&mut self) {
+        let dirty = self.dirty.take();
+        for area in dirty {
+            self.render_area(area);
+        }
+    }
+
+    fn render_area(&mut self, area: Rect) {
+        // chunk 宽度 = 脏矩形自身宽度（对齐 LVGL：缓冲行数按区域宽度折算）
+        let max_rows = (self.buf.len() as i32 / area.w.max(1)).max(1);
+        let mut y = area.y;
+        while y < area.bottom() {
+            let h = max_rows.min(area.bottom() - y);
+            let chunk = Rect::new(area.x, y, area.w, h);
+            self.render_chunk(chunk);
+            y += h;
+        }
+    }
+
+    fn render_chunk(&mut self, chunk: Rect) {
+        let len = (chunk.w * chunk.h) as usize;
+        // 1) 背景：screen 的 resolved bg
+        let screen_style = self.resolved_style(self.screen);
+        {
+            let mut d = crate::draw::DrawBuf {
+                pixels: &mut self.buf[..len],
+                area: chunk,
+                stride: chunk.w,
+            };
+            d.clear(screen_style.bg_color);
+        }
+        // 2) 先序遍历对象树绘制（screen 本身不画，背景已在上面处理）
+        let roots = self.children(self.screen);
+        for r in roots {
+            self.draw_node(r, chunk, len);
+        }
+        // 3) flush
+        if let Some(f) = self.flush.as_mut() {
+            f.flush(chunk, &self.buf[..len]);
+        }
+    }
+
+    fn draw_node(&mut self, obj: ObjRef, clip: Rect, len: usize) {
+        let Some((abs, flags, resolved)) = self.node_draw_info(obj) else {
+            return;
+        };
+        if flags & crate::node::flag::HIDDEN != 0 {
+            return;
+        }
+        if abs.intersect(&clip).is_some() {
+            let mut d = crate::draw::DrawBuf {
+                pixels: &mut self.buf[..len],
+                area: clip,
+                stride: clip.w,
+            };
+            if resolved.bg_opa > 0 {
+                d.fill_rounded(abs, resolved.radius, resolved.bg_color, resolved.bg_opa, clip);
+            }
+            if resolved.border_width > 0 {
+                d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, 255, clip);
+            }
+        }
+        for c in self.children(obj) {
+            self.draw_node(c, clip, len);
+        }
+    }
+
+    fn node_draw_info(&self, obj: ObjRef) -> Option<(Rect, u8, crate::style::ResolvedStyle)> {
+        self.arena.get(obj).map(|n| {
+            (self.abs_rect(obj), n.flags, self.resolved_style(obj))
+        })
     }
 }
