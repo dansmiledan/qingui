@@ -6,7 +6,7 @@
 
 **Architecture:** `no_std + alloc` 核心库（Arena + `ObjRef` 句柄、扁平样式、软件光栅化、分块 flush），`std` 模拟器 crate（minifb 窗口 + 键盘映射）。渲染流程：`tick_inc` → `timer_handler`（动画 → 布局 → 脏矩形分块渲染 → flush）。
 
-**Tech Stack:** Rust stable, edition 2021; `font8x8` (no_std 位图字体表); `minifb` 0.29 (仅模拟器); cargo workspace。
+**Tech Stack:** Rust stable, edition 2021; `font8x8` (no_std 位图字体表); `minifb` 0.28 (仅模拟器); cargo workspace。
 
 **Spec:** `docs/superpowers/specs/2026-07-27-rust-lvgl-subset-design.md`
 
@@ -3711,7 +3711,7 @@ edition = "2021"
 
 [dependencies]
 rust-lvgl = { path = "../rust-lvgl" }
-minifb = "0.29"
+minifb = "0.28"
 ```
 
 - [ ] **Step 2: 实现 main.rs**

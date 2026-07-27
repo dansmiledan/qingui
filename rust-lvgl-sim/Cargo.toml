@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 rust-lvgl = { path = "../rust-lvgl" }
+minifb = "0.28"
