@@ -34,6 +34,10 @@ pub struct Node {
     pub grid_row: (u8, u8),
     /// 视觉平移偏移：子树整体在渲染时叠加，不参与布局（对齐 LVGL translate_x/y）
     pub translate: crate::geometry::Point,
+    /// 浮层锚定：(目标对象, 锚定方式)。设置后对象同时视为 IGNORE_LAYOUT
+    pub floating: Option<(ObjRef, crate::layout::Attach)>,
+    /// 叠放次序：渲染时兄弟节点按 z_index 稳定排序（大者在上）
+    pub z_index: i16,
 }
 
 impl Node {
@@ -53,6 +57,8 @@ impl Node {
             grid_col: (0, 1),
             grid_row: (0, 1),
             translate: crate::geometry::Point::default(),
+            floating: None,
+            z_index: 0,
         }
     }
 }

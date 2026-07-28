@@ -274,6 +274,8 @@ impl Ui {
             self.layout_pass();
             self.layout_dirty = false;
         }
+        // 浮层定位每帧执行（跟随目标移动/动画；位置未变时无开销）
+        self.layout_floating(self.screen);
         let list_fx_active = self.tick_list_fx();
         self.render();
         if self.anim_running() || list_fx_active { 0 } else { u32::MAX }
@@ -315,6 +317,33 @@ impl Ui {
         let screen = self.screen;
         self.layout_subtree(screen);
     }
+    /// 浮层定位（先序遍历保证锚定链按树序解析；位置未变化时不标脏）
+    fn layout_floating(&mut self, obj: ObjRef) {
+        let fl = self.arena.get(obj).and_then(|n| n.floating);
+        if let Some((target, attach)) = fl {
+            use crate::layout::Attach;
+            let t = self.abs_rect(target);
+            let r = self.rect(obj);
+            let (dx, dy) = match attach {
+                Attach::Center => (t.x + (t.w - r.w) / 2, t.y + (t.h - r.h) / 2),
+                Attach::Top => (t.x + (t.w - r.w) / 2, t.y - r.h),
+                Attach::Bottom => (t.x + (t.w - r.w) / 2, t.bottom()),
+                Attach::Left => (t.x - r.w, t.y + (t.h - r.h) / 2),
+                Attach::Right => (t.right(), t.y + (t.h - r.h) / 2),
+            };
+            // 转为父对象本地坐标（相对父 abs 原点）
+            let pabs = self.arena.get(obj).and_then(|n| n.parent).map(|p| self.abs_rect(p));
+            let (px, py) = pabs.map(|p| (p.x, p.y)).unwrap_or((0, 0));
+            let (nx, ny) = (dx - px, dy - py);
+            let cur = self.rect(obj);
+            if cur.x != nx || cur.y != ny {
+                self.set_pos(obj, nx, ny);
+            }
+        }
+        for c in self.children(obj) {
+            self.layout_floating(c);
+        }
+    }
     fn layout_subtree(&mut self, obj: ObjRef) {
         let layout = self.arena.get(obj).and_then(|n| n.style.layout.clone());
         match layout {
@@ -355,6 +384,34 @@ impl Ui {
     }
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)
+    }
+
+    /// 设置浮层锚定：对象变为浮动（IGNORE_LAYOUT），位置由锚点自动计算并跟随目标
+    pub fn set_floating(&mut self, obj: ObjRef, target: ObjRef, attach: crate::layout::Attach) {
+        if !self.is_valid(obj) || !self.is_valid(target) {
+            return;
+        }
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.floating = Some((target, attach));
+            n.flags |= crate::node::flag::IGNORE_LAYOUT;
+        }
+        self.layout_dirty = true;
+    }
+
+    /// 取消浮层锚定（IGNORE_LAYOUT 标志保留，可手动清除）
+    pub fn clear_floating(&mut self, obj: ObjRef) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.floating = None;
+        }
+        self.layout_dirty = true;
+    }
+
+    /// 设置叠放次序（渲染时兄弟节点按 z_index 稳定排序，大者在上）
+    pub fn set_z_index(&mut self, obj: ObjRef, z: i16) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.z_index = z;
+        }
+        self.invalidate_obj(obj);
     }
 
     /// 设置/查询浮动标志：浮动对象不参与父容器布局（弹窗/悬浮层用）
@@ -505,7 +562,7 @@ impl Ui {
             d.clear(screen_style.bg_color);
         }
         // 2) 先序遍历对象树绘制（screen 本身不画，背景已在上面处理）
-        let roots = self.children(self.screen);
+        let roots = self.children_z_sorted(self.screen);
         for r in roots {
             self.draw_node(r, chunk, len);
         }
@@ -549,9 +606,16 @@ impl Ui {
                 d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
             }
         }
-        for c in self.children(obj) {
+        for c in self.children_z_sorted(obj) {
             self.draw_node(c, clip, len);
         }
+    }
+
+    /// 子对象按 z_index 稳定排序（小者先画，大者在上）
+    fn children_z_sorted(&self, obj: ObjRef) -> Vec<ObjRef> {
+        let mut kids = self.children(obj);
+        kids.sort_by_key(|&c| self.arena.get(c).map(|n| n.z_index).unwrap_or(0));
+        kids
     }
 
     fn node_draw_info(&self, obj: ObjRef) -> Option<(Rect, u8, u8, crate::style::ResolvedStyle)> {

@@ -20,6 +20,21 @@ impl Sizing {
     pub const FIT: Sizing = Sizing::Fit { min: 0, max: i32::MAX };
 }
 
+/// 浮层锚定方式（对齐 Clay 的 floating attachTo）
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Attach {
+    /// 与目标中心对齐
+    Center,
+    /// 目标上边缘外侧，水平居中
+    Top,
+    /// 目标下边缘外侧，水平居中
+    Bottom,
+    /// 目标左边缘外侧，垂直居中
+    Left,
+    /// 目标右边缘外侧，垂直居中
+    Right,
+}
+
 /// 基础尺寸（Grow 先取 min，剩余空间稍后分配；parent 用于 Percent）
 fn axis_basis(s: Option<Sizing>, content: i32, parent: i32) -> i32 {
     match s {
