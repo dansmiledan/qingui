@@ -126,3 +126,43 @@ fn draw_circle_ring_hollow_center() {
     assert_eq!(at(10, 14), Color::GREEN); // 环带（dist=4，在 3..5 环内）
     assert_eq!(at(3, 3), Color::BLACK); // 环外
 }
+
+#[test]
+fn draw_arc_quarter_pie() {
+    let (mut px, area) = buf(20, 20);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 20 };
+    d.clear(Color::BLACK);
+    // 0°..90°（右下象限）扇形
+    d.draw_arc(qingui::Point { x: 10, y: 10 }, 5, 5, 0, 90, Color::RED, 255, area);
+    let at = |x: usize, y: usize| d.pixels[y * 20 + x];
+    assert_eq!(at(13, 13), Color::RED); // 右下 45°：在弧内
+    assert_eq!(at(7, 7), Color::BLACK); // 左上：弧外
+    assert_eq!(at(13, 7), Color::BLACK); // 右上：弧外
+    assert_eq!(at(7, 13), Color::BLACK); // 左下：弧外
+    assert_eq!(at(14, 11), Color::RED); // 接近 0° 方向：弧内
+}
+
+#[test]
+fn draw_arc_full_sweep_equals_ring() {
+    let (mut px, area) = buf(20, 20);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 20 };
+    d.clear(Color::BLACK);
+    d.draw_arc(qingui::Point { x: 10, y: 10 }, 5, 2, 0, 360, Color::GREEN, 255, area);
+    let at = |x: usize, y: usize| d.pixels[y * 20 + x];
+    assert_eq!(at(10, 14), Color::GREEN);
+    assert_eq!(at(10, 6), Color::GREEN);
+    assert_eq!(at(14, 10), Color::GREEN);
+    assert_eq!(at(10, 10), Color::BLACK); // 环内空心
+}
+
+#[test]
+fn draw_arc_wraparound_sweep() {
+    let (mut px, area) = buf(20, 20);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 20 };
+    d.clear(Color::BLACK);
+    // 270°..90°（跨过 0° 的右半圆扇形，sweep=180）
+    d.draw_arc(qingui::Point { x: 10, y: 10 }, 5, 5, 270, 90, Color::RED, 255, area);
+    let at = |x: usize, y: usize| d.pixels[y * 20 + x];
+    assert_eq!(at(13, 10), Color::RED); // 正右（0° 方向）：弧内
+    assert_eq!(at(7, 10), Color::BLACK); // 正左（180° 方向）：弧外
+}

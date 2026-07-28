@@ -18,6 +18,59 @@ fn circle_cov16(dx: i32, dy: i32, r: i32) -> i32 {
     n
 }
 
+/// sin(0°..=90°)，256 定点（sin(d°) * 256 四舍五入）
+#[rustfmt::skip]
+const SIN90: [i32; 91] = [
+      0,   4,   9,  13,  18,  22,  27,  31,  36,  40,
+     44,  49,  53,  57,  62,  66,  71,  75,  79,  83,
+     88,  92,  96, 100, 104, 108, 112, 116, 120, 124,
+    128, 132, 136, 139, 143, 147, 150, 154, 158, 161,
+    165, 168, 172, 175, 179, 181, 184, 187, 190, 193,
+    196, 199, 202, 205, 207, 210, 212, 215, 217, 220,
+    222, 224, 226, 228, 230, 232, 234, 236, 238, 239,
+    241, 242, 244, 245, 247, 248, 249, 250, 251, 252,
+    253, 254, 254, 255, 255, 255, 256, 256, 256, 256,
+    256,
+];
+
+/// 角度（度，屏幕坐标：0°=+x 向右，沿顺时针增大）→ 单位向量（256 定点）
+fn dir_vec(deg: i32) -> (i32, i32) {
+    let d = deg.rem_euclid(360);
+    let (q, a) = (d / 90, d % 90);
+    let (sin_a, cos_a) = (SIN90[a as usize], SIN90[(90 - a) as usize]);
+    match q {
+        0 => (cos_a, sin_a),
+        1 => (-sin_a, cos_a),
+        2 => (-cos_a, -sin_a),
+        _ => (sin_a, -cos_a),
+    }
+}
+
+/// 圆弧扇形的 4x4 超采样覆盖率：子采样同时满足环带（inner < d ≤ outer）与角度楔形
+fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i32), and_mode: bool) -> i32 {
+    let out2 = (16 * outer) * (16 * outer);
+    let in2 = (16 * inner) * (16 * inner);
+    let mut n = 0;
+    for a in 0..4 {
+        for b in 0..4 {
+            let sx = 16 * dx - 6 + 4 * a;
+            let sy = 16 * dy - 6 + 4 * b;
+            let d2 = sx * sx + sy * sy;
+            if d2 > out2 || (inner > 0 && d2 <= in2) {
+                continue;
+            }
+            // 楔形包含判定（叉积符号）
+            let z1 = s.0 * sy - s.1 * sx;
+            let z2 = e.0 * sy - e.1 * sx;
+            let inside = if and_mode { z1 >= 0 && z2 <= 0 } else { z1 >= 0 || z2 <= 0 };
+            if inside {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
 /// 一块屏幕区域的像素缓冲。坐标一律为屏幕绝对坐标，写入时减去 area 原点。
 pub struct DrawBuf<'a> {
     pub pixels: &'a mut [Color],
@@ -160,6 +213,46 @@ impl DrawBuf<'_> {
         for dy in -radius - 1..=radius + 1 {
             for dx in -radius - 1..=radius + 1 {
                 let cov = circle_cov16(dx, dy, radius) - circle_cov16(dx, dy, inner);
+                if cov > 0 {
+                    let o = (opa as u32 * cov as u32 / 16) as u8;
+                    self.put_clipped(center.x + dx, center.y + dy, c, o, clip);
+                }
+            }
+        }
+    }
+
+    /// 圆弧/扇形：从 start_deg 沿顺时针扫到 end_deg（屏幕坐标，0°=+x 向右）。
+    /// width = 环宽（=radius 时为扇形/饼图）。全边缘 4x4 超采样抗锯齿。
+    pub fn draw_arc(
+        &mut self,
+        center: crate::geometry::Point,
+        radius: i32,
+        width: i32,
+        start_deg: i32,
+        end_deg: i32,
+        c: Color,
+        opa: u8,
+        clip: Rect,
+    ) {
+        if radius <= 0 || width <= 0 {
+            return;
+        }
+        let mut end = end_deg;
+        while end <= start_deg {
+            end += 360;
+        }
+        let sweep = end - start_deg;
+        if sweep >= 360 {
+            self.draw_circle(center, radius, width, c, opa, clip);
+            return;
+        }
+        let s = dir_vec(start_deg);
+        let e = dir_vec(end);
+        let and_mode = sweep <= 180;
+        let inner = radius - width;
+        for dy in -radius - 1..=radius + 1 {
+            for dx in -radius - 1..=radius + 1 {
+                let cov = arc_cov16(dx, dy, radius, inner, s, e, and_mode);
                 if cov > 0 {
                     let o = (opa as u32 * cov as u32 / 16) as u8;
                     self.put_clipped(center.x + dx, center.y + dy, c, o, clip);

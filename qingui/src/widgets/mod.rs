@@ -7,6 +7,7 @@ use crate::style::ResolvedStyle;
 
 pub mod bar;
 pub mod button;
+pub mod canvas;
 pub mod label;
 pub mod list;
 pub mod slider;
@@ -21,6 +22,8 @@ pub enum WidgetKind {
     Switch { on: bool },
     Bar { min: i32, max: i32, value: i32 },
     List { items: Vec<String>, selected: usize, scroll: i32, fx: list::ListFx },
+    /// 自定义绘制控件：cb 为 Ui 回调注册表中的索引（回调本身不可 Clone，故存索引）
+    Canvas { cb: usize },
 }
 
 /// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
@@ -49,6 +52,8 @@ pub(crate) fn draw(kind: &WidgetKind, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Re
         WidgetKind::Switch { on } => switch::draw(*on, ctx, d, clip),
         WidgetKind::Bar { min, max, value } => bar::draw(*min, *max, *value, ctx, d, clip),
         WidgetKind::List { items, selected, scroll, fx } => list::draw(items, *selected, *scroll, fx, ctx, d, clip),
+        // Canvas 由 Ui::draw_node 单独处理（回调在 Ui 的注册表中）
+        WidgetKind::Canvas { .. } => {}
     }
 }
 

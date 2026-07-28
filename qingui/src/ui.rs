@@ -18,6 +18,7 @@ pub struct Ui {
     group: Vec<ObjRef>,
     focused_idx: Option<usize>,
     pub(crate) layout_dirty: bool,
+    canvas_cbs: Vec<Option<crate::widgets::canvas::CanvasCb>>,
 }
 
 impl Ui {
@@ -27,7 +28,17 @@ impl Ui {
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false }
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, canvas_cbs: Vec::new() }
+    }
+
+    pub(crate) fn register_canvas_cb(&mut self, cb: crate::widgets::canvas::CanvasCb) -> usize {
+        self.canvas_cbs.push(Some(cb));
+        self.canvas_cbs.len() - 1
+    }
+
+    /// 自定义绘制控件：回调签名为 (画板, 控件绝对矩形, 裁剪矩形, 当前时间 ms)
+    pub fn create_canvas(&mut self, parent: ObjRef, w: i32, h: i32, cb: crate::widgets::canvas::CanvasCb) -> ObjRef {
+        crate::widgets::canvas::create(self, parent, w, h, cb)
     }
 
     pub fn screen(&self) -> ObjRef {
@@ -455,6 +466,12 @@ impl Ui {
             }
             let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa, now };
             crate::widgets::draw(&kind_snap, &ctx, &mut d, clip);
+            // Canvas：调用注册表中的用户回调
+            if let WidgetKind::Canvas { cb } = &kind_snap {
+                if let Some(f) = self.canvas_cbs.get_mut(*cb).and_then(|c| c.as_mut()) {
+                    f(&mut d, abs, clip, now);
+                }
+            }
             // 边框最后画（对齐 LVGL：border 在内容之上），避免被控件内容覆盖
             if resolved.border_width > 0 {
                 d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);

@@ -59,7 +59,7 @@ pub fn build(ui: &mut Ui) {
     );
     let _ = la;
 
-    // ---- Animate 页：无限往返动画的 Bar ----
+    // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ui.create_obj(panel);
     ui.set_size(page_animate, 188, 192);
     ui.set_layout(page_animate, column());
@@ -70,6 +70,28 @@ pub fn build(ui: &mut Ui) {
     a.repeat = -1;
     a.playback = true;
     ui.anim_start(a);
+
+    // 圆弧仪表盘：隐藏 Bar 驱动角度，Canvas 自定义绘制
+    let angle = std::rc::Rc::new(std::cell::Cell::new(0i32));
+    let angle2 = angle.clone();
+    let gauge = ui.create_canvas(page_animate, 70, 70, Box::new(move |d, abs, clip, _now| {
+        let cx = qingui::Point { x: abs.x + 35, y: abs.y + 35 };
+        // 背景环（灰）
+        d.draw_circle(cx, 28, 5, qingui::Color::rgb(60, 60, 70), 255, clip);
+        // 旋转圆弧
+        d.draw_arc(cx, 28, 5, 0, angle2.get(), qingui::Color::rgb(80, 140, 255), 255, clip);
+        // 中心点
+        d.fill_circle(cx, 4, qingui::Color::WHITE, 255, clip);
+    }));
+    let driver = ui.create_bar(page_animate, 0, 360);
+    ui.set_hidden(driver, true);
+    ui.add_event_cb(driver, EventKind::ValueChanged, Box::new(move |ui, b, _| {
+        angle.set(ui.value(b));
+        ui.invalidate_obj(gauge);
+    }));
+    let mut ga = Anim::new(driver, AnimProp::Value, 0, 360, 2400);
+    ga.repeat = -1;
+    ui.anim_start(ga);
 
     // ---- LongList 页：20 项超长列表 + 增删按钮 ----
     let page_longlist = ui.create_obj(panel);
