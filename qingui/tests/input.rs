@@ -96,3 +96,22 @@ fn set_value_fires_value_changed() {
     ui.set_value(b, 42);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
 }
+
+#[test]
+fn focus_skips_hidden_objects() {
+    let mut ui = Ui::new(160, 120, 120);
+    let page = ui.create_obj(ui.screen());
+    let a = ui.create_button(page, "A"); // 随 page 隐藏
+    let b = ui.create_button(ui.screen(), "B");
+    ui.group_add(a);
+    ui.group_add(b);
+    ui.set_hidden(page, true);
+    // 当前焦点在 a（隐藏）→ Next 应跳到 b
+    ui.keypad_input(Key::Next);
+    assert_eq!(ui.focused(), Some(b));
+    // 循环时同样跳过 a
+    ui.keypad_input(Key::Next);
+    assert_eq!(ui.focused(), Some(b));
+    ui.keypad_input(Key::Prev);
+    assert_eq!(ui.focused(), Some(b));
+}

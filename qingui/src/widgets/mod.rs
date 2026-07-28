@@ -20,7 +20,7 @@ pub enum WidgetKind {
     Slider { min: i32, max: i32, value: i32 },
     Switch { on: bool },
     Bar { min: i32, max: i32, value: i32 },
-    List { items: Vec<String>, selected: usize, scroll: i32 },
+    List { items: Vec<String>, selected: usize, scroll: i32, fx: list::ListFx },
 }
 
 /// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
@@ -30,6 +30,7 @@ pub struct WidgetCtx<'a> {
     pub resolved: &'a ResolvedStyle,
     pub edited: bool,
     pub opa: u8, // node opa 0..=255
+    pub now: u64, // 当前时间（ms），供控件内部效果插值
 }
 
 impl WidgetCtx<'_> {
@@ -47,7 +48,7 @@ pub(crate) fn draw(kind: &WidgetKind, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Re
         WidgetKind::Slider { min, max, value } => slider::draw(*min, *max, *value, ctx, d, clip),
         WidgetKind::Switch { on } => switch::draw(*on, ctx, d, clip),
         WidgetKind::Bar { min, max, value } => bar::draw(*min, *max, *value, ctx, d, clip),
-        WidgetKind::List { items, selected, scroll } => list::draw(items, *selected, *scroll, ctx, d, clip),
+        WidgetKind::List { items, selected, scroll, fx } => list::draw(items, *selected, *scroll, fx, ctx, d, clip),
     }
 }
 

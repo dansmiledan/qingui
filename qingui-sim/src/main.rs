@@ -83,7 +83,7 @@ fn main() {
     // 共享全屏缓冲：SimFlush 写 chunk，主循环整块交给 minifb
     let fb = Rc::new(RefCell::new(vec![0u32; WIDTH * HEIGHT]));
     let mut ui = Ui::new(WIDTH as i32, HEIGHT as i32, BUF_ROWS);
-    ui.set_flush(Box::new(SimFlush { fb: fb.clone(), debug_dirty: true }));
+    ui.set_flush(Box::new(SimFlush { fb: fb.clone(), debug_dirty: false }));
     demo::build(&mut ui);
 
     let mut last = Instant::now();

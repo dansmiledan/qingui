@@ -72,3 +72,31 @@ fn slider_knob_overflow_area_redrawn_on_move() {
     // 新 knob 位置（kx = 10+50 = 60，knob x 56..64）
     assert_eq!(px(&rec, 60, 8), Color::WHITE);
 }
+
+#[test]
+fn list_highlight_respects_rounded_corner() {
+    let (mut ui, rec) = setup();
+    let l = ui.create_list(ui.screen(), &["a", "b", "c"]);
+    ui.set_pos(l, 10, 10);
+    ui.render();
+    // 首行高亮的左上角（圆角区内）不应是高亮色
+    assert_ne!(px(&rec, 10, 12), Color::rgb(50, 70, 120));
+    // 首行内部（边框之下）是高亮色
+    assert_eq!(px(&rec, 60, 12), Color::rgb(50, 70, 120));
+}
+
+#[test]
+fn list_ghost_fully_cleared_after_fade() {
+    let (mut ui, rec) = setup();
+    let l = ui.create_list(ui.screen(), &["a", "b", "c"]);
+    ui.set_pos(l, 10, 10);
+    ui.list_select(l, 2);
+    ui.render();
+    assert!(ui.list_remove(l)); // 删除 "c"，ghost 渐隐
+    ui.tick_inc(500); // 超过 FX_DUR
+    ui.timer_handler();
+    // ghost 所在行（行 2）区域应恢复列表背景色，无文字残留
+    for x in 14..40 {
+        assert_eq!(px(&rec, x, 50), Color::rgb(34, 34, 44), "x={}", x);
+    }
+}

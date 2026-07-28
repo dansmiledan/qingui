@@ -14,7 +14,7 @@ pub mod layout;
 pub mod node;
 pub mod style;
 pub mod ui;
-mod widgets;
+pub mod widgets;
 pub use arena::ObjRef;
 pub use event::EventKind;
 pub use geometry::{Color, Point, Rect};

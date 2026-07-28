@@ -223,8 +223,41 @@ impl Ui {
             self.layout_pass();
             self.layout_dirty = false;
         }
+        let list_fx_active = self.tick_list_fx();
         self.render();
-        if self.anim_running() { 0 } else { u32::MAX }
+        if self.anim_running() || list_fx_active { 0 } else { u32::MAX }
+    }
+
+    /// 遍历对象树：清理过期的 List 效果，活动中的标脏（驱动逐帧重绘）。
+    /// 返回是否有活动的 List 效果。
+    fn tick_list_fx(&mut self) -> bool {
+        let now = self.time_ms;
+        let mut any = false;
+        let mut stack = alloc::vec![self.screen];
+        while let Some(r) = stack.pop() {
+            let (children, redraw, active) = match self.arena.get_mut(r) {
+                Some(n) => {
+                    let (redraw, active) = if let WidgetKind::List { fx, .. } = &mut n.kind {
+                        let was_active = fx.active(now);
+                        let removed = fx.prune(now);
+                        // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
+                        (was_active || removed, fx.active(now))
+                    } else {
+                        (false, false)
+                    };
+                    (n.children.clone(), redraw, active)
+                }
+                None => (Vec::new(), false, false),
+            };
+            if redraw {
+                self.invalidate_obj(r);
+            }
+            if active {
+                any = true;
+            }
+            stack.extend_from_slice(&children);
+        }
+        any
     }
 
     fn layout_pass(&mut self) {
@@ -411,6 +444,7 @@ impl Ui {
         if abs.intersect(&clip).is_some() {
             let kind_snap = self.arena.get(obj).unwrap().kind.clone();
             let edited = self.state(obj) & crate::node::state::EDITED != 0;
+            let now = self.time_ms;
             let mut d = crate::draw::DrawBuf {
                 pixels: &mut self.buf[..len],
                 area: clip,
@@ -419,7 +453,7 @@ impl Ui {
             if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
                 d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
             }
-            let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa };
+            let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa, now };
             crate::widgets::draw(&kind_snap, &ctx, &mut d, clip);
             // 边框最后画（对齐 LVGL：border 在内容之上），避免被控件内容覆盖
             if resolved.border_width > 0 {
@@ -517,13 +551,59 @@ impl Ui {
 
     pub fn list_select(&mut self, obj: ObjRef, idx: usize) {
         self.invalidate_obj(obj);
+        let now = self.time_ms;
         if let Some(n) = self.arena.get_mut(obj) {
             let vis_h = n.rect.h;
-            if let WidgetKind::List { items, selected, scroll } = &mut n.kind {
-                crate::widgets::list::select(items, selected, scroll, idx, vis_h);
+            if let WidgetKind::List { items, selected, scroll, fx } = &mut n.kind {
+                crate::widgets::list::select(items, selected, scroll, fx, idx, vis_h, now);
             }
         }
         self.invalidate_obj(obj);
+    }
+
+    /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入），满 20 项返回 false
+    pub fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) -> bool {
+        self.invalidate_obj(obj);
+        let now = self.time_ms;
+        let ok = match self.arena.get_mut(obj) {
+            Some(n) => {
+                if let WidgetKind::List { items, selected, fx, .. } = &mut n.kind {
+                    let idx = idx.min(items.len());
+                    // 插入位置在选中项之上时，选中索引顺延
+                    if !items.is_empty() && *selected >= idx {
+                        *selected += 1;
+                    }
+                    crate::widgets::list::insert(items, fx, idx, text, now)
+                } else {
+                    false
+                }
+            }
+            None => false,
+        };
+        self.invalidate_obj(obj);
+        ok
+    }
+
+    /// 删除当前选中项（渐隐 + 下方 item 上移），返回是否成功
+    pub fn list_remove(&mut self, obj: ObjRef) -> bool {
+        self.invalidate_obj(obj);
+        let now = self.time_ms;
+        let ok = match self.arena.get_mut(obj) {
+            Some(n) => {
+                let vis_h = n.rect.h;
+                if let WidgetKind::List { items, selected, scroll, fx } = &mut n.kind {
+                    let ok = crate::widgets::list::remove(items, fx, selected, now);
+                    // 删除后尾部空窗时自动上滚填满窗口
+                    crate::widgets::list::ensure_visible(*selected, items.len(), scroll, fx, vis_h, now);
+                    ok
+                } else {
+                    false
+                }
+            }
+            None => false,
+        };
+        self.invalidate_obj(obj);
+        ok
     }
 
     pub fn set_text(&mut self, obj: ObjRef, text: &str) {
@@ -614,16 +694,42 @@ impl Ui {
         }
     }
     pub fn group_focus_next(&mut self) {
-        if !self.group.is_empty() {
-            let cur = self.focused_idx.unwrap_or(0);
-            self.focus_to((cur + 1) % self.group.len());
+        if self.group.is_empty() {
+            return;
+        }
+        let cur = self.focused_idx.unwrap_or(0);
+        for step in 1..=self.group.len() {
+            let idx = (cur + step) % self.group.len();
+            if !self.is_hidden_eff(self.group[idx]) {
+                self.focus_to(idx);
+                return;
+            }
         }
     }
     pub fn group_focus_prev(&mut self) {
-        if !self.group.is_empty() {
-            let cur = self.focused_idx.unwrap_or(0);
-            self.focus_to((cur + self.group.len() - 1) % self.group.len());
+        if self.group.is_empty() {
+            return;
         }
+        let cur = self.focused_idx.unwrap_or(0);
+        for step in 1..=self.group.len() {
+            let idx = (cur + self.group.len() - step) % self.group.len();
+            if !self.is_hidden_eff(self.group[idx]) {
+                self.focus_to(idx);
+                return;
+            }
+        }
+    }
+    /// 有效隐藏：自身或任一祖先 HIDDEN
+    fn is_hidden_eff(&self, obj: ObjRef) -> bool {
+        let mut cur = Some(obj);
+        while let Some(o) = cur {
+            let Some(n) = self.arena.get(o) else { return false };
+            if n.flags & crate::node::flag::HIDDEN != 0 {
+                return true;
+            }
+            cur = n.parent;
+        }
+        false
     }
     fn focus_to(&mut self, idx: usize) {
         if self.focused_idx == Some(idx) {

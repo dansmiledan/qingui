@@ -89,7 +89,8 @@ fn list_selected_row_highlighted() {
     ui.set_pos(l, 10, 10);
     ui.list_select(l, 1);
     assert_eq!(ui.list_selected(l), 1);
-    ui.render();
+    ui.tick_inc(300); // 让高亮滑动动画播完
+    ui.timer_handler();
     // 第 2 行（beta）底色 = 高亮色。行高 16，行 1 中心 y = 10+16+8=34，文本左侧 x=12
     assert_eq!(px(&rec, 12, 34), Color::rgb(50, 70, 120));
 }

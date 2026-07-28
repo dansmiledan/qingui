@@ -1,4 +1,5 @@
 use alloc::string::String;
+use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
@@ -7,48 +8,235 @@ use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
 pub const ROW_H: i32 = 16;
+pub const MAX_ITEMS: usize = 20;
+pub const FX_DUR: u64 = 200;
 
-/// 选中第 idx 项并调整 scroll 保证可见
-pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, idx: usize, vis_h: i32) {
-    if items.is_empty() {
-        return;
+/// 单个 item 的入场/位移效果（绘制时按时间插值，收敛后由 prune 清理）
+#[derive(Clone)]
+pub struct ItemFx {
+    pub index: usize,
+    pub dy: i32, // 起始位移（收敛到 0）
+    pub fade_in: bool,
+    pub start: u64,
+}
+
+/// 删除中的渐隐项（数据已移除，仅视觉残留）
+#[derive(Clone)]
+pub struct Ghost {
+    pub text: String,
+    pub index: usize,
+    pub start: u64,
+}
+
+#[derive(Clone, Default)]
+pub struct ListFx {
+    pub item_fx: Vec<ItemFx>,
+    pub ghost: Option<Ghost>,
+    /// 高亮滑动：(旧选中索引, 开始时间)
+    pub sel_from: Option<(usize, u64)>,
+    /// 平滑滚动：(旧 scroll, 开始时间)
+    pub scroll_from: Option<(i32, u64)>,
+}
+
+impl ListFx {
+    pub fn active(&self, now: u64) -> bool {
+        let fresh = |start: u64| now.saturating_sub(start) < FX_DUR;
+        self.item_fx.iter().any(|f| fresh(f.start))
+            || self.ghost.as_ref().is_some_and(|g| fresh(g.start))
+            || self.sel_from.is_some_and(|(_, s)| fresh(s))
+            || self.scroll_from.is_some_and(|(_, s)| fresh(s))
     }
-    *selected = idx.min(items.len() - 1);
-    let top = *selected as i32 * ROW_H;
-    if top < *scroll {
-        *scroll = top;
-    } else if top + ROW_H > *scroll + vis_h {
-        *scroll = top + ROW_H - vis_h;
+
+    pub fn prune(&mut self, now: u64) -> bool {
+        let had = !self.item_fx.is_empty()
+            || self.ghost.is_some()
+            || self.sel_from.is_some()
+            || self.scroll_from.is_some();
+        let fresh = |start: u64| now.saturating_sub(start) < FX_DUR;
+        self.item_fx.retain(|f| fresh(f.start));
+        if self.ghost.as_ref().is_some_and(|g| !fresh(g.start)) {
+            self.ghost = None;
+        }
+        if self.sel_from.is_some_and(|(_, s)| !fresh(s)) {
+            self.sel_from = None;
+        }
+        if self.scroll_from.is_some_and(|(_, s)| !fresh(s)) {
+            self.scroll_from = None;
+        }
+        let has = !self.item_fx.is_empty()
+            || self.ghost.is_some()
+            || self.sel_from.is_some()
+            || self.scroll_from.is_some();
+        had && !has // 有内容被清理
     }
 }
 
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
-    let rows = items.len().min(5).max(1) as i32;
-    let r = ui.insert_node(parent, Rect::new(0, 0, 120, rows * ROW_H + 8),
-        WidgetKind::List { items: items.iter().map(|s| (*s).into()).collect(), selected: 0, scroll: 0 });
-    ui.set_style(r, crate::style::theme_list());
-    ui.set_style_focused(r, crate::style::theme_list_focused());
-    r
+fn lerp_t(start: u64, now: u64) -> f32 {
+    (now.saturating_sub(start) as f32 / FX_DUR as f32).clamp(0.0, 1.0)
 }
 
-pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
+    let now = ctx.now;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
+
+    // 有效 scroll（平滑滚动插值）
+    let eff_scroll = match fx.scroll_from {
+        Some((from, start)) => from + ((scroll - from) as f32 * lerp_t(start, now)) as i32,
+        None => scroll,
+    };
+    // 高亮行位置（滑动插值，单位：行）
+    let hl_row_f = match fx.sel_from {
+        Some((from, start)) => {
+            let t = lerp_t(start, now);
+            from as f32 * (1.0 - t) + selected as f32 * t
+        }
+        None => selected as f32,
+    };
+    if !items.is_empty() {
+        let hl = Rect::new(abs.x, abs.y + (hl_row_f * ROW_H as f32) as i32 - eff_scroll, abs.w, ROW_H);
+        if hl.intersects(&lclip) {
+            // 高亮带圆角，避免覆盖列表自身的圆角边框
+            d.fill_rounded(hl, ctx.resolved.radius.min(ROW_H / 2), Color::rgb(50, 70, 120), ctx.ap(255), lclip);
+        }
+    }
+    // items（带入场/位移效果）
     for (i, item) in items.iter().enumerate() {
-        let ry = abs.y + i as i32 * ROW_H - scroll;
+        let mut dy = 0;
+        let mut opa = ctx.ap(255);
+        for f in &fx.item_fx {
+            if f.index == i {
+                let t = lerp_t(f.start, now);
+                dy = (f.dy as f32 * (1.0 - t)) as i32;
+                if f.fade_in {
+                    opa = ctx.ap((255.0 * t) as u8);
+                }
+            }
+        }
+        let ry = abs.y + i as i32 * ROW_H + dy - eff_scroll;
         let row = Rect::new(abs.x, ry, abs.w, ROW_H);
         if !row.intersects(&lclip) {
             continue;
         }
-        if i == selected {
-            d.fill_rect(row, Color::rgb(50, 70, 120), ctx.ap(255), lclip);
-        }
-        d.draw_text_opa(
-            Point { x: abs.x + 4, y: ry + 4 },
-            item,
-            ctx.resolved.text_color,
-            ctx.ap(255),
-            lclip,
-        );
+        d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, item, ctx.resolved.text_color, opa, lclip);
     }
+    // 删除中的 ghost 渐隐
+    if let Some(g) = &fx.ghost {
+        let t = lerp_t(g.start, now);
+        let ry = abs.y + g.index as i32 * ROW_H - eff_scroll;
+        let row = Rect::new(abs.x, ry, abs.w, ROW_H);
+        if row.intersects(&lclip) {
+            d.draw_text_opa(
+                Point { x: abs.x + 4, y: ry + 4 },
+                &g.text,
+                ctx.resolved.text_color,
+                ctx.ap((255.0 * (1.0 - t)) as u8),
+                lclip,
+            );
+        }
+    }
+}
+
+/// 选中第 idx 项（记录高亮滑动/平滑滚动效果）并调整 scroll 保证可见。
+/// scroll 始终按行对齐（ROW_H 整数倍），避免半行错位。
+pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, fx: &mut ListFx, idx: usize, vis_h: i32, now: u64) {
+    if items.is_empty() {
+        return;
+    }
+    let nidx = idx.min(items.len() - 1);
+    if nidx != *selected {
+        fx.sel_from = Some((*selected, now));
+        *selected = nidx;
+    }
+    ensure_visible(*selected, items.len(), scroll, fx, vis_h, now);
+}
+
+/// 调整 scroll：保证 selected 可见，且尾部不留空窗（删除尾部项后自动上滚）。
+/// scroll 按行对齐；变化时记录平滑滚动效果。
+pub(crate) fn ensure_visible(selected: usize, item_count: usize, scroll: &mut i32, fx: &mut ListFx, vis_h: i32, now: u64) {
+    let old = *scroll;
+    if item_count == 0 {
+        *scroll = 0;
+        if old != 0 {
+            fx.scroll_from = Some((old, now));
+        }
+        return;
+    }
+    let vis_rows = (vis_h / ROW_H).max(1);
+    let count = item_count as i32;
+    let sel = selected as i32;
+    let mut first = *scroll / ROW_H; // 当前首个可见行
+    // 尾部空窗：向上收
+    if first + vis_rows > count {
+        first = (count - vis_rows).max(0);
+    }
+    if sel < first {
+        first = sel;
+    } else if sel >= first + vis_rows {
+        first = sel - vis_rows + 1;
+    }
+    *scroll = first * ROW_H;
+    if *scroll != old {
+        fx.scroll_from = Some((old, now));
+    }
+}
+
+/// 在 idx 处插入一项：下方 item 下滑让位，新项淡入。满 MAX_ITEMS 返回 false
+pub(crate) fn insert(items: &mut Vec<String>, fx: &mut ListFx, idx: usize, text: &str, now: u64) -> bool {
+    if items.len() >= MAX_ITEMS {
+        return false;
+    }
+    let idx = idx.min(items.len());
+    items.insert(idx, text.into());
+    // 进行中的 fx 索引顺延
+    for f in fx.item_fx.iter_mut() {
+        if f.index >= idx {
+            f.index += 1;
+        }
+    }
+    // 下方 item 从旧位置（上一行）滑入新位置
+    for i in (idx + 1)..items.len() {
+        fx.item_fx.push(ItemFx { index: i, dy: -ROW_H, fade_in: false, start: now });
+    }
+    fx.item_fx.push(ItemFx { index: idx, dy: 0, fade_in: true, start: now });
+    true
+}
+
+/// 删除选中项：ghost 渐隐，下方 item 上移补位
+pub(crate) fn remove(items: &mut Vec<String>, fx: &mut ListFx, selected: &mut usize, now: u64) -> bool {
+    if items.is_empty() || *selected >= items.len() {
+        return false;
+    }
+    let text = items.remove(*selected);
+    fx.ghost = Some(Ghost { text, index: *selected, start: now });
+    // 进行中的 fx：被删项丢弃，下方顺延
+    fx.item_fx.retain(|f| f.index != *selected);
+    for f in fx.item_fx.iter_mut() {
+        if f.index > *selected {
+            f.index -= 1;
+        }
+    }
+    // 下方 item 从旧位置（下一行）滑入新位置
+    for i in *selected..items.len() {
+        fx.item_fx.push(ItemFx { index: i, dy: ROW_H, fade_in: false, start: now });
+    }
+    if *selected >= items.len() && *selected > 0 {
+        *selected -= 1;
+    }
+    true
+}
+
+pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
+    let rows = items.len().min(5).max(1) as i32;
+    // 高度 = 整数行 + 上下边框，避免可视窗口出现半行错位
+    let r = ui.insert_node(parent, Rect::new(0, 0, 120, rows * ROW_H + 2),
+        WidgetKind::List {
+            items: items.iter().map(|s| (*s).into()).collect(),
+            selected: 0,
+            scroll: 0,
+            fx: ListFx::default(),
+        });
+    ui.set_style(r, crate::style::theme_list());
+    ui.set_style_focused(r, crate::style::theme_list_focused());
+    r
 }
