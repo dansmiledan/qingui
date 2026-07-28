@@ -1,5 +1,5 @@
 use qingui::anim::{Anim, AnimProp, Easing};
-use qingui::layout::{Align, Flex, FlexDir, Grid, Track};
+use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::{Layout, Style};
 use qingui::{Color, EventKind, ObjRef, Ui};
 
@@ -39,18 +39,18 @@ pub fn build(ui: &mut Ui) {
 
     let menu = ui.create_list(screen, &["Settings", "About", "Animate", "LongList"]);
     ui.set_grid_cell(menu, (0, 1), (1, 1));
-    ui.set_size(menu, 100, 208);
+    ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
 
     let panel = ui.create_obj(screen);
     ui.set_grid_cell(panel, (1, 1), (1, 1));
-    ui.set_size(panel, 188, 208);
+    ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_style(panel, qingui::style::theme_obj());
     ui.set_layout(panel, column());
 
     // ---- Settings 页：Slider + Switch + preview Bar ----
     let page_settings = ui.create_obj(panel);
     ui.set_style(page_settings, transparent());
-    ui.set_size(page_settings, 180, 200);
+    ui.set_sizing(page_settings, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_settings, column());
     let l1 = ui.create_label(page_settings, "Brightness");
     let _ = l1;
@@ -75,7 +75,7 @@ pub fn build(ui: &mut Ui) {
     // ---- About 页：多行文本 ----
     let page_about = ui.create_obj(panel);
     ui.set_style(page_about, transparent());
-    ui.set_size(page_about, 180, 200);
+    ui.set_sizing(page_about, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_about, column());
     let la = ui.create_label(
         page_about,
@@ -86,7 +86,7 @@ pub fn build(ui: &mut Ui) {
     // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ui.create_obj(panel);
     ui.set_style(page_animate, transparent());
-    ui.set_size(page_animate, 180, 200);
+    ui.set_sizing(page_animate, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_animate, column());
     let bar = ui.create_bar(page_animate, 0, 100);
     ui.set_size(bar, 160, 10);
@@ -100,14 +100,16 @@ pub fn build(ui: &mut Ui) {
     let angle = std::rc::Rc::new(std::cell::Cell::new(0i32));
     let angle2 = angle.clone();
     let gauge = ui.create_canvas(page_animate, 70, 70, Box::new(move |d, abs, clip, _now| {
-        let cx = qingui::Point { x: abs.x + 35, y: abs.y + 35 };
+        let cx = qingui::Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
         // 背景环（灰）
-        d.draw_circle(cx, 28, 5, Color::rgb(60, 60, 70), 255, clip);
+        d.draw_circle(cx, abs.w / 2 - 6, 5, Color::rgb(60, 60, 70), 255, clip);
         // 旋转圆弧
-        d.draw_arc(cx, 28, 5, 0, angle2.get(), Color::rgb(80, 140, 255), 255, clip);
+        d.draw_arc(cx, abs.w / 2 - 6, 5, 0, angle2.get(), Color::rgb(80, 140, 255), 255, clip);
         // 中心点
         d.fill_circle(cx, 4, Color::WHITE, 255, clip);
     }));
+    ui.set_sizing(gauge, Some(Sizing::GROW), None);
+    ui.set_aspect(gauge, Some(1000)); // 1:1 正方形表盘
     let driver = ui.create_bar(page_animate, 0, 360);
     ui.set_hidden(driver, true);
     ui.add_event_cb(driver, EventKind::ValueChanged, Box::new(move |ui, b, _| {
@@ -121,7 +123,7 @@ pub fn build(ui: &mut Ui) {
     // ---- LongList 页：20 项超长列表 + 增删按钮 ----
     let page_longlist = ui.create_obj(panel);
     ui.set_style(page_longlist, transparent());
-    ui.set_size(page_longlist, 180, 200);
+    ui.set_sizing(page_longlist, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_longlist, column());
     let long_list = ui.create_list(page_longlist, &[
         "Item 01", "Item 02", "Item 03", "Item 04", "Item 05",
@@ -176,10 +178,6 @@ pub fn build(ui: &mut Ui) {
         let mut ms = Style::default();
         ms.bg_color = Some(Color::BLACK);
         ms.bg_opa = Some(140);
-        ms.layout = Some(Layout::Flex(Flex {
-            dir: FlexDir::Row, wrap: false,
-            main: Align::Center, cross: Align::Center, track: Align::Center, gap: 0,
-        }));
         ui.set_style(mask, ms);
         // 对话框：Flex 列排布 label + OK
         let dlg = ui.create_obj(mask);
@@ -194,6 +192,7 @@ pub fn build(ui: &mut Ui) {
             main: Align::Start, cross: Align::Center, track: Align::Start, gap: 12,
         }));
         ui.set_style(dlg, ds);
+        ui.set_floating(dlg, mask, qingui::layout::Attach::Center); // 锚定遮罩中心
         let msg = ui.create_label(dlg, &format!("Clicked Item {:02}", idx + 1));
         let _ = msg;
         let ok = ui.create_button(dlg, "OK");
