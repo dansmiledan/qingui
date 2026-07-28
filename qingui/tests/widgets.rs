@@ -66,8 +66,8 @@ fn switch_toggle_visual() {
     let sw = ui.create_switch(ui.screen());
     ui.set_pos(sw, 10, 10);
     ui.render();
-    // off：轨道灰，旋钮在左
-    assert_eq!(px(&rec, 12, 20), Color::WHITE); // 旋钮左
+    // off：轨道灰，旋钮在左（采样圆内部点，避开抗锯齿边缘）
+    assert_eq!(px(&rec, 16, 20), Color::WHITE); // 旋钮左
     assert_eq!(px(&rec, 44, 20), Color::rgb(90, 90, 90)); // 右端轨道
 }
 

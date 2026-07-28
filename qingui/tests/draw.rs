@@ -69,3 +69,25 @@ fn buffer_offset_area_coords() {
     assert_eq!(d.pixels[0], Color::BLACK); // 屏幕 y=100 行未画
     assert_eq!(d.pixels[5 * 10], Color::RED); // 屏幕 y=105 行
 }
+
+#[test]
+fn rounded_corner_is_antialiased() {
+    let (mut px, area) = buf(20, 20);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 20 };
+    d.clear(Color::BLACK);
+    d.fill_rounded(Rect::new(0, 0, 20, 20), 6, Color::WHITE, 255, area);
+    let at = |x: usize, y: usize| d.pixels[y * 20 + x];
+    // 角区（0..6）应存在部分混合像素（既非全黑也非全白）
+    let mut partial = 0;
+    for y in 0..6 {
+        for x in 0..6 {
+            let v = at(x, y).r;
+            if v > 0 && v < 255 {
+                partial += 1;
+            }
+        }
+    }
+    assert!(partial > 0, "圆角边缘应有半透明过渡像素");
+    assert_eq!(at(0, 0), Color::BLACK); // 角点仍完全切掉
+    assert_eq!(at(10, 10), Color::WHITE); // 中心不透明
+}
