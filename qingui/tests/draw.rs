@@ -91,3 +91,38 @@ fn rounded_corner_is_antialiased() {
     assert_eq!(at(0, 0), Color::BLACK); // 角点仍完全切掉
     assert_eq!(at(10, 10), Color::WHITE); // 中心不透明
 }
+
+#[test]
+fn fill_circle_basic_and_aa_edge() {
+    let (mut px, area) = buf(20, 20);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 20 };
+    d.clear(Color::BLACK);
+    d.fill_circle(qingui::Point { x: 10, y: 10 }, 5, Color::WHITE, 255, area);
+    let at = |x: usize, y: usize| d.pixels[y * 20 + x];
+    assert_eq!(at(10, 10), Color::WHITE); // 圆心
+    assert_eq!(at(10, 14), Color::WHITE); // 半径内
+    assert_eq!(at(3, 3), Color::BLACK); // 圆外（dist≈9.9 > 5）
+    // 边缘存在半透明过渡
+    let mut partial = false;
+    for y in 4..17 {
+        for x in 4..17 {
+            let v = at(x, y).r;
+            if v > 0 && v < 255 {
+                partial = true;
+            }
+        }
+    }
+    assert!(partial, "圆盘边缘应有抗锯齿过渡");
+}
+
+#[test]
+fn draw_circle_ring_hollow_center() {
+    let (mut px, area) = buf(20, 20);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 20 };
+    d.clear(Color::BLACK);
+    d.draw_circle(qingui::Point { x: 10, y: 10 }, 5, 2, Color::GREEN, 255, area);
+    let at = |x: usize, y: usize| d.pixels[y * 20 + x];
+    assert_eq!(at(10, 10), Color::BLACK); // 环内空心
+    assert_eq!(at(10, 14), Color::GREEN); // 环带（dist=4，在 3..5 环内）
+    assert_eq!(at(3, 3), Color::BLACK); // 环外
+}

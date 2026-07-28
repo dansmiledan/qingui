@@ -135,6 +135,39 @@ impl DrawBuf<'_> {
         self.draw_text_opa(pos, s, c, 255, clip);
     }
 
+    /// 圆盘（填充圆），4x4 超采样抗锯齿
+    pub fn fill_circle(&mut self, center: crate::geometry::Point, radius: i32, c: Color, opa: u8, clip: Rect) {
+        if radius <= 0 {
+            return;
+        }
+        for dy in -radius - 1..=radius + 1 {
+            for dx in -radius - 1..=radius + 1 {
+                let cov = circle_cov16(dx, dy, radius);
+                if cov > 0 {
+                    let o = (opa as u32 * cov as u32 / 16) as u8;
+                    self.put_clipped(center.x + dx, center.y + dy, c, o, clip);
+                }
+            }
+        }
+    }
+
+    /// 圆环（width 宽的圆边，向内收缩），4x4 超采样抗锯齿
+    pub fn draw_circle(&mut self, center: crate::geometry::Point, radius: i32, width: i32, c: Color, opa: u8, clip: Rect) {
+        if radius <= 0 || width <= 0 {
+            return;
+        }
+        let inner = radius - width;
+        for dy in -radius - 1..=radius + 1 {
+            for dx in -radius - 1..=radius + 1 {
+                let cov = circle_cov16(dx, dy, radius) - circle_cov16(dx, dy, inner);
+                if cov > 0 {
+                    let o = (opa as u32 * cov as u32 / 16) as u8;
+                    self.put_clipped(center.x + dx, center.y + dy, c, o, clip);
+                }
+            }
+        }
+    }
+
     /// draw_text 的带透明度版本
     pub fn draw_text_opa(&mut self, pos: crate::geometry::Point, s: &str, c: Color, opa: u8, clip: Rect) {
         let mut y = pos.y;
