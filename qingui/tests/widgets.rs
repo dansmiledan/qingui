@@ -83,6 +83,22 @@ fn bar_renders_progress() {
 }
 
 #[test]
+fn bar_small_value_keeps_left_semicircle() {
+    let (mut ui, rec) = setup();
+    let b = ui.create_bar(ui.screen(), 0, 100);
+    ui.set_pos(b, 10, 10); // 默认尺寸 100x8，radius=4
+    ui.set_value(b, 5); // 指示宽 iw=5
+    ui.render();
+    let ind = Color::rgb(80, 140, 255);
+    // 左端按轨道形状(radius=4)裁剪：(11,11) 在半圆外 → 非指示色
+    assert_ne!(px(&rec, 11, 11), ind);
+    // (11,14) 在半圆内 → 指示色
+    assert_eq!(px(&rec, 11, 14), ind);
+    // 指示右边界之外 → 非指示色
+    assert_ne!(px(&rec, 20, 14), ind);
+}
+
+#[test]
 fn list_selected_row_highlighted() {
     let (mut ui, rec) = setup();
     let l = ui.create_list(ui.screen(), &["alpha", "beta", "gamma"]);
