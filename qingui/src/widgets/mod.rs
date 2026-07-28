@@ -50,3 +50,34 @@ pub(crate) fn draw(kind: &WidgetKind, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Re
         WidgetKind::List { items, selected, scroll } => list::draw(items, *selected, *scroll, ctx, d, clip),
     }
 }
+
+/// 控件的当前值（Switch：on=1/off=0；无值控件返回 0）
+pub(crate) fn value_of(kind: &WidgetKind) -> i32 {
+    match kind {
+        WidgetKind::Slider { value, .. } | WidgetKind::Bar { value, .. } => *value,
+        WidgetKind::Switch { on } => *on as i32,
+        _ => 0,
+    }
+}
+
+/// 设置控件值（clamp 到 range），返回是否有变化
+pub(crate) fn set_value_of(kind: &mut WidgetKind, v: i32) -> bool {
+    match kind {
+        WidgetKind::Slider { min, max, value } | WidgetKind::Bar { min, max, value } => {
+            let nv = v.clamp(*min, *max);
+            let changed = nv != *value;
+            *value = nv;
+            changed
+        }
+        _ => false,
+    }
+}
+
+/// 设置控件 range（值随之 clamp）
+pub(crate) fn set_range_of(kind: &mut WidgetKind, min: i32, max: i32) {
+    if let WidgetKind::Slider { min: mn, max: mx, value } | WidgetKind::Bar { min: mn, max: mx, value } = kind {
+        *mn = min;
+        *mx = max;
+        *value = (*value).clamp(min, max);
+    }
+}

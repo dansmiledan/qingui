@@ -499,56 +499,36 @@ impl Ui {
     }
 
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
-        let old = self.value(obj);
         self.invalidate_value_area(obj);
-        if let Some(n) = self.arena.get_mut(obj) {
-            match &mut n.kind {
-                WidgetKind::Slider { min, max, value } | WidgetKind::Bar { min, max, value } => {
-                    *value = v.clamp(*min, *max);
-                }
-                _ => {}
-            }
-        }
+        let changed = match self.arena.get_mut(obj) {
+            Some(n) => crate::widgets::set_value_of(&mut n.kind, v),
+            None => false,
+        };
         self.invalidate_value_area(obj);
-        if self.value(obj) != old {
+        if changed {
             self.send_event(obj, crate::event::EventKind::ValueChanged);
         }
     }
 
-    /// 值变化时的标脏区域：Slider 的旋钮超出轨道（±4px 横向，±2px 纵向），需扩大标脏
+    /// 值变化时的标脏区域：Slider 的旋钮超出轨道，需按控件的外扩区域标脏
     fn invalidate_value_area(&mut self, obj: ObjRef) {
         let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
         if is_slider && self.is_valid(obj) {
-            let r = self.abs_rect(obj);
-            self.invalidate_area(Rect::new(r.x - 4, r.y - 2, r.w + 8, r.h + 4));
+            let r = crate::widgets::slider::overflow_rect(self.abs_rect(obj));
+            self.invalidate_area(r);
         } else {
             self.invalidate_obj(obj);
         }
     }
 
     pub fn value(&self, obj: ObjRef) -> i32 {
-        if let Some(n) = self.arena.get(obj) {
-            match &n.kind {
-                WidgetKind::Slider { value, .. } | WidgetKind::Bar { value, .. } => *value,
-                WidgetKind::Switch { on } => *on as i32,
-                _ => 0,
-            }
-        } else {
-            0
-        }
+        self.arena.get(obj).map(|n| crate::widgets::value_of(&n.kind)).unwrap_or(0)
     }
 
     pub fn set_range(&mut self, obj: ObjRef, min: i32, max: i32) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
-            match &mut n.kind {
-                WidgetKind::Slider { min: mn, max: mx, value } | WidgetKind::Bar { min: mn, max: mx, value } => {
-                    *mn = min;
-                    *mx = max;
-                    *value = (*value).clamp(min, max);
-                }
-                _ => {}
-            }
+            crate::widgets::set_range_of(&mut n.kind, min, max);
         }
         self.invalidate_obj(obj);
     }
@@ -565,18 +545,9 @@ impl Ui {
     pub fn list_select(&mut self, obj: ObjRef, idx: usize) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
+            let vis_h = n.rect.h;
             if let WidgetKind::List { items, selected, scroll } = &mut n.kind {
-                if !items.is_empty() {
-                    *selected = idx.min(items.len() - 1);
-                    // 保证 selected 行可见：行高 16，可见高 = n.rect.h
-                    let top = *selected as i32 * 16;
-                    let vis_h = n.rect.h;
-                    if top < *scroll {
-                        *scroll = top;
-                    } else if top + 16 > *scroll + vis_h {
-                        *scroll = top + 16 - vis_h;
-                    }
-                }
+                crate::widgets::list::select(items, selected, scroll, idx, vis_h);
             }
         }
         self.invalidate_obj(obj);

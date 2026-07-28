@@ -6,6 +6,20 @@ use super::WidgetCtx;
 
 pub const ROW_H: i32 = 16;
 
+/// 选中第 idx 项并调整 scroll 保证可见
+pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, idx: usize, vis_h: i32) {
+    if items.is_empty() {
+        return;
+    }
+    *selected = idx.min(items.len() - 1);
+    let top = *selected as i32 * ROW_H;
+    if top < *scroll {
+        *scroll = top;
+    } else if top + ROW_H > *scroll + vis_h {
+        *scroll = top + ROW_H - vis_h;
+    }
+}
+
 pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
