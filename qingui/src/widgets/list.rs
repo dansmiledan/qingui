@@ -1,8 +1,10 @@
 use alloc::string::String;
 
+use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::{Color, Point, Rect};
-use super::WidgetCtx;
+use crate::ui::Ui;
+use super::{WidgetCtx, WidgetKind};
 
 pub const ROW_H: i32 = 16;
 
@@ -18,6 +20,15 @@ pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, i
     } else if top + ROW_H > *scroll + vis_h {
         *scroll = top + ROW_H - vis_h;
     }
+}
+
+pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
+    let rows = items.len().min(5).max(1) as i32;
+    let r = ui.insert_node(parent, Rect::new(0, 0, 120, rows * ROW_H + 8),
+        WidgetKind::List { items: items.iter().map(|s| (*s).into()).collect(), selected: 0, scroll: 0 });
+    ui.set_style(r, crate::style::theme_list());
+    ui.set_style_focused(r, crate::style::theme_list_focused());
+    r
 }
 
 pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {

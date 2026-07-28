@@ -17,7 +17,7 @@ pub struct Ui {
     anims: Vec<crate::anim::RunningAnim>,
     group: Vec<ObjRef>,
     focused_idx: Option<usize>,
-    layout_dirty: bool,
+    pub(crate) layout_dirty: bool,
 }
 
 impl Ui {
@@ -438,13 +438,10 @@ impl Ui {
     }
 
     pub fn create_label(&mut self, parent: ObjRef, text: &str) -> ObjRef {
-        let (w, h) = crate::font::text_size(text);
-        let r = self.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label { text: text.into() });
-        self.set_style(r, crate::style::theme_label());
-        r
+        crate::widgets::label::create(self, parent, text)
     }
 
-    fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: WidgetKind) -> ObjRef {
+    pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: WidgetKind) -> ObjRef {
         let r = self.arena.insert(Node::new(Some(parent), rect, kind));
         if let Some(p) = self.arena.get_mut(parent) {
             p.children.push(r);
@@ -455,47 +452,23 @@ impl Ui {
     }
 
     pub fn create_button(&mut self, parent: ObjRef, text: &str) -> ObjRef {
-        let (tw, th) = crate::font::text_size(text);
-        let r = self.insert_node(parent, Rect::new(0, 0, tw + 24, th + 12),
-            WidgetKind::Button { text: text.into() });
-        self.set_style(r, crate::style::theme_button());
-        self.set_style_pressed(r, crate::style::theme_button_pressed());
-        self.set_style_focused(r, crate::style::theme_button_focused());
-        if let Some(n) = self.arena.get_mut(r) {
-            n.flags |= crate::node::flag::CLICKABLE;
-        }
-        r
+        crate::widgets::button::create(self, parent, text)
     }
 
     pub fn create_slider(&mut self, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-        let r = self.insert_node(parent, Rect::new(0, 0, 100, 12),
-            WidgetKind::Slider { min, max, value: min });
-        self.set_style(r, crate::style::theme_slider());
-        self.set_style_focused(r, crate::style::theme_slider_focused());
-        r
+        crate::widgets::slider::create(self, parent, min, max)
     }
 
     pub fn create_switch(&mut self, parent: ObjRef) -> ObjRef {
-        let r = self.insert_node(parent, Rect::new(0, 0, 40, 20), WidgetKind::Switch { on: false });
-        self.set_style(r, crate::style::theme_switch());
-        self.set_style_focused(r, crate::style::theme_switch_focused());
-        r
+        crate::widgets::switch::create(self, parent)
     }
 
     pub fn create_bar(&mut self, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-        let r = self.insert_node(parent, Rect::new(0, 0, 100, 8),
-            WidgetKind::Bar { min, max, value: min });
-        self.set_style(r, crate::style::theme_bar());
-        r
+        crate::widgets::bar::create(self, parent, min, max)
     }
 
     pub fn create_list(&mut self, parent: ObjRef, items: &[&str]) -> ObjRef {
-        let rows = items.len().min(5).max(1) as i32;
-        let r = self.insert_node(parent, Rect::new(0, 0, 120, rows * 16 + 8),
-            WidgetKind::List { items: items.iter().map(|s| (*s).into()).collect(), selected: 0, scroll: 0 });
-        self.set_style(r, crate::style::theme_list());
-        self.set_style_focused(r, crate::style::theme_list_focused());
-        r
+        crate::widgets::list::create(self, parent, items)
     }
 
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
@@ -554,26 +527,11 @@ impl Ui {
     }
 
     pub fn set_text(&mut self, obj: ObjRef, text: &str) {
-        self.invalidate_obj(obj);
-        let (w, h) = crate::font::text_size(text);
-        if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::Label { text: t } = &mut n.kind {
-                *t = text.into();
-                n.rect.w = w;
-                n.rect.h = h;
-            }
-        }
-        self.invalidate_obj(obj);
-        self.layout_dirty = true;
+        crate::widgets::label::set_text(self, obj, text);
     }
 
     pub fn text(&self, obj: ObjRef) -> alloc::string::String {
-        if let Some(n) = self.arena.get(obj) {
-            if let WidgetKind::Label { text } = &n.kind {
-                return text.clone();
-            }
-        }
-        alloc::string::String::new()
+        crate::widgets::label::text(self, obj)
     }
 
     pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {

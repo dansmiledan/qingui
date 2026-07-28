@@ -1,6 +1,8 @@
+use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::{Color, Rect};
-use super::WidgetCtx;
+use crate::ui::Ui;
+use super::{WidgetCtx, WidgetKind};
 
 pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
@@ -18,4 +20,12 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Draw
 /// 旋钮超出轨道的区域（±4px 横向，±2px 纵向）：值变化时的标脏外扩
 pub(crate) fn overflow_rect(abs: Rect) -> Rect {
     Rect::new(abs.x - 4, abs.y - 2, abs.w + 8, abs.h + 4)
+}
+
+pub(crate) fn create(ui: &mut Ui, parent: ObjRef, min: i32, max: i32) -> ObjRef {
+    let r = ui.insert_node(parent, Rect::new(0, 0, 100, 12),
+        WidgetKind::Slider { min, max, value: min });
+    ui.set_style(r, crate::style::theme_slider());
+    ui.set_style_focused(r, crate::style::theme_slider_focused());
+    r
 }
