@@ -106,3 +106,59 @@ fn anim_value_updates_widget_and_dirty() {
     ui.timer_handler();
     assert_eq!(ui.value(s), 100);
 }
+
+#[test]
+fn anim_x_on_flex_child_not_reset_by_layout() {
+    use qingui::layout::{Align, Flex, FlexDir};
+    use qingui::style::Layout;
+    let mut ui = Ui::new(320, 240, 240);
+    let c = ui.create_obj(ui.screen());
+    ui.set_size(c, 200, 100);
+    ui.set_layout(c, Layout::Flex(Flex {
+        dir: FlexDir::Row, wrap: false,
+        main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+    }));
+    let k = ui.create_obj(c);
+    ui.set_size(k, 20, 10);
+    ui.timer_handler();
+    assert_eq!(ui.rect(k).x, 0); // 布局计算位置
+    // 动画写 x：set_pos 不标布局脏 → 布局不重算 → 动画值保持（未被布局重置为 0）
+    ui.anim_start(anim_to(k, AnimProp::X, 50, 100));
+    ui.tick_inc(50);
+    ui.timer_handler();
+    assert_eq!(ui.rect(k).x, 25);
+}
+
+#[test]
+fn translate_offsets_abs_rect_and_survives_layout() {
+    use qingui::layout::{Align, Flex, FlexDir};
+    use qingui::style::Layout;
+    use qingui::Rect;
+    let mut ui = Ui::new(320, 240, 240);
+    let c = ui.create_obj(ui.screen());
+    ui.set_size(c, 200, 100);
+    ui.set_layout(c, Layout::Flex(Flex {
+        dir: FlexDir::Row, wrap: false,
+        main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+    }));
+    let k = ui.create_obj(c);
+    ui.set_size(k, 20, 10);
+    ui.set_translate(k, 5, 7);
+    ui.timer_handler();
+    assert_eq!(ui.rect(k), Rect::new(0, 0, 20, 10)); // rect 不变
+    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // abs 叠加偏移
+    ui.set_size(c, 150, 100); // 触发布局重算
+    ui.timer_handler();
+    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // translate 保留
+}
+
+#[test]
+fn anim_translate_x() {
+    let mut ui = Ui::new(64, 48, 48);
+    let o = ui.create_obj(ui.screen());
+    ui.anim_start(anim_to(o, AnimProp::TranslateX, 100, 100));
+    ui.tick_inc(50);
+    ui.timer_handler();
+    assert_eq!(ui.abs_rect(o).x, 50);
+    assert_eq!(ui.rect(o).x, 0); // 布局坐标不受影响
+}

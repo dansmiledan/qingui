@@ -101,9 +101,29 @@ impl Ui {
             r = r.translate(n.rect.x, n.rect.y);
             cur = n.parent;
         }
+        // 自身视觉平移（不影响布局，不传递给子对象）
+        if let Some(n) = self.arena.get(obj) {
+            r = r.translate(n.translate.x, n.translate.y);
+        }
         r
     }
 
+    /// 设置视觉平移偏移（对齐 LVGL translate_x/y）：只影响渲染，不参与布局
+    pub fn set_translate(&mut self, obj: ObjRef, x: i32, y: i32) {
+        self.invalidate_obj(obj);
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.translate = crate::geometry::Point { x, y };
+        }
+        self.invalidate_obj(obj);
+    }
+
+    pub fn translate(&self, obj: ObjRef) -> crate::geometry::Point {
+        self.arena.get(obj).map(|n| n.translate).unwrap_or_default()
+    }
+
+    /// 设置对象位置（本地坐标）。注意：不触发布局重算——位置对布局是输出而非输入，
+    /// 被 Flex/Grid 管理的子对象位置归布局所有（下次布局重算时会被覆盖），
+    /// 需要视觉位移请用 set_translate。
     pub fn set_pos(&mut self, obj: ObjRef, x: i32, y: i32) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
@@ -111,7 +131,6 @@ impl Ui {
             n.rect.y = y;
         }
         self.invalidate_obj(obj);
-        self.layout_dirty = true;
     }
 
     pub fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
@@ -398,6 +417,14 @@ impl Ui {
                 self.invalidate_obj(target);
             }
             AnimProp::Value => self.set_value(target, v),
+            AnimProp::TranslateX => {
+                let y = self.translate(target).y;
+                self.set_translate(target, v, y);
+            }
+            AnimProp::TranslateY => {
+                let x = self.translate(target).x;
+                self.set_translate(target, x, v);
+            }
         }
     }
 

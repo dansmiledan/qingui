@@ -10,6 +10,8 @@ pub enum AnimProp {
     H,
     Opa,
     Value,
+    TranslateX,
+    TranslateY,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

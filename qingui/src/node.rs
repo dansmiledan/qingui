@@ -30,6 +30,8 @@ pub struct Node {
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
     pub grid_col: (u8, u8),
     pub grid_row: (u8, u8),
+    /// 视觉平移偏移：叠加在渲染坐标上，不参与布局（对齐 LVGL translate_x/y）
+    pub translate: crate::geometry::Point,
 }
 
 impl Node {
@@ -48,6 +50,7 @@ impl Node {
             events: Vec::new(),
             grid_col: (0, 1),
             grid_row: (0, 1),
+            translate: crate::geometry::Point::default(),
         }
     }
 }
