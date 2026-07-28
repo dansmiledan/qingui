@@ -92,14 +92,16 @@ pub fn build(ui: &mut Ui) {
     let add_btn = ui.create_button(btn_row, "Add");
     let del_btn = ui.create_button(btn_row, "Del");
 
-    // Add：在选中项下方插入（淡入 + 下方项下滑），满 20 项忽略
+    // Add：在选中项下方插入（淡入 + 下方项下滑），demo 侧限制最多 20 项
     let next_n = std::cell::Cell::new(21i32);
     ui.add_event_cb(add_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
+        if ui.list_len(long_list) >= 20 {
+            return;
+        }
         let idx = ui.list_selected(long_list) + 1;
         let name = format!("Item {:02}", next_n.get());
-        if ui.list_insert(long_list, idx, &name) {
-            next_n.set(next_n.get() + 1);
-        }
+        ui.list_insert(long_list, idx, &name);
+        next_n.set(next_n.get() + 1);
     }));
     // Del：删除选中项（渐隐 + 下方项上移）
     ui.add_event_cb(del_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {

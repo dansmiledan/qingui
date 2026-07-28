@@ -8,7 +8,6 @@ use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
 pub const ROW_H: i32 = 16;
-pub const MAX_ITEMS: usize = 20;
 pub const FX_DUR: u64 = 200;
 
 /// 单个 item 的入场/位移效果（绘制时按时间插值，收敛后由 prune 清理）
@@ -181,11 +180,9 @@ pub(crate) fn ensure_visible(selected: usize, item_count: usize, scroll: &mut i3
     }
 }
 
-/// 在 idx 处插入一项：下方 item 下滑让位，新项淡入。满 MAX_ITEMS 返回 false
-pub(crate) fn insert(items: &mut Vec<String>, fx: &mut ListFx, idx: usize, text: &str, now: u64) -> bool {
-    if items.len() >= MAX_ITEMS {
-        return false;
-    }
+/// 在 idx 处插入一项：下方 item 下滑让位，新项淡入。
+/// （容量上限属于业务策略，由调用方控制，控件本身不限制）
+pub(crate) fn insert(items: &mut Vec<String>, fx: &mut ListFx, idx: usize, text: &str, now: u64) {
     let idx = idx.min(items.len());
     items.insert(idx, text.into());
     // 进行中的 fx 索引顺延
@@ -199,7 +196,6 @@ pub(crate) fn insert(items: &mut Vec<String>, fx: &mut ListFx, idx: usize, text:
         fx.item_fx.push(ItemFx { index: i, dy: -ROW_H, fade_in: false, start: now });
     }
     fx.item_fx.push(ItemFx { index: idx, dy: 0, fade_in: true, start: now });
-    true
 }
 
 /// 删除选中项：ghost 渐隐，下方 item 上移补位

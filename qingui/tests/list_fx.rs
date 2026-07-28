@@ -12,7 +12,7 @@ fn list_fx(ui: &Ui, l: qingui::ObjRef) -> qingui::widgets::list::ListFx {
 fn insert_adds_item_with_fade_and_shift_fx() {
     let mut ui = Ui::new(160, 120, 120);
     let l = ui.create_list(ui.screen(), &["a", "b", "c"]);
-    assert!(ui.list_insert(l, 1, "x"));
+    ui.list_insert(l, 1, "x");
     assert_eq!(ui.list_len(l), 4);
     match ui.debug_kind(l) {
         WidgetKind::List { items, fx, .. } => {
@@ -28,11 +28,12 @@ fn insert_adds_item_with_fade_and_shift_fx() {
 }
 
 #[test]
-fn insert_caps_at_max_items() {
+fn insert_not_capped_by_widget() {
+    // 控件本身不限制容量（上限是业务策略，由调用方控制）
     let mut ui = Ui::new(160, 120, 120);
     let l = ui.create_list(ui.screen(), &["x"; 20]);
-    assert!(!ui.list_insert(l, 0, "y"));
-    assert_eq!(ui.list_len(l), 20);
+    ui.list_insert(l, 0, "y");
+    assert_eq!(ui.list_len(l), 21);
 }
 
 #[test]

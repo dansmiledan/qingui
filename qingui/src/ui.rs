@@ -561,27 +561,22 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入），满 20 项返回 false
-    pub fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) -> bool {
+    /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入）。
+    /// 容量上限由调用方控制（可用 list_len 判断）。
+    pub fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
         self.invalidate_obj(obj);
         let now = self.time_ms;
-        let ok = match self.arena.get_mut(obj) {
-            Some(n) => {
-                if let WidgetKind::List { items, selected, fx, .. } = &mut n.kind {
-                    let idx = idx.min(items.len());
-                    // 插入位置在选中项之上时，选中索引顺延
-                    if !items.is_empty() && *selected >= idx {
-                        *selected += 1;
-                    }
-                    crate::widgets::list::insert(items, fx, idx, text, now)
-                } else {
-                    false
+        if let Some(n) = self.arena.get_mut(obj) {
+            if let WidgetKind::List { items, selected, fx, .. } = &mut n.kind {
+                let idx = idx.min(items.len());
+                // 插入位置在选中项之上时，选中索引顺延
+                if !items.is_empty() && *selected >= idx {
+                    *selected += 1;
                 }
+                crate::widgets::list::insert(items, fx, idx, text, now);
             }
-            None => false,
-        };
+        }
         self.invalidate_obj(obj);
-        ok
     }
 
     /// 删除当前选中项（渐隐 + 下方 item 上移），返回是否成功
