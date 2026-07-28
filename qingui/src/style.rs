@@ -28,6 +28,9 @@ pub struct Style {
     pub pad_bottom: Option<i32>,
     pub text_color: Option<Color>,
     pub layout: Option<Layout>,
+    /// 宽/高尺寸策略（None = 内容尺寸）
+    pub sizing_w: Option<crate::layout::Sizing>,
+    pub sizing_h: Option<crate::layout::Sizing>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -43,6 +46,8 @@ pub struct ResolvedStyle {
     pub pad_bottom: i32,
     pub text_color: Color,
     pub layout: Layout,
+    pub sizing_w: Option<crate::layout::Sizing>,
+    pub sizing_h: Option<crate::layout::Sizing>,
 }
 
 impl Default for ResolvedStyle {
@@ -59,6 +64,8 @@ impl Default for ResolvedStyle {
             pad_bottom: 0,
             text_color: Color::WHITE,
             layout: Layout::None,
+            sizing_w: None,
+            sizing_h: None,
         }
     }
 }
@@ -90,6 +97,8 @@ pub fn resolve(base: &Style, overlay: Option<&Style>) -> ResolvedStyle {
             .and_then(|s| s.layout.clone())
             .or_else(|| base.layout.clone())
             .unwrap_or(Layout::None),
+        sizing_w: overlay.and_then(|s| s.sizing_w).or(base.sizing_w),
+        sizing_h: overlay.and_then(|s| s.sizing_h).or(base.sizing_h),
     }
 }
 

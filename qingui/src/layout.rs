@@ -2,6 +2,46 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
+/// 轴尺寸策略（借鉴 Clay 的 FIT/GROW/FIXED/PERCENT 模型）
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Sizing {
+    /// 内容尺寸（带 min/max 约束）；未设置 sizing 时的默认行为
+    Fit { min: i32, max: i32 },
+    /// 固定尺寸
+    Fixed(i32),
+    /// 瓜分父容器剩余空间（带约束）
+    Grow { min: i32, max: i32 },
+    /// 父容器尺寸的百分比（0-100）
+    Percent(i32),
+}
+
+impl Sizing {
+    pub const GROW: Sizing = Sizing::Grow { min: 0, max: i32::MAX };
+    pub const FIT: Sizing = Sizing::Fit { min: 0, max: i32::MAX };
+}
+
+/// 基础尺寸（Grow 先取 min，剩余空间稍后分配；parent 用于 Percent）
+fn axis_basis(s: Option<Sizing>, content: i32, parent: i32) -> i32 {
+    match s {
+        None => content,
+        Some(Sizing::Fit { min, max }) => content.clamp(min, max),
+        Some(Sizing::Fixed(v)) => v,
+        Some(Sizing::Grow { min, .. }) => min,
+        Some(Sizing::Percent(p)) => parent * p.clamp(0, 100) / 100,
+    }
+}
+
+/// 单元格/目标尺寸下的最终尺寸（Grid：Grow = 填满单元格）
+fn axis_in_cell(s: Option<Sizing>, content: i32, cell: i32) -> i32 {
+    match s {
+        None => content,
+        Some(Sizing::Fit { min, max }) => content.clamp(min, max),
+        Some(Sizing::Fixed(v)) => v,
+        Some(Sizing::Grow { min, max }) => cell.clamp(min, max),
+        Some(Sizing::Percent(p)) => cell * p.clamp(0, 100) / 100,
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FlexDir {
     Row,
@@ -53,18 +93,30 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
         order.reverse();
     }
 
-    // 快照子对象尺寸，避免布局过程中与 set_pos 的借用冲突
-    let sizes: Vec<(i32, i32)> = order.iter().map(|&k| { let r = ui.rect(k); (r.w, r.h) }).collect();
-    let main_of = |i: usize| if is_row { sizes[i].0 } else { sizes[i].1 };
-    let cross_of = |i: usize| if is_row { sizes[i].1 } else { sizes[i].0 };
+    // 尺寸基础值（含 sizing 策略；Grow 先取 min，剩余空间稍后分配）
     let area_main = if is_row { area_w } else { area_h };
+    let area_cross_total = if is_row { area_h } else { area_w };
+    let mut main_sz: Vec<i32> = Vec::with_capacity(order.len());
+    let mut cross_sz: Vec<i32> = Vec::with_capacity(order.len());
+    let mut main_grow: Vec<Option<Sizing>> = Vec::with_capacity(order.len());
+    let mut cross_grow: Vec<Option<Sizing>> = Vec::with_capacity(order.len());
+    for &k in &order {
+        let st = ui.resolved_style(k);
+        let r = ui.rect(k);
+        let (content_m, content_c) = if is_row { (r.w, r.h) } else { (r.h, r.w) };
+        let (sm, sc) = if is_row { (st.sizing_w, st.sizing_h) } else { (st.sizing_h, st.sizing_w) };
+        main_sz.push(axis_basis(sm, content_m, area_main));
+        cross_sz.push(axis_basis(sc, content_c, area_cross_total));
+        main_grow.push(sm);
+        cross_grow.push(sc);
+    }
 
     // 分行
     let mut lines: Vec<Vec<usize>> = Vec::new();
     let mut cur: Vec<usize> = Vec::new();
     let mut cur_main = 0i32;
     for i in 0..order.len() {
-        let m = main_of(i);
+        let m = main_sz[i];
         let need = if cur.is_empty() { m } else { cur_main + f.gap + m };
         if f.wrap && !cur.is_empty() && need > area_main {
             lines.push(core::mem::take(&mut cur));
@@ -80,23 +132,45 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     // 行高（交叉轴尺寸）
     let line_cross: Vec<i32> = lines
         .iter()
-        .map(|l| l.iter().map(|&i| cross_of(i)).max().unwrap_or(0))
+        .map(|l| l.iter().map(|&i| cross_sz[i]).max().unwrap_or(0))
         .collect();
-    let area_cross_total = if is_row { area_h } else { area_w };
     let total_cross: i32 = line_cross.iter().sum::<i32>() + f.gap * (lines.len() as i32 - 1).max(0);
 
     // track 对齐：行间交叉轴分布
     let (mut cross_pos, track_gap) = distribute(total_cross, area_cross_total, f.track, lines.len() as i32, f.gap);
 
     for (li, line) in lines.iter().enumerate() {
+        // Grow 子对象平分主轴剩余空间
+        let grow_idx: Vec<usize> = line
+            .iter()
+            .copied()
+            .filter(|&i| matches!(main_grow[i], Some(Sizing::Grow { .. })))
+            .collect();
+        if !grow_idx.is_empty() {
+            let used: i32 = line.iter().map(|&i| main_sz[i]).sum::<i32>()
+                + f.gap * (line.len() as i32 - 1).max(0);
+            let free = (area_main - used).max(0);
+            let share = free / grow_idx.len() as i32;
+            for &i in &grow_idx {
+                if let Some(Sizing::Grow { min, max }) = main_grow[i] {
+                    main_sz[i] = (main_sz[i] + share).clamp(min, max);
+                }
+            }
+        }
+        // 交叉轴 Grow 撑满容器交叉轴
+        for &i in line {
+            if let Some(Sizing::Grow { min, max }) = cross_grow[i] {
+                cross_sz[i] = area_cross_total.clamp(min, max);
+            }
+        }
         let line_main: i32 = {
-            let sum: i32 = line.iter().map(|&i| main_of(i)).sum();
+            let sum: i32 = line.iter().map(|&i| main_sz[i]).sum();
             sum + f.gap * (line.len() as i32 - 1).max(0)
         };
         let (mut main_pos, item_gap) = distribute(line_main, area_main, f.main, line.len() as i32, f.gap);
         for &i in line {
-            let m = main_of(i);
-            let c = cross_of(i);
+            let m = main_sz[i];
+            let c = cross_sz[i];
             let lc = line_cross[li];
             let cross_off = align_offset(c, lc, f.cross);
             let (x, y) = if is_row {
@@ -104,6 +178,12 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
             } else {
                 (origin_x + cross_pos + cross_off, origin_y + main_pos)
             };
+            // sizing 改变尺寸时写回（set_size 会标布局脏，pass 结束后统一清除）
+            let (fw, fh) = if is_row { (m, c) } else { (c, m) };
+            let cur = ui.rect(order[i]);
+            if cur.w != fw || cur.h != fh {
+                ui.set_size(order[i], fw, fh);
+            }
             ui.set_pos(order[i], x, y);
             main_pos += m + item_gap;
         }
@@ -234,7 +314,31 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
     let row_px = solve_tracks(&g.rows, &row_sizes_in, g.row_gap, area_h);
 
     for &k in &kids {
-        let ((ci, _), (ri, _)) = ui.grid_cell(k);
+        let ((ci, cs), (ri, rs)) = ui.grid_cell(k);
+        // 单元格尺寸（含 span 与 gap）
+        let span_w = |i: u8, s: u8| -> i32 {
+            let mut w = 0;
+            for t in i..(i + s) {
+                w += col_px.get(t as usize).copied().unwrap_or(0);
+            }
+            w + g.col_gap * (s as i32 - 1)
+        };
+        let span_h = |i: u8, s: u8| -> i32 {
+            let mut h = 0;
+            for t in i..(i + s) {
+                h += row_px.get(t as usize).copied().unwrap_or(0);
+            }
+            h + g.row_gap * (s as i32 - 1)
+        };
+        let (cw, ch) = (span_w(ci, cs), span_h(ri, rs));
+        // sizing 策略决定子对象在单元格内的尺寸
+        let st = ui.resolved_style(k);
+        let cur = ui.rect(k);
+        let fw = axis_in_cell(st.sizing_w, cur.w, cw);
+        let fh = axis_in_cell(st.sizing_h, cur.h, ch);
+        if cur.w != fw || cur.h != fh {
+            ui.set_size(k, fw, fh);
+        }
         let x = style.pad_left + track_offset(&col_px, ci, g.col_gap);
         let y = style.pad_top + track_offset(&row_px, ri, g.row_gap);
         ui.set_pos(k, x, y);

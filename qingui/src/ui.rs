@@ -344,6 +344,15 @@ impl Ui {
         }
         self.layout_dirty = true;
     }
+
+    /// 设置宽/高尺寸策略（None = 内容尺寸）
+    pub fn set_sizing(&mut self, obj: ObjRef, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style.sizing_w = w;
+            n.style.sizing_h = h;
+        }
+        self.layout_dirty = true;
+    }
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)
     }
