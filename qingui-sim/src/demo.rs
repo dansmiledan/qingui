@@ -1,7 +1,7 @@
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::style::Layout;
-use qingui::{EventKind, Ui};
+use qingui::{EventKind, ObjRef, Ui};
 
 fn column() -> Layout {
     Layout::Flex(Flex {
@@ -128,6 +128,63 @@ pub fn build(ui: &mut Ui) {
     // Del：删除选中项（渐隐 + 下方项上移）
     ui.add_event_cb(del_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
         ui.list_remove(long_list);
+    }));
+
+    // LongList 项点击 → 弹出模态对话框（遮罩 + 对话框，最上层）
+    let popup: std::rc::Rc<std::cell::Cell<Option<(ObjRef, Option<ObjRef>)>>> =
+        std::rc::Rc::new(std::cell::Cell::new(None));
+    let popup_open = popup.clone();
+    ui.add_event_cb(long_list, EventKind::Clicked, Box::new(move |ui, l, _| {
+        if popup_open.get().is_some() {
+            return; // 已打开
+        }
+        let prev_focus = ui.focused();
+        let idx = ui.list_selected(l);
+        let screen = ui.screen();
+        // 遮罩（最后创建 → 渲染在最上层）
+        let mask = ui.create_obj(screen);
+        ui.set_pos(mask, 0, 0);
+        ui.set_size(mask, 320, 240);
+        let mut ms = qingui::style::Style::default();
+        ms.bg_color = Some(qingui::Color::BLACK);
+        ms.bg_opa = Some(140);
+        ui.set_style(mask, ms);
+        // 对话框
+        let dlg = ui.create_obj(mask);
+        ui.set_size(dlg, 180, 90);
+        ui.set_pos(dlg, (320 - 180) / 2, (240 - 90) / 2);
+        ui.set_style(dlg, qingui::style::theme_obj());
+        let mut ds = qingui::style::Style::default();
+        ds.border_color = Some(qingui::Color::WHITE);
+        ds.border_width = Some(2);
+        ui.set_style(dlg, ds);
+        let msg = ui.create_label(dlg, &format!("Clicked Item {:02}", idx + 1));
+        ui.set_pos(msg, 12, 14);
+        let ok = ui.create_button(dlg, "OK");
+        ui.set_pos(ok, 62, 52);
+        ui.group_add(ok);
+        ui.set_modal(dlg); // 焦点锁进对话框
+        // 关闭：OK 点击或 Esc，恢复之前焦点
+        let close = move |ui: &mut Ui, popup: &std::rc::Rc<std::cell::Cell<Option<(ObjRef, Option<ObjRef>)>>>| {
+            if let Some((m, prev)) = popup.get() {
+                ui.clear_modal();
+                ui.delete(m);
+                popup.set(None);
+                if let Some(p) = prev {
+                    ui.group_focus(p);
+                }
+            }
+        };
+        let pc = popup_open.clone();
+        let close2 = close.clone();
+        ui.add_event_cb(ok, EventKind::Clicked, Box::new(move |ui, _b, _| close2(ui, &pc)));
+        let pk = popup_open.clone();
+        ui.add_event_cb(ok, EventKind::Key(qingui::input::Key::Esc), Box::new(move |ui, _b, k| {
+            if k == EventKind::Key(qingui::input::Key::Esc) {
+                close(ui, &pk);
+            }
+        }));
+        popup_open.set(Some((mask, prev_focus)));
     }));
 
     ui.set_hidden(page_about, true);

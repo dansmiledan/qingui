@@ -115,3 +115,27 @@ fn focus_skips_hidden_objects() {
     ui.keypad_input(Key::Prev);
     assert_eq!(ui.focused(), Some(b));
 }
+
+#[test]
+fn modal_restricts_focus_navigation() {
+    let mut ui = Ui::new(160, 120, 120);
+    let a = ui.create_button(ui.screen(), "A");
+    let dlg = ui.create_obj(ui.screen());
+    let ok = ui.create_button(dlg, "OK");
+    ui.group_add(a);
+    ui.group_add(ok);
+    // 设置 modal 前焦点可在 a/ok 间循环
+    ui.keypad_input(Key::Next);
+    assert_eq!(ui.focused(), Some(ok));
+    ui.keypad_input(Key::Next);
+    assert_eq!(ui.focused(), Some(a));
+    // 设置 modal：焦点锁进 dlg 子树
+    ui.set_modal(dlg);
+    assert_eq!(ui.focused(), Some(ok));
+    ui.keypad_input(Key::Next); // 只能在 modal 内循环，到不了 a
+    assert_eq!(ui.focused(), Some(ok));
+    // 清除 modal：恢复全局导航
+    ui.clear_modal();
+    ui.keypad_input(Key::Prev);
+    assert_eq!(ui.focused(), Some(a));
+}

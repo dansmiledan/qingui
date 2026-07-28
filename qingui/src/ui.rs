@@ -19,6 +19,7 @@ pub struct Ui {
     focused_idx: Option<usize>,
     pub(crate) layout_dirty: bool,
     canvas_cbs: Vec<Option<crate::widgets::canvas::CanvasCb>>,
+    modal: Option<ObjRef>,
 }
 
 impl Ui {
@@ -28,7 +29,7 @@ impl Ui {
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, canvas_cbs: Vec::new() }
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, canvas_cbs: Vec::new(), modal: None }
     }
 
     pub(crate) fn register_canvas_cb(&mut self, cb: crate::widgets::canvas::CanvasCb) -> usize {
@@ -76,6 +77,9 @@ impl Ui {
             }
         }
         for r in all.clone() {
+            if self.modal == Some(r) {
+                self.modal = None; // modal 子树被删除：解除模态锁定
+            }
             self.arena.remove(r);
         }
         // 焦点组同步移除
@@ -739,7 +743,7 @@ impl Ui {
         let cur = self.focused_idx.unwrap_or(0);
         for step in 1..=self.group.len() {
             let idx = (cur + step) % self.group.len();
-            if !self.is_hidden_eff(self.group[idx]) {
+            if self.focusable(self.group[idx]) {
                 self.focus_to(idx);
                 return;
             }
@@ -752,12 +756,49 @@ impl Ui {
         let cur = self.focused_idx.unwrap_or(0);
         for step in 1..=self.group.len() {
             let idx = (cur + self.group.len() - step) % self.group.len();
-            if !self.is_hidden_eff(self.group[idx]) {
+            if self.focusable(self.group[idx]) {
                 self.focus_to(idx);
                 return;
             }
         }
     }
+    /// 可被聚焦：未有效隐藏，且在 modal 子树内（modal 未设置时全局）
+    fn focusable(&self, obj: ObjRef) -> bool {
+        if self.is_hidden_eff(obj) {
+            return false;
+        }
+        let Some(m) = self.modal else { return true };
+        // obj == modal 或 obj 是 modal 的后代
+        let mut cur = Some(obj);
+        while let Some(o) = cur {
+            if o == m {
+                return true;
+            }
+            cur = self.arena.get(o).and_then(|n| n.parent);
+        }
+        false
+    }
+
+    /// 设置模态对象：焦点导航锁定在其子树内，并把焦点移入
+    pub fn set_modal(&mut self, obj: ObjRef) {
+        if !self.is_valid(obj) {
+            return;
+        }
+        self.modal = Some(obj);
+        let cur = self.focused();
+        let cur_in = cur.is_some_and(|f| self.focusable(f));
+        if !cur_in {
+            if let Some(idx) = self.group.iter().position(|&o| self.focusable(o)) {
+                self.focus_to(idx);
+            }
+        }
+    }
+
+    /// 清除模态：恢复全局焦点导航（焦点保持当前对象）
+    pub fn clear_modal(&mut self) {
+        self.modal = None;
+    }
+
     /// 有效隐藏：自身或任一祖先 HIDDEN
     fn is_hidden_eff(&self, obj: ObjRef) -> bool {
         let mut cur = Some(obj);
