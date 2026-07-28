@@ -71,3 +71,23 @@ fn span_places_across_tracks() {
     assert_eq!(ui.rect(a).x, 0);
     assert_eq!(ui.rect(b).x, 60);
 }
+
+#[test]
+fn ignore_layout_child_not_managed() {
+    let mut ui = Ui::new(320, 240, 240);
+    let c = ui.create_obj(ui.screen());
+    ui.set_size(c, 300, 100);
+    ui.set_layout(c, grid(vec![Track::Content, Track::Px(10)], vec![Track::Px(50)], 0));
+    let a = ui.create_obj(c);
+    ui.set_size(a, 42, 10);
+    ui.set_grid_cell(a, (0, 1), (0, 1));
+    let b = ui.create_obj(c);
+    ui.set_grid_cell(b, (1, 1), (0, 1));
+    // 浮动对象：不参与布局（包括 content 轨道测量与定位）
+    let f = ui.create_obj(c);
+    ui.set_size(f, 200, 200);
+    ui.set_ignore_layout(f, true);
+    ui.timer_handler();
+    assert_eq!(ui.rect(b).x, 42); // content 轨道只算 a（不含 f 的 200）
+    assert_eq!(ui.rect(f).x, 0); // f 不被重新定位
+}

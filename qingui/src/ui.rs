@@ -99,26 +99,43 @@ impl Ui {
 
     pub fn abs_rect(&self, obj: ObjRef) -> Rect {
         let mut r = self.rect(obj);
+        // 沿父链累加：祖先的本地坐标与 translate 都作用于子树（translate 是子树级视觉偏移）
         let mut cur = self.arena.get(obj).and_then(|n| n.parent);
         while let Some(p) = cur {
             let n = self.arena.get(p).unwrap();
-            r = r.translate(n.rect.x, n.rect.y);
+            r = r.translate(n.rect.x + n.translate.x, n.rect.y + n.translate.y);
             cur = n.parent;
         }
-        // 自身视觉平移（不影响布局，不传递给子对象）
+        // 自身视觉平移
         if let Some(n) = self.arena.get(obj) {
             r = r.translate(n.translate.x, n.translate.y);
         }
         r
     }
 
-    /// 设置视觉平移偏移（对齐 LVGL translate_x/y）：只影响渲染，不参与布局
+    /// 设置视觉平移偏移（对齐 LVGL translate_x/y）：子树整体偏移，只影响渲染，不参与布局
     pub fn set_translate(&mut self, obj: ObjRef, x: i32, y: i32) {
-        self.invalidate_obj(obj);
+        self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.translate = crate::geometry::Point { x, y };
         }
-        self.invalidate_obj(obj);
+        self.invalidate_subtree(obj);
+    }
+
+    /// 标脏整棵子树的渲染区域（translate 变化时子元素也会移动）
+    fn invalidate_subtree(&mut self, obj: ObjRef) {
+        if !self.is_valid(obj) {
+            return;
+        }
+        let mut area = self.abs_rect(obj);
+        let mut stack = alloc::vec![obj];
+        while let Some(r) = stack.pop() {
+            for c in self.children(r) {
+                area = area.union(&self.abs_rect(c));
+                stack.push(c);
+            }
+        }
+        self.invalidate_area(area);
     }
 
     pub fn translate(&self, obj: ObjRef) -> crate::geometry::Point {
@@ -329,6 +346,21 @@ impl Ui {
     }
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)
+    }
+
+    /// 设置/查询浮动标志：浮动对象不参与父容器布局（弹窗/悬浮层用）
+    pub fn set_ignore_layout(&mut self, obj: ObjRef, ignore: bool) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            if ignore {
+                n.flags |= crate::node::flag::IGNORE_LAYOUT;
+            } else {
+                n.flags &= !crate::node::flag::IGNORE_LAYOUT;
+            }
+        }
+        self.layout_dirty = true;
+    }
+    pub fn is_ignore_layout(&self, obj: ObjRef) -> bool {
+        self.arena.get(obj).map(|n| n.flags & crate::node::flag::IGNORE_LAYOUT != 0).unwrap_or(false)
     }
 
     fn step_anims(&mut self) {

@@ -143,10 +143,10 @@ fn translate_offsets_abs_rect_and_survives_layout() {
     }));
     let k = ui.create_obj(c);
     ui.set_size(k, 20, 10);
-    ui.set_translate(k, 5, 7);
+    ui.set_translate(c, 5, 7); // 父容器平移 → 子树整体偏移
     ui.timer_handler();
     assert_eq!(ui.rect(k), Rect::new(0, 0, 20, 10)); // rect 不变
-    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // abs 叠加偏移
+    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // 子对象 abs 也叠加父平移
     ui.set_size(c, 150, 100); // 触发布局重算
     ui.timer_handler();
     assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // translate 保留

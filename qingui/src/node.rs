@@ -14,6 +14,8 @@ pub mod state {
 pub mod flag {
     pub const HIDDEN: u8 = 1 << 0;
     pub const CLICKABLE: u8 = 1 << 1;
+    /// 浮动对象：不参与父容器的布局（对齐 LVGL IGNORE_LAYOUT），弹窗/悬浮层用
+    pub const IGNORE_LAYOUT: u8 = 1 << 2;
 }
 
 pub struct Node {
@@ -30,7 +32,7 @@ pub struct Node {
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
     pub grid_col: (u8, u8),
     pub grid_row: (u8, u8),
-    /// 视觉平移偏移：叠加在渲染坐标上，不参与布局（对齐 LVGL translate_x/y）
+    /// 视觉平移偏移：子树整体在渲染时叠加，不参与布局（对齐 LVGL translate_x/y）
     pub translate: crate::geometry::Point,
 }
 

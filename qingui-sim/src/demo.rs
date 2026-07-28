@@ -1,7 +1,7 @@
 use qingui::anim::{Anim, AnimProp, Easing};
-use qingui::layout::{Align, Flex, FlexDir};
-use qingui::style::Layout;
-use qingui::{EventKind, ObjRef, Ui};
+use qingui::layout::{Align, Flex, FlexDir, Grid, Track};
+use qingui::style::{Layout, Style};
+use qingui::{Color, EventKind, ObjRef, Ui};
 
 fn column() -> Layout {
     Layout::Flex(Flex {
@@ -10,24 +10,47 @@ fn column() -> Layout {
     })
 }
 
+/// 透明容器样式（只做布局，不画背景）
+fn transparent() -> Style {
+    let mut s = Style::default();
+    s.bg_opa = Some(0);
+    s
+}
+
 pub fn build(ui: &mut Ui) {
     let screen = ui.screen();
 
+    // 屏幕级 Grid：标题行（内容高）+ 主行（Fr）；左列固定宽菜单，右列自适应面板
+    let mut ss = qingui::style::theme_screen();
+    ss.pad_left = Some(8);
+    ss.pad_top = Some(8);
+    ss.pad_right = Some(8);
+    ss.pad_bottom = Some(8);
+    ss.layout = Some(Layout::Grid(Grid {
+        cols: vec![Track::Px(108), Track::Fr(1)],
+        rows: vec![Track::Content, Track::Fr(1)],
+        col_gap: 8,
+        row_gap: 8,
+    }));
+    ui.set_style(screen, ss);
+
     let title = ui.create_label(screen, "qingui demo");
-    ui.set_pos(title, 8, 8);
+    ui.set_grid_cell(title, (0, 2), (0, 1));
 
     let menu = ui.create_list(screen, &["Settings", "About", "Animate", "LongList"]);
-    ui.set_pos(menu, 8, 32);
-    ui.set_size(menu, 100, 200);
+    ui.set_grid_cell(menu, (0, 1), (1, 1));
+    ui.set_size(menu, 100, 208);
 
     let panel = ui.create_obj(screen);
-    ui.set_pos(panel, 116, 32);
-    ui.set_size(panel, 196, 200);
+    ui.set_grid_cell(panel, (1, 1), (1, 1));
+    ui.set_size(panel, 188, 208);
+    ui.set_style(panel, qingui::style::theme_obj());
     ui.set_layout(panel, column());
 
     // ---- Settings 页：Slider + Switch + preview Bar ----
     let page_settings = ui.create_obj(panel);
-    ui.set_size(page_settings, 188, 192);
+    ui.set_style(page_settings, transparent());
+    ui.set_size(page_settings, 180, 200);
     ui.set_layout(page_settings, column());
     let l1 = ui.create_label(page_settings, "Brightness");
     let _ = l1;
@@ -51,7 +74,8 @@ pub fn build(ui: &mut Ui) {
 
     // ---- About 页：多行文本 ----
     let page_about = ui.create_obj(panel);
-    ui.set_size(page_about, 188, 192);
+    ui.set_style(page_about, transparent());
+    ui.set_size(page_about, 180, 200);
     ui.set_layout(page_about, column());
     let la = ui.create_label(
         page_about,
@@ -61,7 +85,8 @@ pub fn build(ui: &mut Ui) {
 
     // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ui.create_obj(panel);
-    ui.set_size(page_animate, 188, 192);
+    ui.set_style(page_animate, transparent());
+    ui.set_size(page_animate, 180, 200);
     ui.set_layout(page_animate, column());
     let bar = ui.create_bar(page_animate, 0, 100);
     ui.set_size(bar, 160, 10);
@@ -77,11 +102,11 @@ pub fn build(ui: &mut Ui) {
     let gauge = ui.create_canvas(page_animate, 70, 70, Box::new(move |d, abs, clip, _now| {
         let cx = qingui::Point { x: abs.x + 35, y: abs.y + 35 };
         // 背景环（灰）
-        d.draw_circle(cx, 28, 5, qingui::Color::rgb(60, 60, 70), 255, clip);
+        d.draw_circle(cx, 28, 5, Color::rgb(60, 60, 70), 255, clip);
         // 旋转圆弧
-        d.draw_arc(cx, 28, 5, 0, angle2.get(), qingui::Color::rgb(80, 140, 255), 255, clip);
+        d.draw_arc(cx, 28, 5, 0, angle2.get(), Color::rgb(80, 140, 255), 255, clip);
         // 中心点
-        d.fill_circle(cx, 4, qingui::Color::WHITE, 255, clip);
+        d.fill_circle(cx, 4, Color::WHITE, 255, clip);
     }));
     let driver = ui.create_bar(page_animate, 0, 360);
     ui.set_hidden(driver, true);
@@ -95,7 +120,8 @@ pub fn build(ui: &mut Ui) {
 
     // ---- LongList 页：20 项超长列表 + 增删按钮 ----
     let page_longlist = ui.create_obj(panel);
-    ui.set_size(page_longlist, 188, 192);
+    ui.set_style(page_longlist, transparent());
+    ui.set_size(page_longlist, 180, 200);
     ui.set_layout(page_longlist, column());
     let long_list = ui.create_list(page_longlist, &[
         "Item 01", "Item 02", "Item 03", "Item 04", "Item 05",
@@ -106,6 +132,7 @@ pub fn build(ui: &mut Ui) {
     ui.set_size(long_list, 160, 5 * 16 + 2);
 
     let btn_row = ui.create_obj(page_longlist);
+    ui.set_style(btn_row, transparent());
     ui.set_size(btn_row, 160, 28);
     ui.set_layout(btn_row, Layout::Flex(Flex {
         dir: FlexDir::Row, wrap: false,
@@ -130,7 +157,7 @@ pub fn build(ui: &mut Ui) {
         ui.list_remove(long_list);
     }));
 
-    // LongList 项点击 → 弹出模态对话框（遮罩 + 对话框，最上层）
+    // LongList 项点击 → 弹出模态对话框（遮罩 + 对话框，最上层；全部布局定位）
     let popup: std::rc::Rc<std::cell::Cell<Option<(ObjRef, Option<ObjRef>)>>> =
         std::rc::Rc::new(std::cell::Cell::new(None));
     let popup_open = popup.clone();
@@ -141,27 +168,35 @@ pub fn build(ui: &mut Ui) {
         let prev_focus = ui.focused();
         let idx = ui.list_selected(l);
         let screen = ui.screen();
-        // 遮罩（最后创建 → 渲染在最上层）
+        // 遮罩（最后创建 → 渲染在最上层）；浮动对象，不参与屏幕 Grid；Flex 居中对话框
         let mask = ui.create_obj(screen);
+        ui.set_ignore_layout(mask, true);
         ui.set_pos(mask, 0, 0);
         ui.set_size(mask, 320, 240);
-        let mut ms = qingui::style::Style::default();
-        ms.bg_color = Some(qingui::Color::BLACK);
+        let mut ms = Style::default();
+        ms.bg_color = Some(Color::BLACK);
         ms.bg_opa = Some(140);
+        ms.layout = Some(Layout::Flex(Flex {
+            dir: FlexDir::Row, wrap: false,
+            main: Align::Center, cross: Align::Center, track: Align::Center, gap: 0,
+        }));
         ui.set_style(mask, ms);
-        // 对话框
+        // 对话框：Flex 列排布 label + OK
         let dlg = ui.create_obj(mask);
         ui.set_size(dlg, 180, 90);
-        ui.set_pos(dlg, (320 - 180) / 2, (240 - 90) / 2);
-        ui.set_style(dlg, qingui::style::theme_obj());
-        let mut ds = qingui::style::Style::default();
-        ds.border_color = Some(qingui::Color::WHITE);
+        let mut ds = qingui::style::theme_obj();
+        ds.border_color = Some(Color::WHITE);
         ds.border_width = Some(2);
+        ds.pad_left = Some(12);
+        ds.pad_top = Some(12);
+        ds.layout = Some(Layout::Flex(Flex {
+            dir: FlexDir::Column, wrap: false,
+            main: Align::Start, cross: Align::Center, track: Align::Start, gap: 12,
+        }));
         ui.set_style(dlg, ds);
         let msg = ui.create_label(dlg, &format!("Clicked Item {:02}", idx + 1));
-        ui.set_pos(msg, 12, 14);
+        let _ = msg;
         let ok = ui.create_button(dlg, "OK");
-        ui.set_pos(ok, 62, 52);
         ui.group_add(ok);
         ui.set_modal(dlg); // 焦点锁进对话框
         // 关闭：OK 点击或 Esc，恢复之前焦点
@@ -191,15 +226,14 @@ pub fn build(ui: &mut Ui) {
     ui.set_hidden(page_animate, true);
     ui.set_hidden(page_longlist, true);
 
-    // 菜单点击 → 切页 + 面板滑入动画
+    // 菜单点击 → 切页 + 面板滑入动画（translate：布局子对象的正确动画通道）
     ui.add_event_cb(menu, EventKind::Clicked, Box::new(move |ui, m, _| {
         let idx = ui.list_selected(m);
         ui.set_hidden(page_settings, idx != 0);
         ui.set_hidden(page_about, idx != 1);
         ui.set_hidden(page_animate, idx != 2);
         ui.set_hidden(page_longlist, idx != 3);
-        ui.set_pos(panel, 320, 32);
-        let mut a = Anim::new(panel, AnimProp::X, 320, 116, 200);
+        let mut a = Anim::new(panel, AnimProp::TranslateX, 204, 0, 200);
         a.easing = Easing::EaseOutQuad;
         ui.anim_start(a);
     }));

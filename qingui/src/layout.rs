@@ -35,7 +35,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     let kids: Vec<ObjRef> = ui
         .children(container)
         .into_iter()
-        .filter(|&k| !ui.is_hidden(k))
+        .filter(|&k| !ui.is_hidden(k) && !ui.is_ignore_layout(k))
         .collect();
     if kids.is_empty() {
         return;
@@ -213,7 +213,7 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
     let style = ui.resolved_style(container);
     let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
     let area_h = ui.rect(container).h - style.pad_top - style.pad_bottom;
-    let kids: Vec<ObjRef> = ui.children(container).into_iter().filter(|&k| !ui.is_hidden(k)).collect();
+    let kids: Vec<ObjRef> = ui.children(container).into_iter().filter(|&k| !ui.is_hidden(k) && !ui.is_ignore_layout(k)).collect();
 
     let col_sizes_in: Vec<(u8, u8, i32)> = kids
         .iter()
