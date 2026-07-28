@@ -382,6 +382,14 @@ impl Ui {
         }
         self.layout_dirty = true;
     }
+
+    /// 设置宽高比（千分比：1000 = 1:1，1778 ≈ 16:9；None 取消）
+    pub fn set_aspect(&mut self, obj: ObjRef, ratio: Option<u32>) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style.aspect_ratio = ratio;
+        }
+        self.layout_dirty = true;
+    }
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)
     }

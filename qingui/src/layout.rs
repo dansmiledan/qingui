@@ -115,6 +115,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     let mut cross_sz: Vec<i32> = Vec::with_capacity(order.len());
     let mut main_grow: Vec<Option<Sizing>> = Vec::with_capacity(order.len());
     let mut cross_grow: Vec<Option<Sizing>> = Vec::with_capacity(order.len());
+    let mut aspect: Vec<Option<u32>> = Vec::with_capacity(order.len());
     for &k in &order {
         let st = ui.resolved_style(k);
         let r = ui.rect(k);
@@ -124,6 +125,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
         cross_sz.push(axis_basis(sc, content_c, area_cross_total));
         main_grow.push(sm);
         cross_grow.push(sc);
+        aspect.push(st.aspect_ratio);
     }
 
     // 分行
@@ -176,6 +178,14 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
         for &i in line {
             if let Some(Sizing::Grow { min, max }) = cross_grow[i] {
                 cross_sz[i] = area_cross_total.clamp(min, max);
+            }
+        }
+        // 宽高比：由主轴最终尺寸推交叉轴（优先于交叉轴 sizing）
+        for &i in line {
+            if let Some(ratio) = aspect[i] {
+                if ratio > 0 {
+                    cross_sz[i] = (main_sz[i] as i64 * 1000 / ratio as i64) as i32;
+                }
             }
         }
         let line_main: i32 = {
@@ -349,8 +359,18 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
         // sizing 策略决定子对象在单元格内的尺寸
         let st = ui.resolved_style(k);
         let cur = ui.rect(k);
-        let fw = axis_in_cell(st.sizing_w, cur.w, cw);
-        let fh = axis_in_cell(st.sizing_h, cur.h, ch);
+        let mut fw = axis_in_cell(st.sizing_w, cur.w, cw);
+        let mut fh = axis_in_cell(st.sizing_h, cur.h, ch);
+        // 宽高比：在单元格限制内按比例内嵌
+        if let Some(ratio) = st.aspect_ratio {
+            if ratio > 0 {
+                fh = (fw as i64 * 1000 / ratio as i64) as i32;
+                if fh > ch {
+                    fh = ch;
+                    fw = (ch as i64 * ratio as i64 / 1000) as i32;
+                }
+            }
+        }
         if cur.w != fw || cur.h != fh {
             ui.set_size(k, fw, fh);
         }

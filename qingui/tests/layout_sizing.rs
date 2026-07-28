@@ -95,3 +95,34 @@ fn grid_child_grow_fills_cell() {
     assert_eq!(ui.rect(a).h, 100);
     assert_eq!(ui.rect(a).x, 110);
 }
+
+#[test]
+fn flex_aspect_ratio_derives_cross() {
+    let mut ui = Ui::new(320, 240, 240);
+    let c = container(&mut ui, 200, 100);
+    let a = ui.create_obj(c);
+    ui.set_size(a, 100, 10);
+    ui.set_aspect(a, Some(2000)); // 2:1 → h = 100 * 1000/2000 = 50
+    ui.timer_handler();
+    assert_eq!(ui.rect(a).h, 50);
+}
+
+#[test]
+fn grid_aspect_ratio_fits_cell() {
+    let mut ui = Ui::new(320, 240, 240);
+    let c = ui.create_obj(ui.screen());
+    ui.set_size(c, 300, 100);
+    ui.set_layout(c, Layout::Grid(Grid {
+        cols: vec![Track::Px(120)],
+        rows: vec![Track::Px(80)],
+        col_gap: 0,
+        row_gap: 0,
+    }));
+    let a = ui.create_obj(c);
+    ui.set_grid_cell(a, (0, 1), (0, 1));
+    ui.set_sizing(a, Some(Sizing::GROW), Some(Sizing::GROW));
+    ui.set_aspect(a, Some(1000)); // 1:1：120x80 单元格内嵌 → 80x80
+    ui.timer_handler();
+    assert_eq!(ui.rect(a).w, 80);
+    assert_eq!(ui.rect(a).h, 80);
+}

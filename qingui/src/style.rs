@@ -31,6 +31,8 @@ pub struct Style {
     /// 宽/高尺寸策略（None = 内容尺寸）
     pub sizing_w: Option<crate::layout::Sizing>,
     pub sizing_h: Option<crate::layout::Sizing>,
+    /// 宽高比（千分比：1000 = 1:1，1778 ≈ 16:9）
+    pub aspect_ratio: Option<u32>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -48,6 +50,7 @@ pub struct ResolvedStyle {
     pub layout: Layout,
     pub sizing_w: Option<crate::layout::Sizing>,
     pub sizing_h: Option<crate::layout::Sizing>,
+    pub aspect_ratio: Option<u32>,
 }
 
 impl Default for ResolvedStyle {
@@ -66,6 +69,7 @@ impl Default for ResolvedStyle {
             layout: Layout::None,
             sizing_w: None,
             sizing_h: None,
+            aspect_ratio: None,
         }
     }
 }
@@ -99,6 +103,7 @@ pub fn resolve(base: &Style, overlay: Option<&Style>) -> ResolvedStyle {
             .unwrap_or(Layout::None),
         sizing_w: overlay.and_then(|s| s.sizing_w).or(base.sizing_w),
         sizing_h: overlay.and_then(|s| s.sizing_h).or(base.sizing_h),
+        aspect_ratio: overlay.and_then(|s| s.aspect_ratio).or(base.aspect_ratio),
     }
 }
 
