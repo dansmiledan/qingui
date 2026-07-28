@@ -2,6 +2,8 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::geometry::Rect;
 
+pub use crate::widgets::WidgetKind;
+
 pub mod state {
     pub const PRESSED: u8 = 1 << 0;
     pub const FOCUSED: u8 = 1 << 1;
@@ -12,16 +14,6 @@ pub mod state {
 pub mod flag {
     pub const HIDDEN: u8 = 1 << 0;
     pub const CLICKABLE: u8 = 1 << 1;
-}
-
-pub enum WidgetKind {
-    Obj,
-    Label { text: alloc::string::String },
-    Button { text: alloc::string::String },
-    Slider { min: i32, max: i32, value: i32 },
-    Switch { on: bool },
-    Bar { min: i32, max: i32, value: i32 },
-    List { items: Vec<alloc::string::String>, selected: usize, scroll: i32 },
 }
 
 pub struct Node {

@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
-use crate::geometry::{Color, Rect};
+use crate::geometry::Rect;
 use crate::node::{flag, Node, WidgetKind};
 
 pub struct Ui {
@@ -409,7 +409,7 @@ impl Ui {
         // 节点 opa 作为乘数作用于本对象的所有绘制
         let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
         if abs.intersect(&clip).is_some() {
-            let kind_snap = self.kind_snapshot(obj);
+            let kind_snap = self.arena.get(obj).unwrap().kind.clone();
             let edited = self.state(obj) & crate::node::state::EDITED != 0;
             let mut d = crate::draw::DrawBuf {
                 pixels: &mut self.buf[..len],
@@ -419,66 +419,8 @@ impl Ui {
             if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
                 d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
             }
-            match kind_snap {
-                WidgetKind::Label { text } => {
-                    d.draw_text_opa(crate::geometry::Point { x: abs.x, y: abs.y }, &text, resolved.text_color, ap(255), clip);
-                }
-                WidgetKind::Button { text } => {
-                    let (tw, th) = crate::font::text_size(&text);
-                    let p = crate::geometry::Point {
-                        x: abs.x + (abs.w - tw) / 2,
-                        y: abs.y + (abs.h - th) / 2,
-                    };
-                    d.draw_text_opa(p, &text, resolved.text_color, ap(255), clip);
-                }
-                WidgetKind::Slider { min, max, value } => {
-                    let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
-                    let iw = (abs.w as f32 * frac) as i32;
-                    if iw > 0 {
-                        d.fill_rounded(Rect::new(abs.x, abs.y, iw, abs.h), resolved.radius, Color::rgb(80, 140, 255), ap(255), clip);
-                    }
-                    let kx = abs.x + iw;
-                    let knob = Rect::new(kx - 4, abs.y - 2, 8, abs.h + 4);
-                    let kc = if edited { Color::rgb(255, 200, 60) } else { Color::WHITE };
-                    d.fill_rounded(knob, 3, kc, ap(255), clip);
-                }
-                WidgetKind::Switch { on } => {
-                    let tc = if on { Color::rgb(60, 180, 90) } else { Color::rgb(90, 90, 90) };
-                    d.fill_rounded(abs, abs.h / 2, tc, ap(255), clip);
-                    let k = abs.h - 4;
-                    let kx = if on { abs.right() - k - 2 } else { abs.x + 2 };
-                    d.fill_rounded(Rect::new(kx, abs.y + 2, k, k), k / 2, Color::WHITE, ap(255), clip);
-                }
-                WidgetKind::Bar { min, max, value } => {
-                    let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
-                    let iw = (abs.w as f32 * frac) as i32;
-                    if iw > 0 {
-                        d.fill_rounded(Rect::new(abs.x, abs.y, iw, abs.h), resolved.radius, Color::rgb(80, 140, 255), ap(255), clip);
-                    }
-                }
-                WidgetKind::List { items, selected, scroll } => {
-                    let row_h = 16;
-                    let lclip = abs.intersect(&clip).unwrap_or(clip);
-                    for (i, item) in items.iter().enumerate() {
-                        let ry = abs.y + i as i32 * row_h - scroll;
-                        let row = Rect::new(abs.x, ry, abs.w, row_h);
-                        if !row.intersects(&lclip) {
-                            continue;
-                        }
-                        if i == selected {
-                            d.fill_rect(row, Color::rgb(50, 70, 120), ap(255), lclip);
-                        }
-                        d.draw_text_opa(
-                            crate::geometry::Point { x: abs.x + 4, y: ry + 4 },
-                            item,
-                            resolved.text_color,
-                            ap(255),
-                            lclip,
-                        );
-                    }
-                }
-                WidgetKind::Obj => {}
-            }
+            let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa };
+            crate::widgets::draw(&kind_snap, &ctx, &mut d, clip);
             // 边框最后画（对齐 LVGL：border 在内容之上），避免被控件内容覆盖
             if resolved.border_width > 0 {
                 d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
@@ -486,18 +428,6 @@ impl Ui {
         }
         for c in self.children(obj) {
             self.draw_node(c, clip, len);
-        }
-    }
-
-    fn kind_snapshot(&self, obj: ObjRef) -> WidgetKind {
-        match &self.arena.get(obj).unwrap().kind {
-            WidgetKind::Obj => WidgetKind::Obj,
-            WidgetKind::Label { text } => WidgetKind::Label { text: text.clone() },
-            WidgetKind::Button { text } => WidgetKind::Button { text: text.clone() },
-            WidgetKind::Slider { min, max, value } => WidgetKind::Slider { min: *min, max: *max, value: *value },
-            WidgetKind::Switch { on } => WidgetKind::Switch { on: *on },
-            WidgetKind::Bar { min, max, value } => WidgetKind::Bar { min: *min, max: *max, value: *value },
-            WidgetKind::List { items, selected, scroll } => WidgetKind::List { items: items.clone(), selected: *selected, scroll: *scroll },
         }
     }
 
