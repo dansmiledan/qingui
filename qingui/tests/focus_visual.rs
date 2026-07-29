@@ -67,6 +67,19 @@ fn moving_container_repaints_children_old_area() {
 }
 
 #[test]
+fn moving_slider_repaints_knob_overflow() {
+    let (mut ui, rec) = setup();
+    let s = ui.create_slider(ui.screen(), 0, 100);
+    ui.set_pos(s, 10, 10);
+    ui.set_value(s, 0); // 旋钮在最左，溢出到 x 6..14
+    ui.render();
+    assert_eq!(px(&rec, 7, 16), Color::WHITE); // 旋钮溢出区旧位置
+    ui.set_pos(s, 40, 10); // 移动滑块（布局动画同款路径）
+    ui.render();
+    assert_eq!(px(&rec, 7, 16), Color::BLACK); // 溢出区旧像素必须清除
+}
+
+#[test]
 fn switch_shows_focus_border() {
     let (mut ui, rec) = setup();
     let sw = ui.create_switch(ui.screen());

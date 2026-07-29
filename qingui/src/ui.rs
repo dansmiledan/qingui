@@ -99,6 +99,19 @@ impl Ui {
         self.arena.get(obj).map(|n| n.children.clone()).unwrap_or_default()
     }
 
+    /// 调整子对象在父对象中的顺序（触发布局重算；配合 transition 可平滑换位）
+    pub fn move_child_to_index(&mut self, obj: ObjRef, index: usize) {
+        let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
+        if let Some(p) = self.arena.get_mut(parent) {
+            if let Some(pos) = p.children.iter().position(|&c| c == obj) {
+                let c = p.children.remove(pos);
+                let idx = index.min(p.children.len());
+                p.children.insert(idx, c);
+            }
+        }
+        self.layout_dirty = true;
+    }
+
     pub fn rect(&self, obj: ObjRef) -> Rect {
         self.arena.get(obj).map(|n| n.rect).unwrap_or_default()
     }
@@ -128,20 +141,29 @@ impl Ui {
         self.invalidate_subtree(obj);
     }
 
-    /// 标脏整棵子树的渲染区域（translate 变化时子元素也会移动）
+    /// 标脏整棵子树的渲染区域（translate 变化时子元素也会移动）。
+    /// 各节点按其控件类型外扩绘制溢出区（旋钮等）。
     fn invalidate_subtree(&mut self, obj: ObjRef) {
         if !self.is_valid(obj) {
             return;
         }
-        let mut area = self.abs_rect(obj);
         let mut stack = alloc::vec![obj];
+        let mut area: Option<Rect> = None;
         while let Some(r) = stack.pop() {
+            let ext = self.arena.get(r).map(|n| crate::widgets::overflow_of(&n.kind)).unwrap_or(0);
+            let a = self.abs_rect(r);
+            let a = Rect::new(a.x - ext, a.y - ext, a.w + 2 * ext, a.h + 2 * ext);
+            area = Some(match area {
+                None => a,
+                Some(u) => u.union(&a),
+            });
             for c in self.children(r) {
-                area = area.union(&self.abs_rect(c));
                 stack.push(c);
             }
         }
-        self.invalidate_area(area);
+        if let Some(a) = area {
+            self.invalidate_area(a);
+        }
     }
 
     pub fn translate(&self, obj: ObjRef) -> crate::geometry::Point {

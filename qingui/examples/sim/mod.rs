@@ -72,7 +72,14 @@ const KEYS: [MKey; 8] = [
 ];
 
 /// 打开模拟器窗口并运行主循环。`build` 在启动时调用一次构建 UI。
+#[allow(dead_code)] // 各 example 按需使用 run 或 run_with_tick
 pub fn run(build: impl FnOnce(&mut Ui)) {
+    run_with_tick(build, |_| {});
+}
+
+/// 同 `run`，额外提供每帧回调（驱动定时任务，如周期性重排）
+#[allow(dead_code)]
+pub fn run_with_tick(build: impl FnOnce(&mut Ui), mut tick: impl FnMut(&mut Ui)) {
     let mut window = Window::new(
         "qingui sim",
         WIDTH,
@@ -105,6 +112,7 @@ pub fn run(build: impl FnOnce(&mut Ui)) {
             }
         }
 
+        tick(&mut ui);
         ui.timer_handler();
         window
             .update_with_buffer(&fb.borrow(), WIDTH, HEIGHT)

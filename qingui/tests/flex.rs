@@ -87,3 +87,19 @@ fn layout_reruns_on_size_change() {
     ui.timer_handler();
     assert_eq!(ui.rect(kids[1]).x, 80);
 }
+
+#[test]
+fn reorder_children_relayouts() {
+    let mut ui = Ui::new(320, 240, 240);
+    let kids = row_of(&mut ui, 3, 20, 10);
+    let c = ui.children(ui.screen())[0];
+    ui.set_layout(c, flex(FlexDir::Row, Align::Start, Align::Start, 0));
+    ui.timer_handler();
+    assert_eq!(ui.rect(kids[0]).x, 0);
+    // 把最后一个移到最前 → 重排后位置更新
+    ui.move_child_to_index(kids[2], 0);
+    ui.timer_handler();
+    assert_eq!(ui.rect(kids[2]).x, 0);
+    assert_eq!(ui.rect(kids[0]).x, 20);
+    assert_eq!(ui.rect(kids[1]).x, 40);
+}
