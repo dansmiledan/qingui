@@ -80,6 +80,29 @@ impl Anim {
             easing: Easing::Linear, on_done: None,
         }
     }
+
+    pub fn easing(mut self, easing: Easing) -> Self {
+        self.easing = easing;
+        self
+    }
+    pub fn delay(mut self, delay_ms: u32) -> Self {
+        self.delay_ms = delay_ms;
+        self
+    }
+    /// 重复次数，-1 = 无限
+    pub fn repeat(mut self, repeat: i32) -> Self {
+        self.repeat = repeat;
+        self
+    }
+    /// 往返播放（奇数轮反向）
+    pub fn playback(mut self, playback: bool) -> Self {
+        self.playback = playback;
+        self
+    }
+    pub fn on_done(mut self, cb: impl FnMut(&mut Ui) + 'static) -> Self {
+        self.on_done = Some(Box::new(cb));
+        self
+    }
 }
 
 /// 运行中的动画实例（内部）

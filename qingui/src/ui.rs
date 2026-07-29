@@ -46,6 +46,11 @@ impl Ui {
         self.screen
     }
 
+    /// 链式配置包装：`ui.widget(obj).pos(10, 10).size(80, 30)`
+    pub fn widget(&mut self, obj: ObjRef) -> crate::widget::WidgetMut<'_> {
+        crate::widget::WidgetMut::new(self, obj)
+    }
+
     pub fn is_valid(&self, obj: ObjRef) -> bool {
         self.arena.contains(obj)
     }

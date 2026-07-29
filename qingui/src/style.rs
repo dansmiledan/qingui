@@ -15,6 +15,7 @@ impl Default for Layout {
 }
 
 /// 扁平样式：Option 字段，None 表示"不覆盖"。
+/// 可用结构体字面量，也可用 builder 链式构造：`Style::new().bg(RED).radius(4).pads(8)`
 #[derive(Clone, Default, PartialEq, Debug)]
 pub struct Style {
     pub bg_color: Option<Color>,
@@ -35,6 +36,66 @@ pub struct Style {
     pub aspect_ratio: Option<u32>,
     /// 布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡
     pub transition: Option<(u32, crate::anim::Easing)>,
+}
+
+impl Style {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn bg(mut self, color: Color) -> Self {
+        self.bg_color = Some(color);
+        self
+    }
+    pub fn bg_opa(mut self, opa: u8) -> Self {
+        self.bg_opa = Some(opa);
+        self
+    }
+    pub fn border(mut self, color: Color, width: i32) -> Self {
+        self.border_color = Some(color);
+        self.border_width = Some(width);
+        self
+    }
+    pub fn radius(mut self, radius: i32) -> Self {
+        self.radius = Some(radius);
+        self
+    }
+    /// 四边统一 padding
+    pub fn pads(mut self, v: i32) -> Self {
+        self.pad_left = Some(v);
+        self.pad_right = Some(v);
+        self.pad_top = Some(v);
+        self.pad_bottom = Some(v);
+        self
+    }
+    /// 分别设置 padding：(左, 右, 上, 下)
+    pub fn pad(mut self, left: i32, right: i32, top: i32, bottom: i32) -> Self {
+        self.pad_left = Some(left);
+        self.pad_right = Some(right);
+        self.pad_top = Some(top);
+        self.pad_bottom = Some(bottom);
+        self
+    }
+    pub fn text_color(mut self, color: Color) -> Self {
+        self.text_color = Some(color);
+        self
+    }
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.layout = Some(layout);
+        self
+    }
+    pub fn sizing(mut self, w: crate::layout::Sizing, h: crate::layout::Sizing) -> Self {
+        self.sizing_w = Some(w);
+        self.sizing_h = Some(h);
+        self
+    }
+    pub fn aspect(mut self, ratio: u32) -> Self {
+        self.aspect_ratio = Some(ratio);
+        self
+    }
+    pub fn transition(mut self, duration_ms: u32, easing: crate::anim::Easing) -> Self {
+        self.transition = Some((duration_ms, easing));
+        self
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]

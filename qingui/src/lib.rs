@@ -14,6 +14,7 @@ pub mod layout;
 pub mod node;
 pub mod style;
 pub mod ui;
+pub mod widget;
 pub mod widgets;
 pub use arena::ObjRef;
 pub use event::EventKind;

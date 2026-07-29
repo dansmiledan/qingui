@@ -103,11 +103,12 @@ pub fn build(ui: &mut Ui) {
     ui.set_layout(page_animate, column());
     let bar = ui.create_bar(page_animate, 0, 100);
     ui.set_size(bar, 160, 10);
-    let mut a = Anim::new(bar, AnimProp::Value, 0, 100, 1200);
-    a.easing = Easing::EaseInOutQuad;
-    a.repeat = -1;
-    a.playback = true;
-    ui.anim_start(a);
+    ui.anim_start(
+        Anim::new(bar, AnimProp::Value, 0, 100, 1200)
+            .easing(Easing::EaseInOutQuad)
+            .repeat(-1)
+            .playback(true),
+    );
 
     // 圆弧仪表盘：隐藏 Bar 驱动角度，Canvas 自定义绘制
     let angle = std::rc::Rc::new(std::cell::Cell::new(0i32));
@@ -129,9 +130,7 @@ pub fn build(ui: &mut Ui) {
         angle.set(ui.value(b));
         ui.invalidate_obj(gauge);
     }));
-    let mut ga = Anim::new(driver, AnimProp::Value, 0, 360, 2400);
-    ga.repeat = -1;
-    ui.anim_start(ga);
+    ui.anim_start(Anim::new(driver, AnimProp::Value, 0, 360, 2400).repeat(-1));
 
     // ---- LongList 页：20 项超长列表 + 增删按钮 ----
     let page_longlist = ui.create_obj(panel);
@@ -188,23 +187,19 @@ pub fn build(ui: &mut Ui) {
         ui.set_ignore_layout(mask, true);
         ui.set_pos(mask, 0, 0);
         ui.set_size(mask, 320, 240);
-        let mut ms = Style::default();
-        ms.bg_color = Some(Color::BLACK);
-        ms.bg_opa = Some(140);
-        ui.set_style(mask, ms);
+        ui.widget(mask).style(Style::new().bg(Color::BLACK).bg_opa(140));
         // 对话框：Flex 列排布 label + OK
         let dlg = ui.create_obj(mask);
         ui.set_size(dlg, 180, 90);
-        let mut ds = qingui::style::theme_obj();
-        ds.border_color = Some(Color::WHITE);
-        ds.border_width = Some(2);
-        ds.pad_left = Some(12);
-        ds.pad_top = Some(12);
-        ds.layout = Some(Layout::Flex(Flex {
-            dir: FlexDir::Column, wrap: false,
-            main: Align::Start, cross: Align::Center, track: Align::Start, gap: 12,
-        }));
-        ui.set_style(dlg, ds);
+        ui.widget(dlg).style(
+            qingui::style::theme_obj()
+                .border(Color::WHITE, 2)
+                .pad(12, 0, 12, 0)
+                .layout(Layout::Flex(Flex {
+                    dir: FlexDir::Column, wrap: false,
+                    main: Align::Start, cross: Align::Center, track: Align::Start, gap: 12,
+                })),
+        );
         ui.set_floating(dlg, mask, qingui::layout::Attach::Center); // 锚定遮罩中心
         let msg = ui.create_label(dlg, &format!("Clicked Item {:02}", idx + 1));
         let _ = msg;
@@ -250,9 +245,7 @@ pub fn build(ui: &mut Ui) {
         ui.set_hidden(page_about, idx != 1);
         ui.set_hidden(page_animate, idx != 2);
         ui.set_hidden(page_longlist, idx != 3);
-        let mut a = Anim::new(panel, AnimProp::TranslateX, 204, 0, 200);
-        a.easing = Easing::EaseOutQuad;
-        ui.anim_start(a);
+        ui.anim_start(Anim::new(panel, AnimProp::TranslateX, 204, 0, 200).easing(Easing::EaseOutQuad));
     }));
 
     // 焦点组：菜单 → slider → switch → Wide → 超长列表 → Add/Del
