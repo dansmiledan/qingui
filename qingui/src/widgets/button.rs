@@ -21,7 +21,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
     ui.set_style_pressed(r, crate::style::theme_button_pressed());
     ui.set_style_focused(r, crate::style::theme_button_focused());
     if let Some(n) = ui.arena.get_mut(r) {
-        n.flags |= crate::node::flag::CLICKABLE;
+        n.flags |= crate::node::Flag::CLICKABLE;
     }
     r
 }

@@ -10,4 +10,5 @@ categories = ["embedded", "graphics", "no-std"]
 readme = "README.md"
 
 [dependencies]
+bitflags = { version = "2.13.1", default-features = false }
 font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }

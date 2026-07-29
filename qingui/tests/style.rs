@@ -36,7 +36,7 @@ fn state_override_wins_then_falls_back() {
     ui.set_style_pressed(b, pressed);
     assert_eq!(ui.resolved_style(b).bg_color, Color::BLUE);
 
-    ui.set_state(b, qingui::node::state::PRESSED, true);
+    ui.set_state(b, qingui::node::State::PRESSED, true);
     assert_eq!(ui.resolved_style(b).bg_color, Color::GREEN);
     // pressed 未覆盖的字段仍回落到 base
     assert_eq!(ui.resolved_style(b).radius, base.radius.unwrap());

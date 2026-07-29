@@ -4,26 +4,32 @@ use crate::geometry::Rect;
 
 pub use crate::widgets::WidgetKind;
 
-pub mod state {
-    pub const PRESSED: u8 = 1 << 0;
-    pub const FOCUSED: u8 = 1 << 1;
-    pub const DISABLED: u8 = 1 << 2;
-    pub const EDITED: u8 = 1 << 3;
-}
+bitflags::bitflags! {
+    /// 对象状态（对齐 LVGL 的 state）
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+    pub struct State: u8 {
+        const PRESSED = 1 << 0;
+        const FOCUSED = 1 << 1;
+        const DISABLED = 1 << 2;
+        const EDITED = 1 << 3;
+    }
 
-pub mod flag {
-    pub const HIDDEN: u8 = 1 << 0;
-    pub const CLICKABLE: u8 = 1 << 1;
-    /// 浮动对象：不参与父容器的布局（对齐 LVGL IGNORE_LAYOUT），弹窗/悬浮层用
-    pub const IGNORE_LAYOUT: u8 = 1 << 2;
+    /// 对象标志位
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+    pub struct Flag: u8 {
+        const HIDDEN = 1 << 0;
+        const CLICKABLE = 1 << 1;
+        /// 浮动对象：不参与父容器的布局（对齐 LVGL IGNORE_LAYOUT），弹窗/悬浮层用
+        const IGNORE_LAYOUT = 1 << 2;
+    }
 }
 
 pub struct Node {
     pub parent: Option<ObjRef>,
     pub children: Vec<ObjRef>,
     pub rect: Rect, // 相对父内容原点的本地坐标
-    pub state: u8,
-    pub flags: u8,
+    pub state: State,
+    pub flags: Flag,
     pub kind: WidgetKind,
     pub style: crate::style::Style,
     pub style_pressed: crate::style::Style,
@@ -48,8 +54,8 @@ impl Node {
             parent,
             children: Vec::new(),
             rect,
-            state: 0,
-            flags: 0,
+            state: State::empty(),
+            flags: Flag::empty(),
             kind,
             style: crate::style::Style::default(),
             style_pressed: crate::style::Style::default(),

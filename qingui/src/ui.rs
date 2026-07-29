@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
-use crate::node::{flag, Node, WidgetKind};
+use crate::node::{Flag, Node, State, WidgetKind};
 
 pub struct Ui {
     pub(crate) arena: Arena<Node>,
@@ -184,11 +184,7 @@ impl Ui {
 
     pub fn set_hidden(&mut self, obj: ObjRef, hidden: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
-            if hidden {
-                n.flags |= flag::HIDDEN;
-            } else {
-                n.flags &= !flag::HIDDEN;
-            }
+            n.flags.set(Flag::HIDDEN, hidden);
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
@@ -215,29 +211,24 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    pub fn set_state(&mut self, obj: ObjRef, state: u8, on: bool) {
+    pub fn set_state(&mut self, obj: ObjRef, state: State, on: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
-            if on {
-                n.state |= state;
-            } else {
-                n.state &= !state;
-            }
+            n.state.set(state, on);
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    pub fn state(&self, obj: ObjRef) -> u8 {
-        self.arena.get(obj).map(|n| n.state).unwrap_or(0)
+    pub fn state(&self, obj: ObjRef) -> State {
+        self.arena.get(obj).map(|n| n.state).unwrap_or_default()
     }
     pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
         let Some(n) = self.arena.get(obj) else {
             return crate::style::ResolvedStyle::default();
         };
-        use crate::node::state;
         // pressed 优先于 focused
-        let overlay = if n.state & state::PRESSED != 0 {
+        let overlay = if n.state.contains(State::PRESSED) {
             Some(&n.style_pressed)
-        } else if n.state & state::FOCUSED != 0 {
+        } else if n.state.contains(State::FOCUSED) {
             Some(&n.style_focused)
         } else {
             None
@@ -473,7 +464,7 @@ impl Ui {
         // laid_out 由 layout_move 统一标记（两者总是成对调用）
     }
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
-        self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)
+        self.arena.get(obj).map(|n| n.flags.contains(Flag::HIDDEN)).unwrap_or(false)
     }
 
     /// 设置浮层锚定：对象变为浮动（IGNORE_LAYOUT），位置由锚点自动计算并跟随目标
@@ -483,7 +474,7 @@ impl Ui {
         }
         if let Some(n) = self.arena.get_mut(obj) {
             n.floating = Some((target, attach));
-            n.flags |= crate::node::flag::IGNORE_LAYOUT;
+            n.flags |= Flag::IGNORE_LAYOUT;
         }
         self.layout_dirty = true;
     }
@@ -508,15 +499,15 @@ impl Ui {
     pub fn set_ignore_layout(&mut self, obj: ObjRef, ignore: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             if ignore {
-                n.flags |= crate::node::flag::IGNORE_LAYOUT;
+                n.flags |= Flag::IGNORE_LAYOUT;
             } else {
-                n.flags &= !crate::node::flag::IGNORE_LAYOUT;
+                n.flags &= !Flag::IGNORE_LAYOUT;
             }
         }
         self.layout_dirty = true;
     }
     pub fn is_ignore_layout(&self, obj: ObjRef) -> bool {
-        self.arena.get(obj).map(|n| n.flags & crate::node::flag::IGNORE_LAYOUT != 0).unwrap_or(false)
+        self.arena.get(obj).map(|n| n.flags.contains(Flag::IGNORE_LAYOUT)).unwrap_or(false)
     }
 
     fn step_anims(&mut self) {
@@ -666,14 +657,14 @@ impl Ui {
         let Some((abs, flags, node_opa, resolved)) = self.node_draw_info(obj) else {
             return;
         };
-        if flags & crate::node::flag::HIDDEN != 0 {
+        if flags.contains(Flag::HIDDEN) {
             return;
         }
         // 节点 opa 作为乘数作用于本对象的所有绘制
         let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
         if abs.intersect(&clip).is_some() {
             let kind_snap = self.arena.get(obj).unwrap().kind.clone();
-            let edited = self.state(obj) & crate::node::state::EDITED != 0;
+            let edited = self.state(obj).contains(State::EDITED);
             let now = self.time_ms;
             let mut d = crate::draw::DrawBuf {
                 pixels: &mut self.buf[..len],
@@ -708,7 +699,7 @@ impl Ui {
         kids
     }
 
-    fn node_draw_info(&self, obj: ObjRef) -> Option<(Rect, u8, u8, crate::style::ResolvedStyle)> {
+    fn node_draw_info(&self, obj: ObjRef) -> Option<(Rect, Flag, u8, crate::style::ResolvedStyle)> {
         self.arena.get(obj).map(|n| {
             (self.abs_rect(obj), n.flags, n.opa, self.resolved_style(obj))
         })
@@ -899,7 +890,7 @@ impl Ui {
             self.group.push(obj);
             if self.focused_idx.is_none() {
                 self.focused_idx = Some(self.group.len() - 1);
-                self.set_state(obj, crate::node::state::FOCUSED, true);
+                self.set_state(obj, State::FOCUSED, true);
                 self.send_event(obj, crate::event::EventKind::Focused);
             }
         }
@@ -909,12 +900,12 @@ impl Ui {
             self.group.remove(pos);
             if self.focused_idx == Some(pos) {
                 self.focused_idx = None;
-                self.set_state(obj, crate::node::state::FOCUSED, false);
+                self.set_state(obj, State::FOCUSED, false);
                 if !self.group.is_empty() {
                     let ni = pos.min(self.group.len() - 1);
                     self.focused_idx = Some(ni);
                     let f = self.group[ni];
-                    self.set_state(f, crate::node::state::FOCUSED, true);
+                    self.set_state(f, State::FOCUSED, true);
                 }
             } else if let Some(fi) = self.focused_idx {
                 if pos < fi {
@@ -999,7 +990,7 @@ impl Ui {
         let mut cur = Some(obj);
         while let Some(o) = cur {
             let Some(n) = self.arena.get(o) else { return false };
-            if n.flags & crate::node::flag::HIDDEN != 0 {
+            if n.flags.contains(Flag::HIDDEN) {
                 return true;
             }
             cur = n.parent;
@@ -1011,13 +1002,13 @@ impl Ui {
             return;
         }
         if let Some(old) = self.focused() {
-            self.set_state(old, crate::node::state::FOCUSED, false);
-            self.set_state(old, crate::node::state::EDITED, false);
+            self.set_state(old, State::FOCUSED, false);
+            self.set_state(old, State::EDITED, false);
             self.send_event(old, crate::event::EventKind::Defocused);
         }
         self.focused_idx = Some(idx);
         if let Some(new) = self.focused() {
-            self.set_state(new, crate::node::state::FOCUSED, true);
+            self.set_state(new, State::FOCUSED, true);
             self.send_event(new, crate::event::EventKind::Focused);
         }
     }
@@ -1028,13 +1019,13 @@ impl Ui {
         if !self.is_valid(f) {
             return;
         }
-        let edited = self.state(f) & crate::node::state::EDITED != 0;
+        let edited = self.state(f).contains(State::EDITED);
         self.send_event(f, crate::event::EventKind::Key(key));
         if edited {
             match key {
                 Key::Left => { let v = self.value(f); self.set_value(f, v - 1); }
                 Key::Right => { let v = self.value(f); self.set_value(f, v + 1); }
-                Key::Enter | Key::Esc => self.set_state(f, crate::node::state::EDITED, false),
+                Key::Enter | Key::Esc => self.set_state(f, State::EDITED, false),
                 _ => {}
             }
             return;
@@ -1088,7 +1079,7 @@ impl Ui {
         let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
         let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch { .. }));
         if is_slider {
-            self.set_state(obj, crate::node::state::EDITED, true);
+            self.set_state(obj, State::EDITED, true);
         } else if is_switch {
             self.toggle_switch(obj);
         } else {

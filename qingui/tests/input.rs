@@ -38,7 +38,7 @@ fn focus_events_and_state_flag() {
     ui.group_add(b);
     ui.keypad_input(Key::Next);
     assert_eq!(*log.borrow(), vec![EventKind::Defocused, EventKind::Focused]);
-    assert_eq!(ui.state(b) & qingui::node::state::FOCUSED, qingui::node::state::FOCUSED);
+    assert_eq!(ui.state(b) & qingui::node::State::FOCUSED, qingui::node::State::FOCUSED);
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn slider_edit_mode() {
     ui.keypad_input(Key::Right);
     assert_eq!(ui.value(s), 0); // 非编辑态：Right 是焦点移动（组内仅一个对象，值不变）
     ui.keypad_input(Key::Enter); // 进入编辑态
-    assert_ne!(ui.state(s) & qingui::node::state::EDITED, 0);
+    assert!(ui.state(s).contains(qingui::node::State::EDITED));
     ui.keypad_input(Key::Right);
     assert_eq!(ui.value(s), 1);
     ui.keypad_input(Key::Right);
@@ -70,7 +70,7 @@ fn slider_edit_mode() {
     assert_eq!(ui.value(s), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged, EventKind::ValueChanged, EventKind::ValueChanged]);
     ui.keypad_input(Key::Esc); // 退出编辑态
-    assert_eq!(ui.state(s) & qingui::node::state::EDITED, 0);
+    assert!(!ui.state(s).contains(qingui::node::State::EDITED));
 }
 
 #[test]
