@@ -33,6 +33,8 @@ pub struct Style {
     pub sizing_h: Option<crate::layout::Sizing>,
     /// 宽高比（千分比：1000 = 1:1，1778 ≈ 16:9）
     pub aspect_ratio: Option<u32>,
+    /// 布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡
+    pub transition: Option<(u32, crate::anim::Easing)>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -51,6 +53,7 @@ pub struct ResolvedStyle {
     pub sizing_w: Option<crate::layout::Sizing>,
     pub sizing_h: Option<crate::layout::Sizing>,
     pub aspect_ratio: Option<u32>,
+    pub transition: Option<(u32, crate::anim::Easing)>,
 }
 
 impl Default for ResolvedStyle {
@@ -70,6 +73,7 @@ impl Default for ResolvedStyle {
             sizing_w: None,
             sizing_h: None,
             aspect_ratio: None,
+            transition: None,
         }
     }
 }
@@ -104,6 +108,7 @@ pub fn resolve(base: &Style, overlay: Option<&Style>) -> ResolvedStyle {
         sizing_w: overlay.and_then(|s| s.sizing_w).or(base.sizing_w),
         sizing_h: overlay.and_then(|s| s.sizing_h).or(base.sizing_h),
         aspect_ratio: overlay.and_then(|s| s.aspect_ratio).or(base.aspect_ratio),
+        transition: overlay.and_then(|s| s.transition).or(base.transition),
     }
 }
 

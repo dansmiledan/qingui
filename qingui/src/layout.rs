@@ -203,13 +203,10 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
             } else {
                 (origin_x + cross_pos + cross_off, origin_y + main_pos)
             };
-            // sizing 改变尺寸时写回（set_size 会标布局脏，pass 结束后统一清除）
+            // sizing 改变尺寸时写回（过渡动画由 layout_resize/layout_move 处理）
             let (fw, fh) = if is_row { (m, c) } else { (c, m) };
-            let cur = ui.rect(order[i]);
-            if cur.w != fw || cur.h != fh {
-                ui.set_size(order[i], fw, fh);
-            }
-            ui.set_pos(order[i], x, y);
+            ui.layout_resize(order[i], fw, fh);
+            ui.layout_move(order[i], x, y);
             main_pos += m + item_gap;
         }
         cross_pos += line_cross[li] + track_gap;
@@ -371,11 +368,9 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
                 }
             }
         }
-        if cur.w != fw || cur.h != fh {
-            ui.set_size(k, fw, fh);
-        }
+        ui.layout_resize(k, fw, fh);
         let x = style.pad_left + track_offset(&col_px, ci, g.col_gap);
         let y = style.pad_top + track_offset(&row_px, ri, g.row_gap);
-        ui.set_pos(k, x, y);
+        ui.layout_move(k, x, y);
     }
 }

@@ -145,22 +145,24 @@ impl Ui {
     /// 设置对象位置（本地坐标）。注意：不触发布局重算——位置对布局是输出而非输入，
     /// 被 Flex/Grid 管理的子对象位置归布局所有（下次布局重算时会被覆盖），
     /// 需要视觉位移请用 set_translate。
+    /// 标脏整棵子树：子元素的屏幕坐标随父移动。
     pub fn set_pos(&mut self, obj: ObjRef, x: i32, y: i32) {
-        self.invalidate_obj(obj);
+        self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.rect.x = x;
             n.rect.y = y;
         }
-        self.invalidate_obj(obj);
+        self.invalidate_subtree(obj);
     }
 
+    /// 设置对象尺寸。标脏整棵子树（子元素坐标/裁剪可能随父变化）。
     pub fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
-        self.invalidate_obj(obj);
+        self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.rect.w = w;
             n.rect.h = h;
         }
-        self.invalidate_obj(obj);
+        self.invalidate_subtree(obj);
         self.layout_dirty = true;
     }
 
@@ -389,6 +391,86 @@ impl Ui {
             n.style.aspect_ratio = ratio;
         }
         self.layout_dirty = true;
+    }
+
+    /// 设置布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡；None 关闭
+    pub fn set_transition(&mut self, obj: ObjRef, transition: Option<(u32, crate::anim::Easing)>) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style.transition = transition;
+        }
+        self.layout_dirty = true;
+    }
+
+    /// 已有奔向相同目标值的同属性动画？（避免布局重算反复重启过渡动画）
+    fn anim_end_for(&self, target: ObjRef, prop: crate::anim::AnimProp) -> Option<i32> {
+        self.anims
+            .iter()
+            .find(|r| r.anim.target == target && r.anim.prop == prop)
+            .map(|r| r.anim.end)
+    }
+
+    /// 布局写位置：开启过渡且非首次布局时自动动画到目标，否则瞬移
+    pub(crate) fn layout_move(&mut self, obj: ObjRef, x: i32, y: i32) {
+        let Some(n) = self.arena.get(obj) else { return };
+        let laid = n.laid_out;
+        let cur = n.rect;
+        let tr = self.resolved_style(obj).transition;
+        let mut animated = false;
+        if laid && (cur.x != x || cur.y != y) {
+            if let Some((dur, easing)) = tr {
+                if dur > 0 {
+                    use crate::anim::AnimProp;
+                    if cur.x != x && self.anim_end_for(obj, AnimProp::X) != Some(x) {
+                        let mut a = crate::anim::Anim::new(obj, AnimProp::X, cur.x, x, dur);
+                        a.easing = easing;
+                        self.anim_start(a);
+                    }
+                    if cur.y != y && self.anim_end_for(obj, AnimProp::Y) != Some(y) {
+                        let mut a = crate::anim::Anim::new(obj, AnimProp::Y, cur.y, y, dur);
+                        a.easing = easing;
+                        self.anim_start(a);
+                    }
+                    animated = true;
+                }
+            }
+        }
+        if !animated && (cur.x != x || cur.y != y) {
+            self.set_pos(obj, x, y);
+        }
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.laid_out = true;
+        }
+    }
+
+    /// 布局写尺寸：开启过渡且非首次布局时自动动画到目标，否则瞬移
+    pub(crate) fn layout_resize(&mut self, obj: ObjRef, w: i32, h: i32) {
+        let Some(n) = self.arena.get(obj) else { return };
+        let laid = n.laid_out;
+        let cur = n.rect;
+        let tr = self.resolved_style(obj).transition;
+        let mut animated = false;
+        if laid && (cur.w != w || cur.h != h) {
+            if let Some((dur, easing)) = tr {
+                if dur > 0 {
+                    use crate::anim::AnimProp;
+                    if cur.w != w && self.anim_end_for(obj, AnimProp::W) != Some(w) {
+                        let mut a = crate::anim::Anim::new(obj, AnimProp::W, cur.w, w, dur);
+                        a.easing = easing;
+                        self.anim_start(a);
+                    }
+                    if cur.h != h && self.anim_end_for(obj, AnimProp::H) != Some(h) {
+                        let mut a = crate::anim::Anim::new(obj, AnimProp::H, cur.h, h, dur);
+                        a.easing = easing;
+                        self.anim_start(a);
+                    }
+                    animated = true;
+                }
+            }
+        }
+        if !animated && (cur.w != w || cur.h != h) {
+            self.set_size(obj, w, h);
+        }
+        // laid_out 由 layout_move 统一标记（两者总是成对调用）
     }
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags & crate::node::flag::HIDDEN != 0).unwrap_or(false)

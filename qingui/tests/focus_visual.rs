@@ -47,6 +47,26 @@ fn slider_shows_focus_border() {
 }
 
 #[test]
+fn moving_container_repaints_children_old_area() {
+    let (mut ui, rec) = setup();
+    let parent = ui.create_obj(ui.screen());
+    ui.set_pos(parent, 10, 10);
+    ui.set_size(parent, 20, 20);
+    let child = ui.create_obj(parent);
+    ui.set_pos(child, -10, 0); // 子元素超出父左边界
+    ui.set_size(child, 10, 10);
+    let mut s = qingui::style::Style::default();
+    s.bg_color = Some(Color::RED);
+    ui.set_style(child, s);
+    ui.render();
+    assert_eq!(px(&rec, 5, 15), Color::RED); // 子元素旧位置
+    ui.set_pos(parent, 40, 10); // 移动父容器
+    ui.render();
+    assert_eq!(px(&rec, 5, 15), Color::BLACK); // 旧区域必须重绘（无残影）
+    assert_eq!(px(&rec, 35, 15), Color::RED); // 新位置
+}
+
+#[test]
 fn switch_shows_focus_border() {
     let (mut ui, rec) = setup();
     let sw = ui.create_switch(ui.screen());

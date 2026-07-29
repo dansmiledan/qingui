@@ -38,6 +38,8 @@ pub struct Node {
     pub floating: Option<(ObjRef, crate::layout::Attach)>,
     /// 叠放次序：渲染时兄弟节点按 z_index 稳定排序（大者在上）
     pub z_index: i16,
+    /// 是否已经历过一次布局（首次布局不做过渡动画）
+    pub laid_out: bool,
 }
 
 impl Node {
@@ -59,6 +61,7 @@ impl Node {
             translate: crate::geometry::Point::default(),
             floating: None,
             z_index: 0,
+            laid_out: false,
         }
     }
 }

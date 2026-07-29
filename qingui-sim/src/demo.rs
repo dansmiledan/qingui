@@ -43,8 +43,8 @@ pub fn build(ui: &mut Ui) {
 
     let panel = ui.create_obj(screen);
     ui.set_grid_cell(panel, (1, 1), (1, 1));
-    ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_style(panel, qingui::style::theme_obj());
+    ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(panel, column());
 
     // ---- Settings 页：Slider + Switch + preview Bar ----
@@ -72,7 +72,7 @@ pub fn build(ui: &mut Ui) {
         ui.anim_start(Anim::new(preview, AnimProp::Value, cur, v, 300));
     }));
 
-    // ---- About 页：多行文本 ----
+    // ---- About 页：多行文本 + 布局过渡演示 ----
     let page_about = ui.create_obj(panel);
     ui.set_style(page_about, transparent());
     ui.set_sizing(page_about, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -82,6 +82,19 @@ pub fn build(ui: &mut Ui) {
         "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
     );
     let _ = la;
+    // 布局过渡演示：切换左侧菜单列宽，界面平滑重排
+    let wide = std::cell::Cell::new(false);
+    let wide_btn = ui.create_button(page_about, "Wide");
+    ui.add_event_cb(wide_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
+        let w = !wide.get();
+        wide.set(w);
+        ui.set_layout(ui.screen(), Layout::Grid(Grid {
+            cols: vec![Track::Px(if w { 180 } else { 108 }), Track::Fr(1)],
+            rows: vec![Track::Content, Track::Fr(1)],
+            col_gap: 8,
+            row_gap: 8,
+        }));
+    }));
 
     // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ui.create_obj(panel);
@@ -225,6 +238,11 @@ pub fn build(ui: &mut Ui) {
     ui.set_hidden(page_animate, true);
     ui.set_hidden(page_longlist, true);
 
+    // 布局过渡：菜单/面板/页面的位置尺寸变化自动动画
+    for &o in &[menu, panel, page_settings, page_about, page_animate, page_longlist] {
+        ui.set_transition(o, Some((250, Easing::EaseInOutQuad)));
+    }
+
     // 菜单点击 → 切页 + 面板滑入动画（translate：布局子对象的正确动画通道）
     ui.add_event_cb(menu, EventKind::Clicked, Box::new(move |ui, m, _| {
         let idx = ui.list_selected(m);
@@ -237,10 +255,11 @@ pub fn build(ui: &mut Ui) {
         ui.anim_start(a);
     }));
 
-    // 焦点组：菜单 → slider → switch → 超长列表 → Add/Del
+    // 焦点组：菜单 → slider → switch → Wide → 超长列表 → Add/Del
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);
+    ui.group_add(wide_btn);
     ui.group_add(long_list);
     ui.group_add(add_btn);
     ui.group_add(del_btn);
