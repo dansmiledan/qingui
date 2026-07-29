@@ -5,12 +5,16 @@ use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::style::ResolvedStyle;
 
+pub mod arc;
 pub mod bar;
 pub mod button;
 pub mod canvas;
+pub mod checkbox;
 pub mod label;
 pub mod list;
+pub mod msgbox;
 pub mod slider;
+pub mod spinner;
 pub mod switch;
 
 #[derive(Clone)]
@@ -24,6 +28,10 @@ pub enum WidgetKind {
     List { items: Vec<String>, selected: usize, scroll: i32, fx: list::ListFx },
     /// 自定义绘制控件：cb 为 Ui 回调注册表中的索引（回调本身不可 Clone，故存索引）
     Canvas { cb: usize },
+    Arc { min: i32, max: i32, value: i32 },
+    Checkbox { text: String, checked: bool },
+    Spinner,
+    Msgbox { selected: i32 },
 }
 
 /// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
@@ -54,14 +62,29 @@ pub(crate) fn draw(kind: &WidgetKind, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Re
         WidgetKind::List { items, selected, scroll, fx } => list::draw(items, *selected, *scroll, fx, ctx, d, clip),
         // Canvas 由 Ui::draw_node 单独处理（回调在 Ui 的注册表中）
         WidgetKind::Canvas { .. } => {}
+        WidgetKind::Arc { min, max, value } => arc::draw(*min, *max, *value, ctx, d, clip),
+        WidgetKind::Checkbox { text, checked } => checkbox::draw(text, *checked, ctx, d, clip),
+        WidgetKind::Spinner => spinner::draw(ctx, d, clip),
+        // Msgbox 是普通容器（子对象正常绘制）
+        WidgetKind::Msgbox { .. } => {}
     }
 }
 
-/// 控件的当前值（Switch：on=1/off=0；无值控件返回 0）
+/// 控件绘制超出自身矩形的最大距离（用于标脏外扩，对齐 LVGL ext_draw_size）
+pub(crate) fn overflow_of(kind: &WidgetKind) -> i32 {
+    match kind {
+        // Slider 旋钮 ±4px 横向 ±2px 纵向；Arc 旋钮超出边缘 ~3px
+        WidgetKind::Slider { .. } | WidgetKind::Arc { .. } => 4,
+        _ => 0,
+    }
+}
+
+/// 控件的当前值（Switch/Checkbox：on=1/off=0；无值控件返回 0）
 pub(crate) fn value_of(kind: &WidgetKind) -> i32 {
     match kind {
-        WidgetKind::Slider { value, .. } | WidgetKind::Bar { value, .. } => *value,
+        WidgetKind::Slider { value, .. } | WidgetKind::Bar { value, .. } | WidgetKind::Arc { value, .. } => *value,
         WidgetKind::Switch { on } => *on as i32,
+        WidgetKind::Checkbox { checked, .. } => *checked as i32,
         _ => 0,
     }
 }
@@ -69,10 +92,16 @@ pub(crate) fn value_of(kind: &WidgetKind) -> i32 {
 /// 设置控件值（clamp 到 range），返回是否有变化
 pub(crate) fn set_value_of(kind: &mut WidgetKind, v: i32) -> bool {
     match kind {
-        WidgetKind::Slider { min, max, value } | WidgetKind::Bar { min, max, value } => {
+        WidgetKind::Slider { min, max, value } | WidgetKind::Bar { min, max, value } | WidgetKind::Arc { min, max, value } => {
             let nv = v.clamp(*min, *max);
             let changed = nv != *value;
             *value = nv;
+            changed
+        }
+        WidgetKind::Checkbox { checked, .. } => {
+            let nv = v != 0;
+            let changed = nv != *checked;
+            *checked = nv;
             changed
         }
         _ => false,

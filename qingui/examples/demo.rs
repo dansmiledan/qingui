@@ -3,7 +3,7 @@ mod sim;
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::{Layout, Style};
-use qingui::{Color, EventKind, ObjRef, Ui};
+use qingui::{EventKind, Ui};
 
 fn main() {
     sim::run(build);
@@ -66,6 +66,7 @@ pub fn build(ui: &mut Ui) {
     let l2 = ui.create_label(page_settings, "Enabled");
     let _ = l2;
     let sw = ui.create_switch(page_settings);
+    let cb = ui.create_checkbox(page_settings, "Notify me");
     let l3 = ui.create_label(page_settings, "Preview");
     let _ = l3;
     let preview = ui.create_bar(page_settings, 0, 100);
@@ -116,27 +117,14 @@ pub fn build(ui: &mut Ui) {
             .playback(true),
     );
 
-    // 圆弧仪表盘：隐藏 Bar 驱动角度，Canvas 自定义绘制
-    let angle = std::rc::Rc::new(std::cell::Cell::new(0i32));
-    let angle2 = angle.clone();
-    let gauge = ui.create_canvas(page_animate, 70, 70, Box::new(move |d, abs, clip, _now| {
-        let cx = qingui::Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
-        // 背景环（灰）
-        d.draw_circle(cx, abs.w / 2 - 6, 5, Color::rgb(60, 60, 70), 255, clip);
-        // 旋转圆弧
-        d.draw_arc(cx, abs.w / 2 - 6, 5, 0, angle2.get(), Color::rgb(80, 140, 255), 255, clip);
-        // 中心点
-        d.fill_circle(cx, 4, Color::WHITE, 255, clip);
-    }));
-    ui.set_sizing(gauge, Some(Sizing::GROW), None);
-    ui.set_aspect(gauge, Some(1000)); // 1:1 正方形表盘
-    let driver = ui.create_bar(page_animate, 0, 360);
-    ui.set_hidden(driver, true);
-    ui.add_event_cb(driver, EventKind::ValueChanged, Box::new(move |ui, b, _| {
-        angle.set(ui.value(b));
-        ui.invalidate_obj(gauge);
-    }));
-    ui.anim_start(Anim::new(driver, AnimProp::Value, 0, 360, 2400).repeat(-1));
+    // Arc 表盘：值动画驱动（无限循环 0..360）
+    let arc = ui.create_arc(page_animate, 0, 360);
+    ui.set_sizing(arc, Some(Sizing::GROW), None);
+    ui.set_aspect(arc, Some(1000)); // 1:1
+    ui.anim_start(Anim::new(arc, AnimProp::Value, 0, 360, 2400).repeat(-1));
+
+    let spinner = ui.create_spinner(page_animate);
+    let _ = spinner;
 
     // ---- LongList 页：20 项超长列表 + 增删按钮 ----
     let page_longlist = ui.create_obj(panel);
@@ -177,62 +165,23 @@ pub fn build(ui: &mut Ui) {
         ui.list_remove(long_list);
     }));
 
-    // LongList 项点击 → 弹出模态对话框（遮罩 + 对话框，最上层；全部布局定位）
-    let popup: std::rc::Rc<std::cell::Cell<Option<(ObjRef, Option<ObjRef>)>>> =
-        std::rc::Rc::new(std::cell::Cell::new(None));
-    let popup_open = popup.clone();
+    // LongList 项点击 → Msgbox（模态消息框）
     ui.add_event_cb(long_list, EventKind::Clicked, Box::new(move |ui, l, _| {
-        if popup_open.get().is_some() {
-            return; // 已打开
-        }
-        let prev_focus = ui.focused();
         let idx = ui.list_selected(l);
         let screen = ui.screen();
-        // 遮罩（最后创建 → 渲染在最上层）；浮动对象，不参与屏幕 Grid；Flex 居中对话框
-        let mask = ui.create_obj(screen);
-        ui.set_ignore_layout(mask, true);
-        ui.set_pos(mask, 0, 0);
-        ui.set_size(mask, 320, 240);
-        ui.widget(mask).style(Style::new().bg(Color::BLACK).bg_opa(140));
-        // 对话框：Flex 列排布 label + OK
-        let dlg = ui.create_obj(mask);
-        ui.set_size(dlg, 180, 90);
-        ui.widget(dlg).style(
-            qingui::style::theme_obj()
-                .border(Color::WHITE, 2)
-                .pad(12, 0, 12, 0)
-                .layout(Layout::Flex(Flex {
-                    dir: FlexDir::Column, wrap: false,
-                    main: Align::Start, cross: Align::Center, track: Align::Start, gap: 12,
-                })),
+        let prev = ui.focused();
+        let mb = ui.create_msgbox(
+            screen,
+            "Clicked",
+            &format!("Item {:02}", idx + 1),
+            &["OK"],
         );
-        ui.set_floating(dlg, mask, qingui::layout::Attach::Center); // 锚定遮罩中心
-        let msg = ui.create_label(dlg, &format!("Clicked Item {:02}", idx + 1));
-        let _ = msg;
-        let ok = ui.create_button(dlg, "OK");
-        ui.group_add(ok);
-        ui.set_modal(dlg); // 焦点锁进对话框
-        // 关闭：OK 点击或 Esc，恢复之前焦点
-        let close = move |ui: &mut Ui, popup: &std::rc::Rc<std::cell::Cell<Option<(ObjRef, Option<ObjRef>)>>>| {
-            if let Some((m, prev)) = popup.get() {
-                ui.clear_modal();
-                ui.delete(m);
-                popup.set(None);
-                if let Some(p) = prev {
-                    ui.group_focus(p);
-                }
-            }
-        };
-        let pc = popup_open.clone();
-        let close2 = close.clone();
-        ui.add_event_cb(ok, EventKind::Clicked, Box::new(move |ui, _b, _| close2(ui, &pc)));
-        let pk = popup_open.clone();
-        ui.add_event_cb(ok, EventKind::Key(qingui::input::Key::Esc), Box::new(move |ui, _b, k| {
-            if k == EventKind::Key(qingui::input::Key::Esc) {
-                close(ui, &pk);
+        // 关闭后还原焦点
+        ui.add_event_cb(mb, EventKind::ValueChanged, Box::new(move |ui, _t, _| {
+            if let Some(p) = prev {
+                ui.group_focus(p);
             }
         }));
-        popup_open.set(Some((mask, prev_focus)));
     }));
 
     ui.set_hidden(page_about, true);
@@ -254,10 +203,11 @@ pub fn build(ui: &mut Ui) {
         ui.anim_start(Anim::new(panel, AnimProp::TranslateX, 204, 0, 200).easing(Easing::EaseOutQuad));
     }));
 
-    // 焦点组：菜单 → slider → switch → Wide → 超长列表 → Add/Del
+    // 焦点组：菜单 → slider → switch → checkbox → Wide → 超长列表 → Add/Del
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);
+    ui.group_add(cb);
     ui.group_add(wide_btn);
     ui.group_add(long_list);
     ui.group_add(add_btn);

@@ -20,11 +20,6 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Draw
     d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
 }
 
-/// 旋钮超出轨道的区域（±4px 横向，±2px 纵向）：值变化时的标脏外扩
-pub(crate) fn overflow_rect(abs: Rect) -> Rect {
-    Rect::new(abs.x - 4, abs.y - 2, abs.w + 8, abs.h + 4)
-}
-
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, min: i32, max: i32) -> ObjRef {
     let r = ui.insert_node(parent, Rect::new(0, 0, 100, 12),
         WidgetKind::Slider { min, max, value: min });

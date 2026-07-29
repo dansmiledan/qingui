@@ -34,7 +34,7 @@ const SIN90: [i32; 91] = [
 ];
 
 /// 角度（度，屏幕坐标：0°=+x 向右，沿顺时针增大）→ 单位向量（256 定点）
-fn dir_vec(deg: i32) -> (i32, i32) {
+pub(crate) fn dir_vec(deg: i32) -> (i32, i32) {
     let d = deg.rem_euclid(360);
     let (q, a) = (d / 90, d % 90);
     let (sin_a, cos_a) = (SIN90[a as usize], SIN90[(90 - a) as usize]);
@@ -44,6 +44,18 @@ fn dir_vec(deg: i32) -> (i32, i32) {
         2 => (-cos_a, -sin_a),
         _ => (sin_a, -cos_a),
     }
+}
+
+/// 1/16° 定点角度 → 单位向量（256 定点，相邻表项线性插值，平滑小角度移动）
+pub(crate) fn dir_vec_fx(deg_x16: i32) -> (i32, i32) {
+    let d = deg_x16.rem_euclid(360 * 16);
+    let (d0, frac) = (d / 16, d % 16);
+    let (x0, y0) = dir_vec(d0);
+    let (x1, y1) = dir_vec(d0 + 1);
+    (
+        x0 + (x1 - x0) * frac / 16,
+        y0 + (y1 - y0) * frac / 16,
+    )
 }
 
 /// 圆弧扇形的 4x4 超采样覆盖率：子采样同时满足环带（inner < d ≤ outer）与角度楔形
@@ -279,6 +291,37 @@ impl DrawBuf<'_> {
                 x += crate::font::GLYPH_W;
             }
             y += crate::font::LINE_H;
+        }
+    }
+
+    /// 直线（Bresenham + 半径 stamp 实现线宽）
+    pub fn draw_line(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, width: i32, c: Color, opa: u8, clip: Rect) {
+        let (mut x0, mut y0) = (p1.x, p1.y);
+        let (x1, y1) = (p2.x, p2.y);
+        let dx = (x1 - x0).abs();
+        let dy = -(y1 - y0).abs();
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut err = dx + dy;
+        let r = width / 2;
+        loop {
+            if r > 0 {
+                self.fill_circle(crate::geometry::Point { x: x0, y: y0 }, r, c, opa, clip);
+            } else {
+                self.put_clipped(x0, y0, c, opa, clip);
+            }
+            if x0 == x1 && y0 == y1 {
+                break;
+            }
+            let e2 = 2 * err;
+            if e2 >= dy {
+                err += dy;
+                x0 += sx;
+            }
+            if e2 <= dx {
+                err += dx;
+                y0 += sy;
+            }
         }
     }
 }

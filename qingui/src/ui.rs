@@ -176,8 +176,10 @@ impl Ui {
     }
     pub fn invalidate_obj(&mut self, obj: ObjRef) {
         if self.is_valid(obj) {
+            let ext = self.arena.get(obj).map(|n| crate::widgets::overflow_of(&n.kind)).unwrap_or(0);
             let r = self.abs_rect(obj);
-            self.dirty.add(r);
+            // 控件绘制可能超出自身矩形（旋钮等），标脏外扩
+            self.dirty.add(Rect::new(r.x - ext, r.y - ext, r.w + 2 * ext, r.h + 2 * ext));
         }
     }
     pub fn take_dirty(&mut self) -> Vec<Rect> {
@@ -279,8 +281,8 @@ impl Ui {
         if self.anim_running() || list_fx_active { 0 } else { u32::MAX }
     }
 
-    /// 遍历对象树：清理过期的 List 效果，活动中的标脏（驱动逐帧重绘）。
-    /// 返回是否有活动的 List 效果。
+    /// 遍历对象树：驱动控件自动画（List 效果、Spinner 旋转）。
+    /// 活动中的标脏（驱动逐帧重绘），返回是否有活动效果。
     fn tick_list_fx(&mut self) -> bool {
         let now = self.time_ms;
         let mut any = false;
@@ -288,13 +290,16 @@ impl Ui {
         while let Some(r) = stack.pop() {
             let (children, redraw, active) = match self.arena.get_mut(r) {
                 Some(n) => {
-                    let (redraw, active) = if let WidgetKind::List { fx, .. } = &mut n.kind {
-                        let was_active = fx.active(now);
-                        let removed = fx.prune(now);
-                        // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
-                        (was_active || removed, fx.active(now))
-                    } else {
-                        (false, false)
+                    let (redraw, active) = match &mut n.kind {
+                        WidgetKind::List { fx, .. } => {
+                            let was_active = fx.active(now);
+                            let removed = fx.prune(now);
+                            // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
+                            (was_active || removed, fx.active(now))
+                        }
+                        // Spinner 永远自转
+                        WidgetKind::Spinner => (true, true),
+                        _ => (false, false),
                     };
                     (n.children.clone(), redraw, active)
                 }
@@ -744,6 +749,32 @@ impl Ui {
         crate::widgets::list::create(self, parent, items)
     }
 
+    pub fn create_arc(&mut self, parent: ObjRef, min: i32, max: i32) -> ObjRef {
+        crate::widgets::arc::create(self, parent, min, max)
+    }
+
+    pub fn create_checkbox(&mut self, parent: ObjRef, text: &str) -> ObjRef {
+        crate::widgets::checkbox::create(self, parent, text)
+    }
+
+    pub fn create_spinner(&mut self, parent: ObjRef) -> ObjRef {
+        crate::widgets::spinner::create(self, parent)
+    }
+
+    /// 模态消息框：标题 + 文本 + 按钮行。点击按钮关闭并读 msgbox_selected（Esc = -1）
+    pub fn create_msgbox(&mut self, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
+        crate::widgets::msgbox::create(self, parent, title, text, buttons)
+    }
+
+    pub fn msgbox_selected(&self, obj: ObjRef) -> i32 {
+        if let Some(n) = self.arena.get(obj) {
+            if let WidgetKind::Msgbox { selected } = &n.kind {
+                return *selected;
+            }
+        }
+        -1
+    }
+
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
         self.invalidate_value_area(obj);
         let changed = match self.arena.get_mut(obj) {
@@ -756,15 +787,9 @@ impl Ui {
         }
     }
 
-    /// 值变化时的标脏区域：Slider 的旋钮超出轨道，需按控件的外扩区域标脏
+    /// 值变化时的标脏区域（invalidate_obj 已按控件类型外扩）
     fn invalidate_value_area(&mut self, obj: ObjRef) {
-        let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
-        if is_slider && self.is_valid(obj) {
-            let r = crate::widgets::slider::overflow_rect(self.abs_rect(obj));
-            self.invalidate_area(r);
-        } else {
-            self.invalidate_obj(obj);
-        }
+        self.invalidate_obj(obj);
     }
 
     pub fn value(&self, obj: ObjRef) -> i32 {
@@ -1080,16 +1105,30 @@ impl Ui {
     }
 
     fn activate(&mut self, obj: ObjRef) {
-        // 按控件类型分派；List 的行为在 Task 11 扩展
+        // 按控件类型分派
         let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
         let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch { .. }));
+        let is_checkbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Checkbox { .. }));
         if is_slider {
             self.set_state(obj, State::EDITED, true);
         } else if is_switch {
             self.toggle_switch(obj);
+        } else if is_checkbox {
+            self.toggle_checkbox(obj);
         } else {
             self.send_event(obj, crate::event::EventKind::Clicked);
         }
+    }
+
+    pub fn toggle_checkbox(&mut self, obj: ObjRef) {
+        self.invalidate_obj(obj);
+        if let Some(n) = self.arena.get_mut(obj) {
+            if let WidgetKind::Checkbox { checked, .. } = &mut n.kind {
+                *checked = !*checked;
+            }
+        }
+        self.invalidate_obj(obj);
+        self.send_event(obj, crate::event::EventKind::ValueChanged);
     }
 
     pub fn toggle_switch(&mut self, obj: ObjRef) {
