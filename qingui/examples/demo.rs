@@ -3,7 +3,7 @@ mod sim;
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::{Layout, Style};
-use qingui::{EventKind, Ui};
+use qingui::{Color, EventKind, Ui};
 
 fn main() {
     sim::run(build);
@@ -43,7 +43,7 @@ pub fn build(ui: &mut Ui) {
     let title = ui.create_label(screen, "qingui demo");
     ui.set_grid_cell(title, (0, 2), (0, 1));
 
-    let menu = ui.create_list(screen, &["Settings", "About", "Animate", "LongList"]);
+    let menu = ui.create_list(screen, &["Settings", "About", "Animate", "LongList", "P1 Demo"]);
     ui.set_grid_cell(menu, (0, 1), (1, 1));
     ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
 
@@ -184,12 +184,44 @@ pub fn build(ui: &mut Ui) {
         }));
     }));
 
+    // ---- P1 Demo 页：Roller / Dropdown / Spinbox / LED / Table ----
+    let page_p1 = ui.create_obj(panel);
+    ui.set_style(page_p1, transparent());
+    ui.set_sizing(page_p1, Some(Sizing::GROW), Some(Sizing::GROW));
+    ui.set_layout(page_p1, column());
+    let roller = ui.create_roller(page_p1, &["One", "Two", "Three", "Four", "Five"]);
+    ui.set_size(roller, 90, 56);
+    let dropdown = ui.create_dropdown(page_p1, &["Red", "Green", "Blue"]);
+    let spinbox = ui.create_spinbox(page_p1, 0, 999, 3);
+    let led_row = ui.create_obj(page_p1);
+    ui.set_style(led_row, transparent());
+    ui.set_size(led_row, 120, 18);
+    ui.set_layout(led_row, Layout::Flex(Flex {
+        dir: FlexDir::Row, wrap: false,
+        main: Align::Start, cross: Align::Center, track: Align::Start, gap: 6,
+    }));
+    let led = ui.create_led(led_row, Color::rgb(60, 180, 90));
+    let _led_lbl = ui.create_label(led_row, "status");
+    // LED 亮度跟随 spinbox 值（演示控件联动）
+    ui.add_event_cb(spinbox, EventKind::ValueChanged, Box::new(move |ui, sb, _| {
+        let v = ui.value(sb);
+        ui.set_value(led, v * 255 / 999);
+    }));
+    let table = ui.create_table(page_p1, 3, 2);
+    ui.table_set_cell(table, 0, 0, "id");
+    ui.table_set_cell(table, 0, 1, "val");
+    ui.table_set_cell(table, 0, 2, "unit");
+    ui.table_set_cell(table, 1, 0, "01");
+    ui.table_set_cell(table, 1, 1, "42");
+    ui.table_set_cell(table, 1, 2, "ms");
+
     ui.set_hidden(page_about, true);
     ui.set_hidden(page_animate, true);
     ui.set_hidden(page_longlist, true);
+    ui.set_hidden(page_p1, true);
 
     // 布局过渡：菜单/面板/页面的位置尺寸变化自动动画
-    for &o in &[menu, panel, page_settings, page_about, page_animate, page_longlist] {
+    for &o in &[menu, panel, page_settings, page_about, page_animate, page_longlist, page_p1] {
         ui.set_transition(o, Some((250, Easing::EaseInOutQuad)));
     }
 
@@ -200,10 +232,11 @@ pub fn build(ui: &mut Ui) {
         ui.set_hidden(page_about, idx != 1);
         ui.set_hidden(page_animate, idx != 2);
         ui.set_hidden(page_longlist, idx != 3);
+        ui.set_hidden(page_p1, idx != 4);
         ui.anim_start(Anim::new(panel, AnimProp::TranslateX, 204, 0, 200).easing(Easing::EaseOutQuad));
     }));
 
-    // 焦点组：菜单 → slider → switch → checkbox → Wide → 超长列表 → Add/Del
+    // 焦点组：菜单 → slider → switch → checkbox → Wide → 超长列表 → Add/Del → P1 控件组
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);
@@ -212,4 +245,7 @@ pub fn build(ui: &mut Ui) {
     ui.group_add(long_list);
     ui.group_add(add_btn);
     ui.group_add(del_btn);
+    ui.group_add(roller);
+    ui.group_add(dropdown);
+    ui.group_add(spinbox);
 }

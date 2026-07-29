@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
@@ -296,6 +297,15 @@ impl Ui {
                             let removed = fx.prune(now);
                             // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
                             (was_active || removed, fx.active(now))
+                        }
+                        WidgetKind::Roller { sel_from, .. } => {
+                            let had_fx = sel_from.is_some();
+                            let active = crate::widgets::roller::fx_active(*sel_from, now);
+                            if !active {
+                                *sel_from = None;
+                            }
+                            // 有 fx（含本帧过期）就重绘：完成帧必须补最后一定格
+                            (had_fx, active)
                         }
                         // Spinner 永远自转
                         WidgetKind::Spinner => (true, true),
@@ -765,7 +775,6 @@ impl Ui {
     pub fn create_msgbox(&mut self, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
         crate::widgets::msgbox::create(self, parent, title, text, buttons)
     }
-
     pub fn msgbox_selected(&self, obj: ObjRef) -> i32 {
         if let Some(n) = self.arena.get(obj) {
             if let WidgetKind::Msgbox { selected } = &n.kind {
@@ -773,6 +782,47 @@ impl Ui {
             }
         }
         -1
+    }
+
+    pub fn create_led(&mut self, parent: ObjRef, color: crate::geometry::Color) -> ObjRef {
+        crate::widgets::led::create(self, parent, color)
+    }
+
+    pub fn create_table(&mut self, parent: ObjRef, cols: u8, rows: u8) -> ObjRef {
+        crate::widgets::table::create(self, parent, cols, rows)
+    }
+
+    pub fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
+        self.invalidate_obj(obj);
+        if let Some(n) = self.arena.get_mut(obj) {
+            if let WidgetKind::Table { cols, rows, cells } = &mut n.kind {
+                if row < *rows && col < *cols {
+                    cells[row as usize * *cols as usize + col as usize] = text.into();
+                }
+            }
+        }
+        self.invalidate_obj(obj);
+    }
+
+    pub fn create_spinbox(&mut self, parent: ObjRef, min: i32, max: i32, digits: u8) -> ObjRef {
+        crate::widgets::spinbox::create(self, parent, min, max, digits)
+    }
+
+    pub fn create_roller(&mut self, parent: ObjRef, items: &[&str]) -> ObjRef {
+        crate::widgets::roller::create(self, parent, items)
+    }
+
+    pub fn roller_selected(&self, obj: ObjRef) -> usize {
+        if let Some(n) = self.arena.get(obj) {
+            if let WidgetKind::Roller { selected, .. } = &n.kind {
+                return *selected;
+            }
+        }
+        0
+    }
+
+    pub fn create_dropdown(&mut self, parent: ObjRef, items: &[&str]) -> ObjRef {
+        crate::widgets::dropdown::create(self, parent, items)
     }
 
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
@@ -1052,6 +1102,54 @@ impl Ui {
         let edited = self.state(f).contains(State::EDITED);
         self.send_event(f, crate::event::EventKind::Key(key));
         if edited {
+            let is_spinbox = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Spinbox { .. }));
+            if is_spinbox {
+                // Spinbox 编辑态：Left/Right 选位，Up/Down 增减，Enter/Esc 退出
+                enum Act {
+                    Idle,
+                    Set(i32),
+                    Exit,
+                }
+                let act = if let Some(n) = self.arena.get_mut(f) {
+                    if let WidgetKind::Spinbox { min, max, value, digits, cursor } = &mut n.kind {
+                        match key {
+                            Key::Left => {
+                                crate::widgets::spinbox::move_cursor(*digits, cursor, -1);
+                                Act::Idle
+                            }
+                            Key::Right => {
+                                crate::widgets::spinbox::move_cursor(*digits, cursor, 1);
+                                Act::Idle
+                            }
+                            Key::Up => {
+                                let mut nv = *value;
+                                crate::widgets::spinbox::step_digit(*min, *max, &mut nv, *digits, *cursor, 1);
+                                Act::Set(nv)
+                            }
+                            Key::Down => {
+                                let mut nv = *value;
+                                crate::widgets::spinbox::step_digit(*min, *max, &mut nv, *digits, *cursor, -1);
+                                Act::Set(nv)
+                            }
+                            Key::Enter | Key::Esc => Act::Exit,
+                            _ => Act::Idle,
+                        }
+                    } else {
+                        Act::Idle
+                    }
+                } else {
+                    Act::Idle
+                };
+                match act {
+                    Act::Set(v) => {
+                        self.invalidate_obj(f);
+                        self.set_value(f, v);
+                    }
+                    Act::Exit => self.set_state(f, State::EDITED, false),
+                    Act::Idle => self.invalidate_obj(f),
+                }
+                return;
+            }
             match key {
                 Key::Left => { let v = self.value(f); self.set_value(f, v - 1); }
                 Key::Right => { let v = self.value(f); self.set_value(f, v + 1); }
@@ -1061,6 +1159,15 @@ impl Ui {
             return;
         }
         let is_list = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::List { .. }));
+        let is_roller = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Roller { .. }));
+        if is_roller {
+            // Roller：Up/Down 滚轮选择（首尾停止）
+            match key {
+                Key::Up => { self.roller_step(f, -1); return; }
+                Key::Down => { self.roller_step(f, 1); return; }
+                _ => {}
+            }
+        }
         if is_list {
             match key {
                 Key::Up => {
@@ -1109,15 +1216,77 @@ impl Ui {
         let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
         let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch { .. }));
         let is_checkbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Checkbox { .. }));
-        if is_slider {
+        let is_dropdown = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Dropdown { .. }));
+        let is_spinbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Spinbox { .. }));
+        if is_slider || is_spinbox {
             self.set_state(obj, State::EDITED, true);
         } else if is_switch {
             self.toggle_switch(obj);
         } else if is_checkbox {
             self.toggle_checkbox(obj);
+        } else if is_dropdown {
+            self.open_dropdown(obj);
         } else {
             self.send_event(obj, crate::event::EventKind::Clicked);
         }
+    }
+
+    fn roller_step(&mut self, obj: ObjRef, dir: i32) {
+        let now = self.time_ms;
+        self.invalidate_obj(obj);
+        if let Some(n) = self.arena.get_mut(obj) {
+            if let WidgetKind::Roller { items, selected, sel_from } = &mut n.kind {
+                let next = (*selected as i32 + dir).clamp(0, items.len().saturating_sub(1) as i32);
+                crate::widgets::roller::select(items, selected, sel_from, next as usize, now);
+            }
+        }
+        self.invalidate_obj(obj);
+    }
+
+    /// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）
+    fn open_dropdown(&mut self, obj: ObjRef) {
+        let Some((items, sel, w)) = self.arena.get(obj).map(|n| match &n.kind {
+            WidgetKind::Dropdown { items, selected } => (items.clone(), *selected, n.rect.w),
+            _ => (Vec::new(), 0, 0),
+        }) else { return };
+        if items.is_empty() {
+            return;
+        }
+        let prev = self.focused();
+        let screen = self.screen;
+        let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
+        let lst = self.create_list(screen, &refs);
+        self.set_size(lst, w.max(80), (items.len().min(5) * 16 + 2) as i32);
+        self.list_select(lst, sel);
+        self.set_floating(lst, obj, crate::layout::Attach::Bottom);
+        self.group_add(lst);
+        self.set_modal(lst);
+        // 选中：写回 dropdown 并发 ValueChanged，关闭浮层，还原焦点
+        self.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
+            let idx = ui.list_selected(l);
+            if let Some(n) = ui.arena.get_mut(obj) {
+                if let WidgetKind::Dropdown { selected, .. } = &mut n.kind {
+                    *selected = idx;
+                }
+            }
+            ui.invalidate_obj(obj);
+            ui.send_event(obj, crate::event::EventKind::ValueChanged);
+            ui.clear_modal();
+            ui.delete(l);
+            if let Some(p) = prev {
+                ui.group_focus(p);
+            }
+        }));
+        // Esc：不改值，直接关闭
+        self.add_event_cb(lst, crate::event::EventKind::Key(crate::input::Key::Esc), Box::new(move |ui, l, k| {
+            if k == crate::event::EventKind::Key(crate::input::Key::Esc) {
+                ui.clear_modal();
+                ui.delete(l);
+                if let Some(p) = prev {
+                    ui.group_focus(p);
+                }
+            }
+        }));
     }
 
     pub fn toggle_checkbox(&mut self, obj: ObjRef) {

@@ -10,12 +10,17 @@ pub mod bar;
 pub mod button;
 pub mod canvas;
 pub mod checkbox;
+pub mod dropdown;
 pub mod label;
+pub mod led;
 pub mod list;
 pub mod msgbox;
+pub mod roller;
 pub mod slider;
+pub mod spinbox;
 pub mod spinner;
 pub mod switch;
+pub mod table;
 
 #[derive(Clone)]
 pub enum WidgetKind {
@@ -32,6 +37,11 @@ pub enum WidgetKind {
     Checkbox { text: String, checked: bool },
     Spinner,
     Msgbox { selected: i32 },
+    Led { color: crate::geometry::Color, bright: u8 },
+    Table { cols: u8, rows: u8, cells: Vec<String> },
+    Spinbox { min: i32, max: i32, value: i32, digits: u8, cursor: u8 },
+    Roller { items: Vec<String>, selected: usize, sel_from: Option<(f32, u64)> },
+    Dropdown { items: Vec<String>, selected: usize },
 }
 
 /// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
@@ -67,6 +77,11 @@ pub(crate) fn draw(kind: &WidgetKind, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Re
         WidgetKind::Spinner => spinner::draw(ctx, d, clip),
         // Msgbox 是普通容器（子对象正常绘制）
         WidgetKind::Msgbox { .. } => {}
+        WidgetKind::Led { color, bright } => led::draw(*color, *bright, ctx, d, clip),
+        WidgetKind::Table { cols, rows, cells } => table::draw(*cols, *rows, cells, ctx, d, clip),
+        WidgetKind::Spinbox { min, max, value, digits, cursor } => spinbox::draw(*min, *max, *value, *digits, *cursor, ctx, d, clip),
+        WidgetKind::Roller { items, selected, sel_from } => roller::draw(items, *selected, *sel_from, ctx, d, clip),
+        WidgetKind::Dropdown { items, selected } => dropdown::draw(items, *selected, ctx, d, clip),
     }
 }
 
@@ -79,12 +94,15 @@ pub(crate) fn overflow_of(kind: &WidgetKind) -> i32 {
     }
 }
 
-/// 控件的当前值（Switch/Checkbox：on=1/off=0；无值控件返回 0）
+/// 控件的当前值（Switch/Checkbox：on=1/off=0；Roller/Dropdown：选中索引；无值控件返回 0）
 pub(crate) fn value_of(kind: &WidgetKind) -> i32 {
     match kind {
         WidgetKind::Slider { value, .. } | WidgetKind::Bar { value, .. } | WidgetKind::Arc { value, .. } => *value,
         WidgetKind::Switch { on } => *on as i32,
         WidgetKind::Checkbox { checked, .. } => *checked as i32,
+        WidgetKind::Spinbox { value, .. } => *value,
+        WidgetKind::Led { bright, .. } => *bright as i32,
+        WidgetKind::Roller { selected, .. } | WidgetKind::Dropdown { selected, .. } => *selected as i32,
         _ => 0,
     }
 }
@@ -103,6 +121,28 @@ pub(crate) fn set_value_of(kind: &mut WidgetKind, v: i32) -> bool {
             let changed = nv != *checked;
             *checked = nv;
             changed
+        }
+        WidgetKind::Spinbox { min, max, value, .. } => {
+            let nv = v.clamp(*min, *max);
+            let changed = nv != *value;
+            *value = nv;
+            changed
+        }
+        WidgetKind::Led { bright, .. } => {
+            let nv = v.clamp(0, 255) as u8;
+            let changed = nv != *bright;
+            *bright = nv;
+            changed
+        }
+        WidgetKind::Roller { items, selected, .. } | WidgetKind::Dropdown { items, selected, .. } => {
+            if items.is_empty() {
+                false
+            } else {
+                let nv = (v.max(0) as usize).min(items.len() - 1);
+                let changed = nv != *selected;
+                *selected = nv;
+                changed
+            }
         }
         _ => false,
     }

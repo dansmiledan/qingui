@@ -46,18 +46,6 @@ pub(crate) fn dir_vec(deg: i32) -> (i32, i32) {
     }
 }
 
-/// 1/16° 定点角度 → 单位向量（256 定点，相邻表项线性插值，平滑小角度移动）
-pub(crate) fn dir_vec_fx(deg_x16: i32) -> (i32, i32) {
-    let d = deg_x16.rem_euclid(360 * 16);
-    let (d0, frac) = (d / 16, d % 16);
-    let (x0, y0) = dir_vec(d0);
-    let (x1, y1) = dir_vec(d0 + 1);
-    (
-        x0 + (x1 - x0) * frac / 16,
-        y0 + (y1 - y0) * frac / 16,
-    )
-}
-
 /// 圆弧扇形的 4x4 超采样覆盖率：子采样同时满足环带（inner < d ≤ outer）与角度楔形
 fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i32), and_mode: bool) -> i32 {
     let out2 = (16 * outer) * (16 * outer);
