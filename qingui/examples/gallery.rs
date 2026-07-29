@@ -191,7 +191,7 @@ impl Demo {
 
         // 每 1s：最后一个移到最前
         if now >= self.next_reorder {
-            self.next_reorder += 1000;
+            self.next_reorder += 3000;
             let kids = ui.children(ui.screen());
             if let Some(&last) = kids.last() {
                 ui.move_child_to_index(last, 0);
