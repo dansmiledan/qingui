@@ -46,7 +46,7 @@ loop {
 仓库内含 minifb 模拟器（不发布到 crates.io）：
 
 ```
-cargo run -p qingui-sim
+cargo run --example demo
 ```
 
 方向键/Tab 移动焦点，Enter 选择/进入编辑，Esc 退出编辑，Q 退出。绿色边框为脏矩形调试可视化。

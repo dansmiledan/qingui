@@ -1,9 +1,0 @@
-[package]
-name = "qingui-sim"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
-[dependencies]
-qingui = { path = "../qingui" }
-minifb = "0.28"

@@ -1,3 +1,6 @@
+//! 共享模拟器运行时：minifb 窗口 + flush 转发 + 按键映射 + 主循环。
+//! 各 example 只需实现 UI 构建函数并调用 `sim::run(build)`。
+
 use minifb::{Key as MKey, Scale, Window, WindowOptions};
 use qingui::display::Flush;
 use qingui::input::Key;
@@ -6,11 +9,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-mod demo;
-
-const WIDTH: usize = 320;
-const HEIGHT: usize = 240;
-const BUF_ROWS: u32 = 24; // 1/10 屏，验证 PFB 分块
+pub const WIDTH: usize = 320;
+pub const HEIGHT: usize = 240;
+pub const BUF_ROWS: u32 = 24; // 1/10 屏，验证 PFB 分块
 
 /// flush 写入共享的全屏 u32 缓冲（0x00RRGGBB）；debug_dirty 时给 chunk 画绿色 1px 边框
 struct SimFlush {
@@ -70,7 +71,8 @@ const KEYS: [MKey; 8] = [
     MKey::Enter, MKey::Escape, MKey::Tab, MKey::Backspace,
 ];
 
-fn main() {
+/// 打开模拟器窗口并运行主循环。`build` 在启动时调用一次构建 UI。
+pub fn run(build: impl FnOnce(&mut Ui)) {
     let mut window = Window::new(
         "qingui sim",
         WIDTH,
@@ -84,7 +86,7 @@ fn main() {
     let fb = Rc::new(RefCell::new(vec![0u32; WIDTH * HEIGHT]));
     let mut ui = Ui::new(WIDTH as i32, HEIGHT as i32, BUF_ROWS);
     ui.set_flush(Box::new(SimFlush { fb: fb.clone(), debug_dirty: false }));
-    demo::build(&mut ui);
+    build(&mut ui);
 
     let mut last = Instant::now();
     let mut frames = 0u32;

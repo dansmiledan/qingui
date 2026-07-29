@@ -369,14 +369,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.13.1",
  "font8x8",
-]
-
-[[package]]
-name = "qingui-sim"
-version = "0.1.0"
-dependencies = [
  "minifb",
- "qingui",
 ]
 
 [[package]]

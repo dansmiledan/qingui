@@ -1,7 +1,13 @@
+mod sim;
+
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::{Layout, Style};
 use qingui::{Color, EventKind, ObjRef, Ui};
+
+fn main() {
+    sim::run(build);
+}
 
 fn column() -> Layout {
     Layout::Flex(Flex {
