@@ -96,6 +96,26 @@ impl Style {
         self.transition = Some((duration_ms, easing));
         self
     }
+
+    /// other 的 Some 字段覆盖 self 的同名字段（样式组合）
+    pub fn merge(mut self, other: Style) -> Style {
+        if other.bg_color.is_some() { self.bg_color = other.bg_color; }
+        if other.bg_opa.is_some() { self.bg_opa = other.bg_opa; }
+        if other.border_color.is_some() { self.border_color = other.border_color; }
+        if other.border_width.is_some() { self.border_width = other.border_width; }
+        if other.radius.is_some() { self.radius = other.radius; }
+        if other.pad_left.is_some() { self.pad_left = other.pad_left; }
+        if other.pad_right.is_some() { self.pad_right = other.pad_right; }
+        if other.pad_top.is_some() { self.pad_top = other.pad_top; }
+        if other.pad_bottom.is_some() { self.pad_bottom = other.pad_bottom; }
+        if other.text_color.is_some() { self.text_color = other.text_color; }
+        if other.layout.is_some() { self.layout = other.layout; }
+        if other.sizing_w.is_some() { self.sizing_w = other.sizing_w; }
+        if other.sizing_h.is_some() { self.sizing_h = other.sizing_h; }
+        if other.aspect_ratio.is_some() { self.aspect_ratio = other.aspect_ratio; }
+        if other.transition.is_some() { self.transition = other.transition; }
+        self
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -173,34 +193,29 @@ pub fn resolve(base: &Style, overlay: Option<&Style>) -> ResolvedStyle {
     }
 }
 
+/// 通用基础样式：所有控件默认样式的基础。
+/// 注意：只用于组合"基础样式"；状态覆盖样式（pressed/focused）保持稀疏，不要用它组合。
+pub fn theme_base() -> Style {
+    Style::new().text_color(Color::WHITE).bg_opa(255).radius(4)
+}
+
 pub fn theme_screen() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(24, 24, 32));
-    s
+    theme_base().bg(Color::rgb(24, 24, 32))
 }
 
 pub fn theme_obj() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(40, 40, 52));
-    s.radius = Some(4);
-    s
+    theme_base().bg(Color::rgb(40, 40, 52))
 }
 
 pub fn theme_label() -> Style {
-    let mut s = Style::default();
-    s.text_color = Some(Color::WHITE);
-    s.bg_opa = Some(0); // 透明背景
-    s
+    theme_base().bg_opa(0) // 透明背景
 }
 
 pub fn theme_button() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(60, 90, 160));
-    s.radius = Some(6);
-    s.border_color = Some(Color::rgb(90, 120, 200));
-    s.border_width = Some(1);
-    s.text_color = Some(Color::WHITE);
-    s
+    theme_base()
+        .bg(Color::rgb(60, 90, 160))
+        .radius(6)
+        .border(Color::rgb(90, 120, 200), 1)
 }
 
 pub fn theme_button_pressed() -> Style {
@@ -217,10 +232,7 @@ pub fn theme_button_focused() -> Style {
 }
 
 pub fn theme_slider() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(70, 70, 80));
-    s.radius = Some(6);
-    s
+    theme_base().bg(Color::rgb(70, 70, 80)).radius(6)
 }
 
 pub fn theme_slider_focused() -> Style {
@@ -231,10 +243,7 @@ pub fn theme_slider_focused() -> Style {
 }
 
 pub fn theme_switch() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(90, 90, 90));
-    s.radius = Some(10); // 高度 20 的全圆角
-    s
+    theme_base().bg(Color::rgb(90, 90, 90)).radius(10) // 高度 20 的全圆角
 }
 
 pub fn theme_switch_focused() -> Style {
@@ -245,20 +254,13 @@ pub fn theme_switch_focused() -> Style {
 }
 
 pub fn theme_bar() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(70, 70, 80));
-    s.radius = Some(4);
-    s
+    theme_base().bg(Color::rgb(70, 70, 80))
 }
 
 pub fn theme_list() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(34, 34, 44));
-    s.radius = Some(4);
-    s.border_color = Some(Color::rgb(70, 70, 90));
-    s.border_width = Some(1);
-    s.text_color = Some(Color::WHITE);
-    s
+    theme_base()
+        .bg(Color::rgb(34, 34, 44))
+        .border(Color::rgb(70, 70, 90), 1)
 }
 
 pub fn theme_list_focused() -> Style {
