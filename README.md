@@ -18,6 +18,7 @@
 ```rust
 use qingui::display::Flush;
 use qingui::input::Key;
+use qingui::widgets::slider::SliderBuilder;
 use qingui::{Color, Rect, Ui};
 
 struct MyFlush;
@@ -30,9 +31,13 @@ impl Flush for MyFlush {
 let mut ui = Ui::new(320, 240, 24); // 屏幕 320x240，PFB 缓冲 24 行
 ui.set_flush(Box::new(MyFlush));
 
-let btn = ui.create_button(ui.screen(), "OK");
-ui.set_pos(btn, 20, 20);
-ui.group_add(btn);
+// Builder：默认尺寸/样式（通用 theme_base + 控件专属）可链式覆盖
+let slider = SliderBuilder::new(0, 100)
+    .size(140, 14)
+    .value(50)
+    .style_with(|s| s.bg(Color::rgb(90, 90, 120)))
+    .build(&mut ui, ui.screen());
+ui.widget(slider).pos(20, 20);
 
 loop {
     ui.tick_inc(16);

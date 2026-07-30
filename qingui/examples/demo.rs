@@ -60,18 +60,20 @@ pub fn build(ui: &mut Ui) {
     ui.set_layout(page_settings, column());
     let l1 = ui.create_label(page_settings, "Brightness");
     let _ = l1;
-    let slider = ui.create_slider(page_settings, 0, 100);
-    ui.set_size(slider, 160, 12);
-    ui.set_value(slider, 30);
+    let slider = qingui::widgets::slider::SliderBuilder::new(0, 100)
+        .size(160, 12)
+        .value(30)
+        .build(ui, page_settings);
     let l2 = ui.create_label(page_settings, "Enabled");
     let _ = l2;
     let sw = ui.create_switch(page_settings);
     let cb = ui.create_checkbox(page_settings, "Notify me");
     let l3 = ui.create_label(page_settings, "Preview");
     let _ = l3;
-    let preview = ui.create_bar(page_settings, 0, 100);
-    ui.set_size(preview, 160, 10);
-    ui.set_value(preview, 30);
+    let preview = qingui::widgets::bar::BarBuilder::new(0, 100)
+        .size(160, 10)
+        .value(30)
+        .build(ui, page_settings);
     // Slider 调值 → 动画驱动 preview Bar（演示动画与控件值联动）
     ui.add_event_cb(slider, EventKind::ValueChanged, Box::new(move |ui, s, _| {
         let v = ui.value(s);
@@ -170,12 +172,12 @@ pub fn build(ui: &mut Ui) {
         let idx = ui.list_selected(l);
         let screen = ui.screen();
         let prev = ui.focused();
-        let mb = ui.create_msgbox(
-            screen,
+        let mb = qingui::widgets::msgbox::MsgboxBuilder::new(
             "Clicked",
             &format!("Item {:02}", idx + 1),
-            &["OK"],
-        );
+        )
+        .buttons(&["OK"])
+        .build(ui, screen);
         // 关闭后还原焦点
         ui.add_event_cb(mb, EventKind::ValueChanged, Box::new(move |ui, _t, _| {
             if let Some(p) = prev {
@@ -189,8 +191,9 @@ pub fn build(ui: &mut Ui) {
     ui.set_style(page_p1, transparent());
     ui.set_sizing(page_p1, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_p1, column());
-    let roller = ui.create_roller(page_p1, &["One", "Two", "Three", "Four", "Five"]);
-    ui.set_size(roller, 90, 56);
+    let roller = qingui::widgets::roller::RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"])
+        .size(90, 56)
+        .build(ui, page_p1);
     let dropdown = ui.create_dropdown(page_p1, &["Red", "Green", "Blue"]);
     let spinbox = ui.create_spinbox(page_p1, 0, 999, 3);
     let led_row = ui.create_obj(page_p1);
@@ -207,13 +210,14 @@ pub fn build(ui: &mut Ui) {
         let v = ui.value(sb);
         ui.set_value(led, v * 255 / 999);
     }));
-    let table = ui.create_table(page_p1, 3, 2);
-    ui.table_set_cell(table, 0, 0, "id");
-    ui.table_set_cell(table, 0, 1, "val");
-    ui.table_set_cell(table, 0, 2, "unit");
-    ui.table_set_cell(table, 1, 0, "01");
-    ui.table_set_cell(table, 1, 1, "42");
-    ui.table_set_cell(table, 1, 2, "ms");
+    let _table = qingui::widgets::table::TableBuilder::new(3, 2)
+        .cell(0, 0, "id")
+        .cell(0, 1, "val")
+        .cell(0, 2, "unit")
+        .cell(1, 0, "01")
+        .cell(1, 1, "42")
+        .cell(1, 2, "ms")
+        .build(ui, page_p1);
 
     ui.set_hidden(page_about, true);
     ui.set_hidden(page_animate, true);

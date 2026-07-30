@@ -93,15 +93,17 @@ impl Demo {
         self.switch = Some(sw);
         kids.push(sw);
 
-        let sl = ui.create_slider(screen, 0, 100);
-        ui.set_size(sl, 70, 12);
-        ui.set_value(sl, 40);
+        let sl = qingui::widgets::slider::SliderBuilder::new(0, 100)
+            .size(70, 12)
+            .value(40)
+            .build(ui, screen);
         self.slider = Some(sl);
         kids.push(sl);
 
-        let bar = ui.create_bar(screen, 0, 100);
-        ui.set_size(bar, 70, 10);
-        ui.set_value(bar, 60);
+        let bar = qingui::widgets::bar::BarBuilder::new(0, 100)
+            .size(70, 10)
+            .value(60)
+            .build(ui, screen);
         self.bar = Some(bar);
         kids.push(bar);
 
@@ -130,8 +132,9 @@ impl Demo {
         self.spinbox = Some(sb);
         kids.push(sb);
 
-        let roller = ui.create_roller(screen, &["A", "B", "C"]);
-        ui.set_size(roller, 56, 56);
+        let roller = qingui::widgets::roller::RollerBuilder::new(&["A", "B", "C"])
+            .size(56, 56)
+            .build(ui, screen);
         self.roller = Some(roller);
         kids.push(roller);
 
@@ -145,11 +148,12 @@ impl Demo {
         self.list = Some(list);
         kids.push(list);
 
-        let table = ui.create_table(screen, 2, 2);
-        ui.table_set_cell(table, 0, 0, "id");
-        ui.table_set_cell(table, 0, 1, "val");
-        ui.table_set_cell(table, 1, 0, "01");
-        ui.table_set_cell(table, 1, 1, "0");
+        let table = qingui::widgets::table::TableBuilder::new(2, 2)
+            .cell(0, 0, "id")
+            .cell(0, 1, "val")
+            .cell(1, 0, "01")
+            .cell(1, 1, "0")
+            .build(ui, screen);
         self.table = Some(table);
         kids.push(table);
 
