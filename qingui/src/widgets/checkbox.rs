@@ -1,7 +1,12 @@
+use alloc::vec::Vec;
 
+use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
+use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Point, Rect};
+use crate::layout::Sizing;
+use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
@@ -31,19 +36,103 @@ pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, 
     );
 }
 
+/// Checkbox 构建器：默认 BOX+6+文本宽 x 16，bg 透明 + focused 白边
+pub struct CheckboxBuilder {
+    text: alloc::string::String,
+    checked: bool,
+    size: Option<(i32, i32)>,
+    style: Option<Style>,
+    style_focused: Option<Style>,
+    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
+    transition: Option<(u32, Easing)>,
+    events: Vec<(EventKind, EventCb)>,
+}
+
+impl CheckboxBuilder {
+    pub fn new(text: &str) -> Self {
+        Self {
+            text: text.into(),
+            checked: false,
+            size: None, style: None, style_focused: None,
+            sizing: None, transition: None, events: Vec::new(),
+        }
+    }
+    pub fn checked(mut self, checked: bool) -> Self {
+        self.checked = checked;
+        self
+    }
+    pub fn size(mut self, w: i32, h: i32) -> Self {
+        self.size = Some((w, h));
+        self
+    }
+    pub fn style(mut self, s: Style) -> Self {
+        self.style = Some(s);
+        self
+    }
+    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
+        let base = self.style.take().unwrap_or_else(|| {
+            let mut s = Style::default();
+            s.bg_opa = Some(0);
+            s.text_color = Some(Color::WHITE);
+            s
+        });
+        self.style = Some(f(base));
+        self
+    }
+    pub fn style_focused(mut self, s: Style) -> Self {
+        self.style_focused = Some(s);
+        self
+    }
+    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
+        self.sizing = Some((w, h));
+        self
+    }
+    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
+        self.transition = Some((dur, easing));
+        self
+    }
+    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
+        self.events.push((kind, cb));
+        self
+    }
+
+    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
+        let (w, h) = self.size.unwrap_or_else(|| {
+            let (tw, _) = crate::font::text_size(&self.text);
+            (BOX + 6 + tw, 16)
+        });
+        let r = ui.insert_node(
+            parent,
+            Rect::new(0, 0, w, h),
+            WidgetKind::Checkbox { text: self.text, checked: self.checked },
+        );
+        let base = self.style.unwrap_or_else(|| {
+            let mut s = Style::default();
+            s.bg_opa = Some(0);
+            s.text_color = Some(Color::WHITE);
+            s
+        });
+        ui.set_style(r, base.clone());
+        let focused = self.style_focused.unwrap_or_else(|| {
+            let mut s = base;
+            s.border_color = Some(Color::WHITE);
+            s.border_width = Some(1);
+            s
+        });
+        ui.set_style_focused(r, focused);
+        if let Some((sw, sh)) = self.sizing {
+            ui.set_sizing(r, sw, sh);
+        }
+        if let Some(t) = self.transition {
+            ui.set_transition(r, Some(t));
+        }
+        for (k, cb) in self.events {
+            ui.add_event_cb(r, k, cb);
+        }
+        r
+    }
+}
+
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
-    let (tw, _) = crate::font::text_size(text);
-    let r = ui.insert_node(
-        parent,
-        Rect::new(0, 0, BOX + 6 + tw, 16),
-        WidgetKind::Checkbox { text: text.into(), checked: false },
-    );
-    let mut s = crate::style::Style::default();
-    s.bg_opa = Some(0);
-    s.text_color = Some(Color::WHITE);
-    ui.set_style(r, s.clone());
-    s.border_color = Some(Color::WHITE);
-    s.border_width = Some(1);
-    ui.set_style_focused(r, s);
-    r
+    CheckboxBuilder::new(text).build(ui, parent)
 }

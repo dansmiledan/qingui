@@ -1,6 +1,12 @@
+use alloc::vec::Vec;
+
+use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
+use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Rect};
+use crate::layout::Sizing;
+use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
@@ -20,10 +26,84 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Draw
     d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
 }
 
+/// Slider 构建器：默认 100x12 + theme_slider/focused，链式覆盖
+pub struct SliderBuilder {
+    min: i32,
+    max: i32,
+    value: Option<i32>,
+    size: Option<(i32, i32)>,
+    style: Option<Style>,
+    style_focused: Option<Style>,
+    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
+    transition: Option<(u32, Easing)>,
+    events: Vec<(EventKind, EventCb)>,
+}
+
+impl SliderBuilder {
+    pub fn new(min: i32, max: i32) -> Self {
+        Self {
+            min, max,
+            value: None, size: None, style: None, style_focused: None,
+            sizing: None, transition: None, events: Vec::new(),
+        }
+    }
+    pub fn value(mut self, v: i32) -> Self {
+        self.value = Some(v);
+        self
+    }
+    pub fn size(mut self, w: i32, h: i32) -> Self {
+        self.size = Some((w, h));
+        self
+    }
+    /// 整体替换默认样式
+    pub fn style(mut self, s: Style) -> Self {
+        self.style = Some(s);
+        self
+    }
+    /// 在默认样式上修改
+    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
+        self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_slider)));
+        self
+    }
+    pub fn style_focused(mut self, s: Style) -> Self {
+        self.style_focused = Some(s);
+        self
+    }
+    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
+        self.sizing = Some((w, h));
+        self
+    }
+    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
+        self.transition = Some((dur, easing));
+        self
+    }
+    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
+        self.events.push((kind, cb));
+        self
+    }
+
+    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
+        let (w, h) = self.size.unwrap_or((100, 12));
+        let r = ui.insert_node(
+            parent,
+            Rect::new(0, 0, w, h),
+            WidgetKind::Slider { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) },
+        );
+        ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_slider));
+        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_slider_focused));
+        if let Some((sw, sh)) = self.sizing {
+            ui.set_sizing(r, sw, sh);
+        }
+        if let Some(t) = self.transition {
+            ui.set_transition(r, Some(t));
+        }
+        for (k, cb) in self.events {
+            ui.add_event_cb(r, k, cb);
+        }
+        r
+    }
+}
+
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-    let r = ui.insert_node(parent, Rect::new(0, 0, 100, 12),
-        WidgetKind::Slider { min, max, value: min });
-    ui.set_style(r, crate::style::theme_slider());
-    ui.set_style_focused(r, crate::style::theme_slider_focused());
-    r
+    SliderBuilder::new(min, max).build(ui, parent)
 }

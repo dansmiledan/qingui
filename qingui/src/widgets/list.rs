@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::{Color, Point, Rect};
+use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
@@ -222,17 +223,84 @@ pub(crate) fn remove(items: &mut Vec<String>, fx: &mut ListFx, selected: &mut us
     true
 }
 
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
-    let rows = items.len().min(5).max(1) as i32;
-    // 高度 = 整数行 + 上下边框，避免可视窗口出现半行错位
-    let r = ui.insert_node(parent, Rect::new(0, 0, 120, rows * ROW_H + 2),
-        WidgetKind::List {
+/// List 构建器：默认 120 x (min(5,n)*16+2)，theme_list/focused
+pub struct ListBuilder {
+    items: Vec<String>,
+    selected: usize,
+    size: Option<(i32, i32)>,
+    style: Option<Style>,
+    style_focused: Option<Style>,
+    sizing: Option<(Option<crate::layout::Sizing>, Option<crate::layout::Sizing>)>,
+    transition: Option<(u32, crate::anim::Easing)>,
+    events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
+}
+
+impl ListBuilder {
+    pub fn new(items: &[&str]) -> Self {
+        Self {
             items: items.iter().map(|s| (*s).into()).collect(),
             selected: 0,
-            scroll: 0,
-            fx: ListFx::default(),
-        });
-    ui.set_style(r, crate::style::theme_list());
-    ui.set_style_focused(r, crate::style::theme_list_focused());
-    r
+            size: None, style: None, style_focused: None,
+            sizing: None, transition: None, events: Vec::new(),
+        }
+    }
+    pub fn selected(mut self, idx: usize) -> Self {
+        self.selected = idx;
+        self
+    }
+    pub fn size(mut self, w: i32, h: i32) -> Self {
+        self.size = Some((w, h));
+        self
+    }
+    pub fn style(mut self, s: Style) -> Self {
+        self.style = Some(s);
+        self
+    }
+    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
+        self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_list)));
+        self
+    }
+    pub fn style_focused(mut self, s: Style) -> Self {
+        self.style_focused = Some(s);
+        self
+    }
+    pub fn sizing(mut self, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) -> Self {
+        self.sizing = Some((w, h));
+        self
+    }
+    pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self {
+        self.transition = Some((dur, easing));
+        self
+    }
+    pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
+        self.events.push((kind, cb));
+        self
+    }
+
+    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
+        let rows = self.items.len().min(5).max(1) as i32;
+        let (w, h) = self.size.unwrap_or((120, rows * ROW_H + 2));
+        let selected = if self.items.is_empty() { 0 } else { self.selected.min(self.items.len() - 1) };
+        let r = ui.insert_node(
+            parent,
+            Rect::new(0, 0, w, h),
+            WidgetKind::List { items: self.items, selected, scroll: 0, fx: ListFx::default() },
+        );
+        ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_list));
+        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_list_focused));
+        if let Some((sw, sh)) = self.sizing {
+            ui.set_sizing(r, sw, sh);
+        }
+        if let Some(t) = self.transition {
+            ui.set_transition(r, Some(t));
+        }
+        for (k, cb) in self.events {
+            ui.add_event_cb(r, k, cb);
+        }
+        r
+    }
+}
+
+pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
+    ListBuilder::new(items).build(ui, parent)
 }

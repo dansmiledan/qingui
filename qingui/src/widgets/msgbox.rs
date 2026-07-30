@@ -11,6 +11,32 @@ use super::WidgetKind;
 /// 模态消息框：标题 + 文本 + 按钮行，浮层居中并锁定焦点。
 /// 按钮点击后关闭：根对象收到 `EventKind::ValueChanged`，
 /// 用 `Ui::msgbox_selected` 读取点击的按钮索引（Esc 关闭为 -1）。
+/// Msgbox 构建器：模态消息框（标题 + 文本 + 按钮行）
+pub struct MsgboxBuilder {
+    title: alloc::string::String,
+    text: alloc::string::String,
+    buttons: alloc::vec::Vec<alloc::string::String>,
+}
+
+impl MsgboxBuilder {
+    pub fn new(title: &str, text: &str) -> Self {
+        Self {
+            title: title.into(),
+            text: text.into(),
+            buttons: alloc::vec::Vec::new(),
+        }
+    }
+    pub fn buttons(mut self, buttons: &[&str]) -> Self {
+        self.buttons = buttons.iter().map(|s| (*s).into()).collect();
+        self
+    }
+
+    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
+        let refs: alloc::vec::Vec<&str> = self.buttons.iter().map(|s| s.as_str()).collect();
+        create(ui, parent, &self.title, &self.text, &refs)
+    }
+}
+
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
     let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), WidgetKind::Msgbox { selected: -1 });
     ui.set_floating(root, parent, Attach::Center);
