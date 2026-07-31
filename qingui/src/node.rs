@@ -4,6 +4,11 @@ use crate::geometry::Rect;
 
 pub use crate::widgets::WidgetKind;
 
+/// 叠加绘制钩子：在控件自带内容之后调用，参数为 (画板, 控件绝对矩形, 裁剪矩形, 当前时间 ms)
+pub type DrawHook = alloc::boxed::Box<dyn FnMut(&mut crate::draw::DrawBuf, Rect, Rect, u64)>;
+/// 每帧钩子：返回 true 表示仍活动（标脏并保持 timer_handler 唤醒）
+pub type TickHook = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui, ObjRef, u64) -> bool>;
+
 bitflags::bitflags! {
     /// 对象状态（对齐 LVGL 的 state）
     #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -36,6 +41,8 @@ pub struct Node {
     pub style_focused: crate::style::Style,
     pub opa: u8,
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
+    pub draw_hook: Option<DrawHook>,
+    pub tick_hook: Option<TickHook>,
     pub grid_col: (u8, u8),
     pub grid_row: (u8, u8),
     /// 视觉平移偏移：子树整体在渲染时叠加，不参与布局（对齐 LVGL translate_x/y）
@@ -62,6 +69,8 @@ impl Node {
             style_focused: crate::style::Style::default(),
             opa: 255,
             events: Vec::new(),
+            draw_hook: None,
+            tick_hook: None,
             grid_col: (0, 1),
             grid_row: (0, 1),
             translate: crate::geometry::Point::default(),

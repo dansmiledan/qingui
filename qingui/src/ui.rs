@@ -18,7 +18,6 @@ pub struct Ui {
     group: Vec<ObjRef>,
     focused_idx: Option<usize>,
     pub(crate) layout_dirty: bool,
-    canvas_cbs: Vec<Option<crate::widgets::canvas::CanvasCb>>,
     modal: Option<ObjRef>,
 }
 
@@ -29,17 +28,27 @@ impl Ui {
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, canvas_cbs: Vec::new(), modal: None }
-    }
-
-    pub(crate) fn register_canvas_cb(&mut self, cb: crate::widgets::canvas::CanvasCb) -> usize {
-        self.canvas_cbs.push(Some(cb));
-        self.canvas_cbs.len() - 1
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None }
     }
 
     /// 自定义绘制控件：回调签名为 (画板, 控件绝对矩形, 裁剪矩形, 当前时间 ms)
-    pub fn create_canvas(&mut self, parent: ObjRef, w: i32, h: i32, cb: crate::widgets::canvas::CanvasCb) -> ObjRef {
+    pub fn create_canvas(&mut self, parent: ObjRef, w: i32, h: i32, cb: crate::node::DrawHook) -> ObjRef {
         crate::widgets::canvas::create(self, parent, w, h, cb)
+    }
+
+    /// 设置叠加绘制钩子（None 清除）。在控件自带内容之上追加绘制
+    pub fn set_draw_hook(&mut self, obj: ObjRef, hook: Option<crate::node::DrawHook>) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.draw_hook = hook;
+        }
+        self.invalidate_obj(obj);
+    }
+
+    /// 设置每帧钩子（None 清除）。返回 true 的帧：标脏该对象并保持唤醒
+    pub fn set_tick_hook(&mut self, obj: ObjRef, hook: Option<crate::node::TickHook>) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.tick_hook = hook;
+        }
     }
 
     pub fn screen(&self) -> ObjRef {
@@ -303,15 +312,15 @@ impl Ui {
         if self.anim_running() || fx_active { 0 } else { u32::MAX }
     }
 
-    /// 遍历对象树推进每帧效果（fx/Spinner），活动节点标脏。
+    /// 遍历对象树推进每帧效果（fx/Spinner/tick_hook），活动节点标脏。
     /// 返回是否仍有活动效果（决定 timer_handler 是否持续唤醒）。
     fn tick_widgets(&mut self) -> bool {
         let now = self.time_ms;
         let mut any = false;
         let mut stack = alloc::vec![self.screen];
         while let Some(r) = stack.pop() {
-            let (out, children) = match self.arena.get_mut(r) {
-                Some(n) => (n.kind.tick(now), n.children.clone()),
+            let (out, children, has_hook) = match self.arena.get_mut(r) {
+                Some(n) => (n.kind.tick(now), n.children.clone(), n.tick_hook.is_some()),
                 None => continue,
             };
             if out.redraw {
@@ -319,6 +328,19 @@ impl Ui {
             }
             if out.active {
                 any = true;
+            }
+            if has_hook {
+                // take-调用-放回：hook 签名含 &mut Ui
+                let mut hook = self.arena.get_mut(r).and_then(|n| n.tick_hook.take());
+                if let Some(h) = hook.as_mut() {
+                    if h(self, r, now) {
+                        any = true;
+                        self.invalidate_obj(r);
+                    }
+                }
+                if let Some(n) = self.arena.get_mut(r) {
+                    n.tick_hook = hook;
+                }
             }
             stack.extend_from_slice(&children);
         }
@@ -679,27 +701,25 @@ impl Ui {
         if flags.contains(Flag::HIDDEN) {
             return;
         }
-        // 节点 opa 作为乘数作用于本对象的所有绘制
-        let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
         if abs.intersect(&clip).is_some() {
-            let kind_snap = self.arena.get(obj).unwrap().kind.clone();
             let edited = self.state(obj).contains(State::EDITED);
             let now = self.time_ms;
+            // 节点 opa 作为乘数作用于本对象的所有绘制
+            let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
             let mut d = crate::draw::DrawBuf {
                 pixels: &mut self.buf[..len],
                 area: clip,
                 stride: clip.w,
             };
+            let Some(n) = self.arena.get_mut(obj) else { return };
             if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
                 d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
             }
             let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa, now };
-            kind_snap.draw(&ctx, &mut d, clip);
-            // Canvas：调用注册表中的用户回调
-            if let WidgetKind::Canvas { cb } = &kind_snap {
-                if let Some(f) = self.canvas_cbs.get_mut(*cb).and_then(|c| c.as_mut()) {
-                    f(&mut d, abs, clip, now);
-                }
+            n.kind.draw(&ctx, &mut d, clip);
+            // 叠加绘制钩子（原 Canvas 机制的通用化）
+            if let Some(hook) = n.draw_hook.as_mut() {
+                hook(&mut d, abs, clip, now);
             }
             // 边框最后画（对齐 LVGL：border 在内容之上），避免被控件内容覆盖
             if resolved.border_width > 0 {

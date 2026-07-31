@@ -29,8 +29,6 @@ pub enum WidgetKind {
     Switch(switch::SwitchState),
     Bar(bar::BarState),
     List(list::ListState),
-    /// 自定义绘制控件：cb 为 Ui 回调注册表中的索引（Task 5 删除）
-    Canvas { cb: usize },
     Arc(arc::ArcState),
     Checkbox(checkbox::CheckboxState),
     Spinner,
@@ -98,8 +96,6 @@ impl WidgetKind {
             WidgetKind::Switch(s) => switch::draw(s.on, ctx, d, clip),
             WidgetKind::Bar(s) => bar::draw(s.min, s.max, s.value, ctx, d, clip),
             WidgetKind::List(s) => list::draw(&s.items, s.selected, s.scroll, &s.fx, ctx, d, clip),
-            // Canvas 由 Ui::draw_node 单独处理（回调在 Ui 的注册表中）
-            WidgetKind::Canvas { .. } => {}
             WidgetKind::Arc(s) => arc::draw(s.min, s.max, s.value, ctx, d, clip),
             WidgetKind::Checkbox(s) => checkbox::draw(&s.text, s.checked, ctx, d, clip),
             WidgetKind::Spinner => spinner::draw(ctx, d, clip),

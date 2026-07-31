@@ -165,13 +165,11 @@ impl Demo {
             d.fill_circle(c, 3, Color::WHITE, 255, clip);
         }));
         kids.push(cv);
-        // 用一个隐藏 Bar 的无限动画驱动 Canvas 逐帧重绘
-        let driver = ui.create_bar(screen, 0, 360);
-        ui.set_hidden(driver, true);
-        ui.add_event_cb(driver, qingui::EventKind::ValueChanged, Box::new(move |ui, _b, _| {
+        // tick_hook 驱动 Canvas 逐帧重绘
+        ui.set_tick_hook(cv, Some(Box::new(|ui, cv, _now| {
             ui.invalidate_obj(cv);
-        }));
-        ui.anim_start(Anim::new(driver, AnimProp::Value, 0, 360, 10000).repeat(-1));
+            true // 每帧重绘
+        })));
 
         let obj = ui.create_obj(screen);
         ui.set_size(obj, 40, 40);
