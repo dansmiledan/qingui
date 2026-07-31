@@ -58,6 +58,18 @@ impl WidgetCtx<'_> {
     }
 }
 
+/// 每帧效果推进结果：redraw = 本帧需重绘；active = 效果仍活动（保持唤醒）
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TickOut {
+    pub redraw: bool,
+    pub active: bool,
+}
+
+impl TickOut {
+    pub const IDLE: Self = Self { redraw: false, active: false };
+    pub const ACTIVE: Self = Self { redraw: true, active: true };
+}
+
 impl WidgetKind {
     pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
         match self {
@@ -160,6 +172,17 @@ impl WidgetKind {
                 s.value = s.value.clamp(min, max);
             }
             _ => {}
+        }
+    }
+
+    /// 每帧效果推进（fx/自转）。默认无逐帧行为。
+    pub(crate) fn tick(&mut self, now: u64) -> TickOut {
+        match self {
+            WidgetKind::List(s) => s.tick(now),
+            WidgetKind::Roller(s) => s.tick(now),
+            // Spinner 永远自转
+            WidgetKind::Spinner => TickOut::ACTIVE,
+            _ => TickOut::IDLE,
         }
     }
 

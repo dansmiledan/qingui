@@ -19,6 +19,18 @@ pub struct RollerState {
     pub sel_from: Option<(f32, u64)>,
 }
 
+impl RollerState {
+    pub(crate) fn tick(&mut self, now: u64) -> super::TickOut {
+        let had_fx = self.sel_from.is_some();
+        let active = fx_active(self.sel_from, now);
+        if !active {
+            self.sel_from = None;
+        }
+        // 有 fx（含本帧过期）就重绘：完成帧必须补最后一定格
+        super::TickOut { redraw: had_fx, active }
+    }
+}
+
 /// 滚动位置：从 from 平滑过渡到 selected
 fn sel_f(selected: usize, sel_from: Option<(f32, u64)>, now: u64) -> f32 {
     match sel_from {

@@ -299,48 +299,26 @@ impl Ui {
         }
         // 浮层定位每帧执行（跟随目标移动/动画；位置未变时无开销）
         self.layout_floating(self.screen);
-        let list_fx_active = self.tick_list_fx();
+        let fx_active = self.tick_widgets();
         self.render();
-        if self.anim_running() || list_fx_active { 0 } else { u32::MAX }
+        if self.anim_running() || fx_active { 0 } else { u32::MAX }
     }
 
-    /// 遍历对象树：驱动控件自动画（List 效果、Spinner 旋转）。
-    /// 活动中的标脏（驱动逐帧重绘），返回是否有活动效果。
-    fn tick_list_fx(&mut self) -> bool {
+    /// 遍历对象树推进每帧效果（fx/Spinner），活动节点标脏。
+    /// 返回是否仍有活动效果（决定 timer_handler 是否持续唤醒）。
+    fn tick_widgets(&mut self) -> bool {
         let now = self.time_ms;
         let mut any = false;
         let mut stack = alloc::vec![self.screen];
         while let Some(r) = stack.pop() {
-            let (children, redraw, active) = match self.arena.get_mut(r) {
-                Some(n) => {
-                    let (redraw, active) = match &mut n.kind {
-                        WidgetKind::List(s) => {
-                            let was_active = s.fx.active(now);
-                            let removed = s.fx.prune(now);
-                            // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
-                            (was_active || removed, s.fx.active(now))
-                        }
-                        WidgetKind::Roller(s) => {
-                            let had_fx = s.sel_from.is_some();
-                            let active = crate::widgets::roller::fx_active(s.sel_from, now);
-                            if !active {
-                                s.sel_from = None;
-                            }
-                            // 有 fx（含本帧过期）就重绘：完成帧必须补最后一定格
-                            (had_fx, active)
-                        }
-                        // Spinner 永远自转
-                        WidgetKind::Spinner => (true, true),
-                        _ => (false, false),
-                    };
-                    (n.children.clone(), redraw, active)
-                }
-                None => (Vec::new(), false, false),
+            let (out, children) = match self.arena.get_mut(r) {
+                Some(n) => (n.kind.tick(now), n.children.clone()),
+                None => continue,
             };
-            if redraw {
+            if out.redraw {
                 self.invalidate_obj(r);
             }
-            if active {
+            if out.active {
                 any = true;
             }
             stack.extend_from_slice(&children);

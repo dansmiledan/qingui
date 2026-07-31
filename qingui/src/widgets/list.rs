@@ -19,6 +19,15 @@ pub struct ListState {
     pub fx: ListFx,
 }
 
+impl ListState {
+    pub(crate) fn tick(&mut self, now: u64) -> super::TickOut {
+        let was_active = self.fx.active(now);
+        let removed = self.fx.prune(now);
+        // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
+        super::TickOut { redraw: was_active || removed, active: self.fx.active(now) }
+    }
+}
+
 /// 单个 item 的入场/位移效果（绘制时按时间插值，收敛后由 prune 清理）
 #[derive(Clone)]
 pub struct ItemFx {
