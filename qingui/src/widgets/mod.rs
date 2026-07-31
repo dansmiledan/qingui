@@ -14,6 +14,7 @@ pub mod label;
 pub mod led;
 pub mod list;
 pub mod msgbox;
+pub mod obj;
 pub mod roller;
 pub mod slider;
 pub mod spinbox;
