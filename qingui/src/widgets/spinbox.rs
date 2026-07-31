@@ -185,7 +185,3 @@ impl SpinboxBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, min: i32, max: i32, digits: u8) -> ObjRef {
-    SpinboxBuilder::new(min, max, digits).build(ui, parent)
-}

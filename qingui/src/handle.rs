@@ -66,6 +66,10 @@ impl ObjRef {
     pub fn state(self, ui: &Ui) -> State {
         ui.state(self)
     }
+    /// 查询合成后的样式（pressed > focused > 基础）
+    pub fn resolved_style(self, ui: &Ui) -> crate::style::ResolvedStyle {
+        ui.resolved_style(self)
+    }
     /// 设置宽/高尺寸策略（None = 内容尺寸）
     pub fn set_sizing(self, ui: &mut Ui, w: Option<Sizing>, h: Option<Sizing>) {
         ui.set_sizing(self, w, h);

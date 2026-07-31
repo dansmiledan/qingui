@@ -54,7 +54,3 @@ impl CanvasBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, w: i32, h: i32, cb: DrawHook) -> ObjRef {
-    CanvasBuilder::new(cb).size(w, h).build(ui, parent)
-}

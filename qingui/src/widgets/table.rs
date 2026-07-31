@@ -126,7 +126,3 @@ impl TableBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, cols: u8, rows: u8) -> ObjRef {
-    TableBuilder::new(cols, rows).build(ui, parent)
-}

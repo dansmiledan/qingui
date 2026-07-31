@@ -35,7 +35,7 @@ pub(crate) fn open(ui: &mut Ui, obj: ObjRef) {
     let prev = ui.focused();
     let screen = ui.screen();
     let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
-    let lst = ui.create_list(screen, &refs);
+    let lst = crate::widgets::list::create(ui, screen, &refs);
     ui.set_size(lst, w.max(80), (items.len().min(5) * 16 + 2) as i32);
     ui.list_select(lst, sel);
     ui.set_floating(lst, obj, crate::layout::Attach::Bottom);
@@ -183,8 +183,4 @@ impl DropdownBuilder {
         }
         r
     }
-}
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
-    DropdownBuilder::new(items).build(ui, parent)
 }

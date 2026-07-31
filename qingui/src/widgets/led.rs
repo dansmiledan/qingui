@@ -97,7 +97,3 @@ impl LedBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, color: Color) -> ObjRef {
-    LedBuilder::new(color).build(ui, parent)
-}

@@ -145,7 +145,3 @@ impl CheckboxBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
-    CheckboxBuilder::new(text).build(ui, parent)
-}

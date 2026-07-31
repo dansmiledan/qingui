@@ -81,7 +81,3 @@ impl SpinnerBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef) -> ObjRef {
-    SpinnerBuilder::new().build(ui, parent)
-}

@@ -194,7 +194,3 @@ impl RollerBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
-    RollerBuilder::new(items).build(ui, parent)
-}

@@ -14,7 +14,7 @@ fn slider_builder_defaults_match_create() {
     let a = SliderBuilder::new(0, 100).build(&mut ui, scr);
     let b = SliderBuilder::new(0, 100).build(&mut ui, scr);
     assert_eq!(a.rect(&ui), b.rect(&ui));
-    assert_eq!(ui.resolved_style(a), ui.resolved_style(b));
+    assert_eq!(a.resolved_style(&ui), b.resolved_style(&ui));
     assert_eq!(a.value(&ui), b.value(&ui));
 }
 
@@ -31,7 +31,7 @@ fn slider_builder_overrides() {
     let r = s.rect(&ui);
     assert_eq!((r.w, r.h), (140, 14));
     assert_eq!(s.value(&ui), 50);
-    let st = ui.resolved_style(s);
+    let st = s.resolved_style(&ui);
     assert_eq!(st.bg_color, Color::RED); // 覆盖生效
     assert_eq!(st.radius, 6); // 其余默认保留
     assert_eq!(st.sizing_w, Some(Sizing::GROW));
@@ -44,11 +44,11 @@ fn button_builder_pressed_focused_styles() {
     let a = ButtonBuilder::new("OK").build(&mut ui, scr);
     let b = ButtonBuilder::new("OK").build(&mut ui, scr);
     assert_eq!(a.rect(&ui), b.rect(&ui));
-    assert_eq!(ui.resolved_style(a), ui.resolved_style(b));
+    assert_eq!(a.resolved_style(&ui), b.resolved_style(&ui));
     // focused 样式也一致
     a.set_state(&mut ui, qingui::node::State::FOCUSED, true);
     b.set_state(&mut ui, qingui::node::State::FOCUSED, true);
-    assert_eq!(ui.resolved_style(a), ui.resolved_style(b));
+    assert_eq!(a.resolved_style(&ui), b.resolved_style(&ui));
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn roller_dropdown_builders() {
     let c = DropdownBuilder::new(&["R", "G"]).build(&mut ui, scr);
     let d = DropdownBuilder::new(&["R", "G"]).build(&mut ui, scr);
     assert_eq!(c.rect(&ui), d.rect(&ui));
-    assert_eq!(ui.resolved_style(c), ui.resolved_style(d));
+    assert_eq!(c.resolved_style(&ui), d.resolved_style(&ui));
 }
 
 #[test]

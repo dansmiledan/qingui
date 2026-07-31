@@ -44,7 +44,7 @@ fn enter_on_list_fires_clicked() {
 #[test]
 fn selection_keeps_visible_with_scroll() {
     let mut ui = Ui::new(160, 120, 120);
-    // 8 项，可见 5 行（create_list 高度上限 5 行 = 88px）
+    // 8 项，可见 5 行（ListBuilder 默认高度上限 5 行 = 88px）
     let scr = ui.screen();
     let l = ListBuilder::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
     l.group_add(&mut ui);

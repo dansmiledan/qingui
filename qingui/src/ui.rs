@@ -31,13 +31,8 @@ impl Ui {
         Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None }
     }
 
-    /// 自定义绘制控件：回调签名为 (画板, 控件绝对矩形, 裁剪矩形, 当前时间 ms)
-    pub fn create_canvas(&mut self, parent: ObjRef, w: i32, h: i32, cb: crate::node::DrawHook) -> ObjRef {
-        crate::widgets::canvas::create(self, parent, w, h, cb)
-    }
-
     /// 设置叠加绘制钩子（None 清除）。在控件自带内容之上追加绘制
-    pub fn set_draw_hook(&mut self, obj: ObjRef, hook: Option<crate::node::DrawHook>) {
+    pub(crate) fn set_draw_hook(&mut self, obj: ObjRef, hook: Option<crate::node::DrawHook>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.draw_hook = hook;
         }
@@ -45,7 +40,7 @@ impl Ui {
     }
 
     /// 设置每帧钩子（None 清除）。返回 true 的帧：标脏该对象并保持唤醒
-    pub fn set_tick_hook(&mut self, obj: ObjRef, hook: Option<crate::node::TickHook>) {
+    pub(crate) fn set_tick_hook(&mut self, obj: ObjRef, hook: Option<crate::node::TickHook>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.tick_hook = hook;
         }
@@ -55,17 +50,8 @@ impl Ui {
         self.screen
     }
 
-    /// 链式配置包装：`ui.widget(obj).pos(10, 10).size(80, 30)`
-    pub fn widget(&mut self, obj: ObjRef) -> crate::widget::WidgetMut<'_> {
-        crate::widget::WidgetMut::new(self, obj)
-    }
-
     pub fn is_valid(&self, obj: ObjRef) -> bool {
         self.arena.contains(obj)
-    }
-
-    pub fn create_obj(&mut self, parent: ObjRef) -> ObjRef {
-        self.insert_node(parent, Rect::default(), WidgetKind::Obj)
     }
 
     /// 挂载用户自定义 widget（实现 widgets::custom::Widget）
@@ -74,12 +60,12 @@ impl Ui {
     }
 
     /// 只读查询自定义 widget 状态（类型不匹配或对象非 Custom 返回 None）
-    pub fn custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
+    pub(crate) fn custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
         self.arena.get(obj)?.kind.as_custom()?.as_any().downcast_ref::<T>()
     }
 
     /// 可变更新自定义 widget 状态（前后自动标脏）
-    pub fn custom_mut<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+    pub(crate) fn custom_mut<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         self.invalidate_obj(obj);
         let r = self
             .arena
@@ -93,7 +79,7 @@ impl Ui {
         r
     }
 
-    pub fn delete(&mut self, obj: ObjRef) {
+    pub(crate) fn delete(&mut self, obj: ObjRef) {
         if obj == self.screen || !self.is_valid(obj) {
             return;
         }
@@ -128,12 +114,12 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    pub fn children(&self, obj: ObjRef) -> Vec<ObjRef> {
+    pub(crate) fn children(&self, obj: ObjRef) -> Vec<ObjRef> {
         self.arena.get(obj).map(|n| n.children.clone()).unwrap_or_default()
     }
 
     /// 调整子对象在父对象中的顺序（触发布局重算；配合 transition 可平滑换位）
-    pub fn move_child_to_index(&mut self, obj: ObjRef, index: usize) {
+    pub(crate) fn move_child_to_index(&mut self, obj: ObjRef, index: usize) {
         let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
         if let Some(p) = self.arena.get_mut(parent) {
             if let Some(pos) = p.children.iter().position(|&c| c == obj) {
@@ -145,11 +131,11 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    pub fn rect(&self, obj: ObjRef) -> Rect {
+    pub(crate) fn rect(&self, obj: ObjRef) -> Rect {
         self.arena.get(obj).map(|n| n.rect).unwrap_or_default()
     }
 
-    pub fn abs_rect(&self, obj: ObjRef) -> Rect {
+    pub(crate) fn abs_rect(&self, obj: ObjRef) -> Rect {
         let mut r = self.rect(obj);
         // 沿父链累加：祖先的本地坐标与 translate 都作用于子树（translate 是子树级视觉偏移）
         let mut cur = self.arena.get(obj).and_then(|n| n.parent);
@@ -166,7 +152,7 @@ impl Ui {
     }
 
     /// 设置视觉平移偏移（对齐 LVGL translate_x/y）：子树整体偏移，只影响渲染，不参与布局
-    pub fn set_translate(&mut self, obj: ObjRef, x: i32, y: i32) {
+    pub(crate) fn set_translate(&mut self, obj: ObjRef, x: i32, y: i32) {
         self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.translate = crate::geometry::Point { x, y };
@@ -199,7 +185,7 @@ impl Ui {
         }
     }
 
-    pub fn translate(&self, obj: ObjRef) -> crate::geometry::Point {
+    pub(crate) fn translate(&self, obj: ObjRef) -> crate::geometry::Point {
         self.arena.get(obj).map(|n| n.translate).unwrap_or_default()
     }
 
@@ -207,7 +193,7 @@ impl Ui {
     /// 被 Flex/Grid 管理的子对象位置归布局所有（下次布局重算时会被覆盖），
     /// 需要视觉位移请用 set_translate。
     /// 标脏整棵子树：子元素的屏幕坐标随父移动。
-    pub fn set_pos(&mut self, obj: ObjRef, x: i32, y: i32) {
+    pub(crate) fn set_pos(&mut self, obj: ObjRef, x: i32, y: i32) {
         self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.rect.x = x;
@@ -217,7 +203,7 @@ impl Ui {
     }
 
     /// 设置对象尺寸。标脏整棵子树（子元素坐标/裁剪可能随父变化）。
-    pub fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
+    pub(crate) fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
         self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.rect.w = w;
@@ -230,7 +216,7 @@ impl Ui {
     pub fn invalidate_area(&mut self, rect: Rect) {
         self.dirty.add(rect);
     }
-    pub fn invalidate_obj(&mut self, obj: ObjRef) {
+    pub(crate) fn invalidate_obj(&mut self, obj: ObjRef) {
         if self.is_valid(obj) {
             let ext = self.arena.get(obj).map(|n| n.kind.overflow()).unwrap_or(0);
             let r = self.abs_rect(obj);
@@ -245,7 +231,7 @@ impl Ui {
         self.dirty.is_empty()
     }
 
-    pub fn set_hidden(&mut self, obj: ObjRef, hidden: bool) {
+    pub(crate) fn set_hidden(&mut self, obj: ObjRef, hidden: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.flags.set(Flag::HIDDEN, hidden);
         }
@@ -253,38 +239,38 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub(crate) fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style = style;
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub(crate) fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_pressed = style;
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub(crate) fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_focused = style;
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    pub fn set_state(&mut self, obj: ObjRef, state: State, on: bool) {
+    pub(crate) fn set_state(&mut self, obj: ObjRef, state: State, on: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.state.set(state, on);
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    pub fn state(&self, obj: ObjRef) -> State {
+    pub(crate) fn state(&self, obj: ObjRef) -> State {
         self.arena.get(obj).map(|n| n.state).unwrap_or_default()
     }
-    pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
+    pub(crate) fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
         let Some(n) = self.arena.get(obj) else {
             return crate::style::ResolvedStyle::default();
         };
@@ -415,10 +401,10 @@ impl Ui {
         }
     }
 
-    pub fn grid_cell(&self, obj: ObjRef) -> ((u8, u8), (u8, u8)) {
+    pub(crate) fn grid_cell(&self, obj: ObjRef) -> ((u8, u8), (u8, u8)) {
         self.arena.get(obj).map(|n| (n.grid_col, n.grid_row)).unwrap_or(((0, 1), (0, 1)))
     }
-    pub fn set_grid_cell(&mut self, obj: ObjRef, col: (u8, u8), row: (u8, u8)) {
+    pub(crate) fn set_grid_cell(&mut self, obj: ObjRef, col: (u8, u8), row: (u8, u8)) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.grid_col = (col.0, col.1.max(1));
             n.grid_row = (row.0, row.1.max(1));
@@ -426,7 +412,7 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    pub fn set_layout(&mut self, obj: ObjRef, layout: crate::style::Layout) {
+    pub(crate) fn set_layout(&mut self, obj: ObjRef, layout: crate::style::Layout) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.layout = Some(layout);
         }
@@ -434,7 +420,7 @@ impl Ui {
     }
 
     /// 设置宽/高尺寸策略（None = 内容尺寸）
-    pub fn set_sizing(&mut self, obj: ObjRef, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) {
+    pub(crate) fn set_sizing(&mut self, obj: ObjRef, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.sizing_w = w;
             n.style.sizing_h = h;
@@ -443,7 +429,7 @@ impl Ui {
     }
 
     /// 设置宽高比（千分比：1000 = 1:1，1778 ≈ 16:9；None 取消）
-    pub fn set_aspect(&mut self, obj: ObjRef, ratio: Option<u32>) {
+    pub(crate) fn set_aspect(&mut self, obj: ObjRef, ratio: Option<u32>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.aspect_ratio = ratio;
         }
@@ -451,7 +437,7 @@ impl Ui {
     }
 
     /// 设置布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡；None 关闭
-    pub fn set_transition(&mut self, obj: ObjRef, transition: Option<(u32, crate::anim::Easing)>) {
+    pub(crate) fn set_transition(&mut self, obj: ObjRef, transition: Option<(u32, crate::anim::Easing)>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.transition = transition;
         }
@@ -529,12 +515,12 @@ impl Ui {
         }
         // laid_out 由 layout_move 统一标记（两者总是成对调用）
     }
-    pub fn is_hidden(&self, obj: ObjRef) -> bool {
+    pub(crate) fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags.contains(Flag::HIDDEN)).unwrap_or(false)
     }
 
     /// 设置浮层锚定：对象变为浮动（IGNORE_LAYOUT），位置由锚点自动计算并跟随目标
-    pub fn set_floating(&mut self, obj: ObjRef, target: ObjRef, attach: crate::layout::Attach) {
+    pub(crate) fn set_floating(&mut self, obj: ObjRef, target: ObjRef, attach: crate::layout::Attach) {
         if !self.is_valid(obj) || !self.is_valid(target) {
             return;
         }
@@ -546,7 +532,7 @@ impl Ui {
     }
 
     /// 取消浮层锚定（IGNORE_LAYOUT 标志保留，可手动清除）
-    pub fn clear_floating(&mut self, obj: ObjRef) {
+    pub(crate) fn clear_floating(&mut self, obj: ObjRef) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.floating = None;
         }
@@ -554,7 +540,7 @@ impl Ui {
     }
 
     /// 设置叠放次序（渲染时兄弟节点按 z_index 稳定排序，大者在上）
-    pub fn set_z_index(&mut self, obj: ObjRef, z: i16) {
+    pub(crate) fn set_z_index(&mut self, obj: ObjRef, z: i16) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.z_index = z;
         }
@@ -562,7 +548,7 @@ impl Ui {
     }
 
     /// 设置/查询浮动标志：浮动对象不参与父容器布局（弹窗/悬浮层用）
-    pub fn set_ignore_layout(&mut self, obj: ObjRef, ignore: bool) {
+    pub(crate) fn set_ignore_layout(&mut self, obj: ObjRef, ignore: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             if ignore {
                 n.flags |= Flag::IGNORE_LAYOUT;
@@ -572,7 +558,7 @@ impl Ui {
         }
         self.layout_dirty = true;
     }
-    pub fn is_ignore_layout(&self, obj: ObjRef) -> bool {
+    pub(crate) fn is_ignore_layout(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags.contains(Flag::IGNORE_LAYOUT)).unwrap_or(false)
     }
 
@@ -769,10 +755,6 @@ impl Ui {
         })
     }
 
-    pub fn create_label(&mut self, parent: ObjRef, text: &str) -> ObjRef {
-        crate::widgets::label::create(self, parent, text)
-    }
-
     pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: WidgetKind) -> ObjRef {
         let r = self.arena.insert(Node::new(Some(parent), rect, kind));
         if let Some(p) = self.arena.get_mut(parent) {
@@ -783,58 +765,14 @@ impl Ui {
         r
     }
 
-    pub fn create_button(&mut self, parent: ObjRef, text: &str) -> ObjRef {
-        crate::widgets::button::create(self, parent, text)
-    }
-
-    pub fn create_slider(&mut self, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-        crate::widgets::slider::create(self, parent, min, max)
-    }
-
-    pub fn create_switch(&mut self, parent: ObjRef) -> ObjRef {
-        crate::widgets::switch::create(self, parent)
-    }
-
-    pub fn create_bar(&mut self, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-        crate::widgets::bar::create(self, parent, min, max)
-    }
-
-    pub fn create_list(&mut self, parent: ObjRef, items: &[&str]) -> ObjRef {
-        crate::widgets::list::create(self, parent, items)
-    }
-
-    pub fn create_arc(&mut self, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-        crate::widgets::arc::create(self, parent, min, max)
-    }
-
-    pub fn create_checkbox(&mut self, parent: ObjRef, text: &str) -> ObjRef {
-        crate::widgets::checkbox::create(self, parent, text)
-    }
-
-    pub fn create_spinner(&mut self, parent: ObjRef) -> ObjRef {
-        crate::widgets::spinner::create(self, parent)
-    }
-
-    /// 模态消息框：标题 + 文本 + 按钮行。点击按钮关闭并读 msgbox_selected（Esc = -1）
-    pub fn create_msgbox(&mut self, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
-        crate::widgets::msgbox::create(self, parent, title, text, buttons)
-    }
-    pub fn msgbox_selected(&self, obj: ObjRef) -> i32 {
+    pub(crate) fn msgbox_selected(&self, obj: ObjRef) -> i32 {
         if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_msgbox()) {
             return s.selected;
         }
         -1
     }
 
-    pub fn create_led(&mut self, parent: ObjRef, color: crate::geometry::Color) -> ObjRef {
-        crate::widgets::led::create(self, parent, color)
-    }
-
-    pub fn create_table(&mut self, parent: ObjRef, cols: u8, rows: u8) -> ObjRef {
-        crate::widgets::table::create(self, parent, cols, rows)
-    }
-
-    pub fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
+    pub(crate) fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             if let Some(s) = n.kind.as_table_mut() {
@@ -846,26 +784,14 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    pub fn create_spinbox(&mut self, parent: ObjRef, min: i32, max: i32, digits: u8) -> ObjRef {
-        crate::widgets::spinbox::create(self, parent, min, max, digits)
-    }
-
-    pub fn create_roller(&mut self, parent: ObjRef, items: &[&str]) -> ObjRef {
-        crate::widgets::roller::create(self, parent, items)
-    }
-
-    pub fn roller_selected(&self, obj: ObjRef) -> usize {
+    pub(crate) fn roller_selected(&self, obj: ObjRef) -> usize {
         if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_roller()) {
             return s.selected;
         }
         0
     }
 
-    pub fn create_dropdown(&mut self, parent: ObjRef, items: &[&str]) -> ObjRef {
-        crate::widgets::dropdown::create(self, parent, items)
-    }
-
-    pub fn set_value(&mut self, obj: ObjRef, v: i32) {
+    pub(crate) fn set_value(&mut self, obj: ObjRef, v: i32) {
         self.invalidate_value_area(obj);
         let changed = match self.arena.get_mut(obj) {
             Some(n) => n.kind.set_value(v),
@@ -882,11 +808,11 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    pub fn value(&self, obj: ObjRef) -> i32 {
+    pub(crate) fn value(&self, obj: ObjRef) -> i32 {
         self.arena.get(obj).map(|n| n.kind.value()).unwrap_or(0)
     }
 
-    pub fn set_range(&mut self, obj: ObjRef, min: i32, max: i32) {
+    pub(crate) fn set_range(&mut self, obj: ObjRef, min: i32, max: i32) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind.set_range(min, max);
@@ -894,14 +820,14 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    pub fn list_selected(&self, obj: ObjRef) -> usize {
+    pub(crate) fn list_selected(&self, obj: ObjRef) -> usize {
         if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_list()) {
             return s.selected;
         }
         0
     }
 
-    pub fn list_select(&mut self, obj: ObjRef, idx: usize) {
+    pub(crate) fn list_select(&mut self, obj: ObjRef, idx: usize) {
         self.invalidate_obj(obj);
         let now = self.time_ms;
         if let Some(n) = self.arena.get_mut(obj) {
@@ -915,7 +841,7 @@ impl Ui {
 
     /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入）。
     /// 容量上限由调用方控制（可用 list_len 判断）。
-    pub fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
+    pub(crate) fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
         self.invalidate_obj(obj);
         let now = self.time_ms;
         if let Some(n) = self.arena.get_mut(obj) {
@@ -932,7 +858,7 @@ impl Ui {
     }
 
     /// 删除当前选中项（渐隐 + 下方 item 上移），返回是否成功
-    pub fn list_remove(&mut self, obj: ObjRef) -> bool {
+    pub(crate) fn list_remove(&mut self, obj: ObjRef) -> bool {
         self.invalidate_obj(obj);
         let now = self.time_ms;
         let ok = match self.arena.get_mut(obj) {
@@ -953,21 +879,21 @@ impl Ui {
         ok
     }
 
-    pub fn set_text(&mut self, obj: ObjRef, text: &str) {
+    pub(crate) fn set_text(&mut self, obj: ObjRef, text: &str) {
         crate::widgets::label::set_text(self, obj, text);
     }
 
-    pub fn text(&self, obj: ObjRef) -> alloc::string::String {
+    pub(crate) fn text(&self, obj: ObjRef) -> alloc::string::String {
         crate::widgets::label::text(self, obj)
     }
 
-    pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {
+    pub(crate) fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.events.push((kind, cb));
         }
     }
 
-    pub fn send_event(&mut self, obj: ObjRef, kind: crate::event::EventKind) {
+    pub(crate) fn send_event(&mut self, obj: ObjRef, kind: crate::event::EventKind) {
         use crate::event::EventKind;
         let mut cursor = 0usize;
         loop {
@@ -1003,7 +929,7 @@ impl Ui {
         }
     }
 
-    pub fn group_add(&mut self, obj: ObjRef) {
+    pub(crate) fn group_add(&mut self, obj: ObjRef) {
         if self.is_valid(obj) && !self.group.contains(&obj) {
             self.group.push(obj);
             if self.focused_idx.is_none() {
@@ -1013,7 +939,7 @@ impl Ui {
             }
         }
     }
-    pub fn group_remove(&mut self, obj: ObjRef) {
+    pub(crate) fn group_remove(&mut self, obj: ObjRef) {
         if let Some(pos) = self.group.iter().position(|&o| o == obj) {
             self.group.remove(pos);
             if self.focused_idx == Some(pos) {
@@ -1213,19 +1139,14 @@ impl Ui {
         }
     }
 
-    pub fn list_len(&self, obj: ObjRef) -> usize {
+    pub(crate) fn list_len(&self, obj: ObjRef) -> usize {
         if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_list()) {
             return s.items.len();
         }
         0
     }
 
-    /// 测试/调试用：返回对象 kind 的引用。不稳定 API。
-    pub fn debug_kind(&self, obj: ObjRef) -> &WidgetKind {
-        &self.arena.get(obj).expect("invalid ObjRef").kind
-    }
-
-    pub fn toggle_checkbox(&mut self, obj: ObjRef) {
+    pub(crate) fn toggle_checkbox(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             if let Some(s) = n.kind.as_checkbox_mut() {
@@ -1236,7 +1157,7 @@ impl Ui {
         self.send_event(obj, crate::event::EventKind::ValueChanged);
     }
 
-    pub fn toggle_switch(&mut self, obj: ObjRef) {
+    pub(crate) fn toggle_switch(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
             if let Some(s) = n.kind.as_switch_mut() {

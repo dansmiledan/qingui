@@ -98,7 +98,3 @@ impl BarBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-    BarBuilder::new(min, max).build(ui, parent)
-}

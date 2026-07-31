@@ -129,7 +129,3 @@ impl SliderBuilder {
         r
     }
 }
-
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, min: i32, max: i32) -> ObjRef {
-    SliderBuilder::new(min, max).build(ui, parent)
-}
