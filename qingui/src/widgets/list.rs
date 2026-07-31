@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::{Color, Point, Rect};
+use crate::input::Key;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
@@ -25,6 +26,20 @@ impl ListState {
         let removed = self.fx.prune(now);
         // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
         super::TickOut { redraw: was_active || removed, active: self.fx.active(now) }
+    }
+
+    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
+        let n = self.items.len();
+        match key {
+            Key::Up | Key::Down => {
+                if n > 0 {
+                    let idx = if key == Key::Up { (self.selected + n - 1) % n } else { (self.selected + 1) % n };
+                    select(&self.items, &mut self.selected, &mut self.scroll, &mut self.fx, idx, ctx.vis_h, ctx.now);
+                }
+                super::KeyOutcome::Consumed
+            }
+            _ => super::KeyOutcome::Pass,
+        }
     }
 }
 

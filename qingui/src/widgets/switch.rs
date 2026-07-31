@@ -5,6 +5,7 @@ use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Rect};
+use crate::input::Key;
 use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -13,6 +14,12 @@ use super::{WidgetCtx, WidgetKind};
 #[derive(Clone)]
 pub struct SwitchState {
     pub on: bool,
+}
+
+impl SwitchState {
+    pub(crate) fn on_key(&mut self, key: Key, _ctx: super::KeyCtx) -> super::KeyOutcome {
+        if key == Key::Enter { self.on = !self.on; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
+    }
 }
 
 pub(crate) fn draw(on: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {

@@ -5,6 +5,7 @@ use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Point, Rect};
+use crate::input::Key;
 use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -16,6 +17,12 @@ const BOX: i32 = 12;
 pub struct CheckboxState {
     pub text: alloc::string::String,
     pub checked: bool,
+}
+
+impl CheckboxState {
+    pub(crate) fn on_key(&mut self, key: Key, _ctx: super::KeyCtx) -> super::KeyOutcome {
+        if key == Key::Enter { self.checked = !self.checked; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
+    }
 }
 
 pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {

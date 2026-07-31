@@ -1,5 +1,6 @@
 use crate::draw::DrawBuf;
 use crate::geometry::Rect;
+use crate::input::Key;
 use crate::style::ResolvedStyle;
 
 pub mod arc;
@@ -68,6 +69,23 @@ pub struct TickOut {
 impl TickOut {
     pub const IDLE: Self = Self { redraw: false, active: false };
     pub const ACTIVE: Self = Self { redraw: true, active: true };
+}
+
+/// 按键处理上下文（由 Ui 从节点/自身状态收集后传入）
+pub(crate) struct KeyCtx {
+    pub edited: bool, // 节点处于 EDITED 态
+    pub vis_h: i32,   // 节点可视高度（滚动控件用）
+    pub now: u64,
+}
+
+/// 按键处理结果：Ui 据此执行通用副作用（标脏/事件/EDITED 态/开下拉）
+pub(crate) enum KeyOutcome {
+    Pass,          // 未消费 → 走默认（移焦/Clicked）
+    Consumed,      // 已消费，标脏
+    ValueChanged,  // 已消费，标脏并发 ValueChanged 事件
+    EnterEdit,     // 进入 EDITED 态
+    ExitEdit,      // 退出 EDITED 态并标脏
+    OpenDropdown,  // 打开下拉浮层
 }
 
 impl WidgetKind {
@@ -183,6 +201,20 @@ impl WidgetKind {
             // Spinner 永远自转
             WidgetKind::Spinner => TickOut::ACTIVE,
             _ => TickOut::IDLE,
+        }
+    }
+
+    /// 按键处理（无 &mut Ui：只改自身状态，副作用由 Ui 按 KeyOutcome 执行）
+    pub(crate) fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
+        match self {
+            WidgetKind::Slider(s) => s.on_key(key, ctx),
+            WidgetKind::Spinbox(s) => s.on_key(key, ctx),
+            WidgetKind::Switch(s) => s.on_key(key, ctx),
+            WidgetKind::Checkbox(s) => s.on_key(key, ctx),
+            WidgetKind::List(s) => s.on_key(key, ctx),
+            WidgetKind::Roller(s) => s.on_key(key, ctx),
+            WidgetKind::Dropdown(s) => s.on_key(key, ctx),
+            _ => KeyOutcome::Pass,
         }
     }
 

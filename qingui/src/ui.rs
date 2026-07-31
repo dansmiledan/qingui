@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
@@ -1093,101 +1092,68 @@ impl Ui {
         if !self.is_valid(f) {
             return;
         }
-        let edited = self.state(f).contains(State::EDITED);
         self.send_event(f, crate::event::EventKind::Key(key));
-        if edited {
-            let is_spinbox = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Spinbox(_)));
-            if is_spinbox {
-                // Spinbox 编辑态：Left/Right 选位，Up/Down 增减，Enter/Esc 退出
-                enum Act {
-                    Idle,
-                    Set(i32),
-                    Exit,
-                }
-                let act = if let Some(n) = self.arena.get_mut(f) {
-                    if let WidgetKind::Spinbox(s) = &mut n.kind {
-                        match key {
-                            Key::Left => {
-                                crate::widgets::spinbox::move_cursor(s.digits, &mut s.cursor, -1);
-                                Act::Idle
-                            }
-                            Key::Right => {
-                                crate::widgets::spinbox::move_cursor(s.digits, &mut s.cursor, 1);
-                                Act::Idle
-                            }
-                            Key::Up => {
-                                let mut nv = s.value;
-                                crate::widgets::spinbox::step_digit(s.min, s.max, &mut nv, s.digits, s.cursor, 1);
-                                Act::Set(nv)
-                            }
-                            Key::Down => {
-                                let mut nv = s.value;
-                                crate::widgets::spinbox::step_digit(s.min, s.max, &mut nv, s.digits, s.cursor, -1);
-                                Act::Set(nv)
-                            }
-                            Key::Enter | Key::Esc => Act::Exit,
-                            _ => Act::Idle,
-                        }
-                    } else {
-                        Act::Idle
-                    }
-                } else {
-                    Act::Idle
-                };
-                match act {
-                    Act::Set(v) => {
-                        self.invalidate_obj(f);
-                        self.set_value(f, v);
-                    }
-                    Act::Exit => self.set_state(f, State::EDITED, false),
-                    Act::Idle => self.invalidate_obj(f),
-                }
-                return;
-            }
-            match key {
-                Key::Left => { let v = self.value(f); self.set_value(f, v - 1); }
-                Key::Right => { let v = self.value(f); self.set_value(f, v + 1); }
-                Key::Enter | Key::Esc => self.set_state(f, State::EDITED, false),
-                _ => {}
-            }
+        if !self.is_valid(f) {
+            return; // Key 回调可能删除了焦点对象
+        }
+        if self.call_on_key(f, key) {
             return;
         }
-        let is_list = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::List(_)));
-        let is_roller = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Roller(_)));
-        if is_roller {
-            // Roller：Up/Down 滚轮选择（首尾停止）
-            match key {
-                Key::Up => { self.roller_step(f, -1); return; }
-                Key::Down => { self.roller_step(f, 1); return; }
-                _ => {}
-            }
-        }
-        if is_list {
-            match key {
-                Key::Up => {
-                    let cur = self.list_selected(f);
-                    let n = self.list_len(f);
-                    if n > 0 {
-                        self.list_select(f, (cur + n - 1) % n);
-                    }
-                    return;
-                }
-                Key::Down => {
-                    let cur = self.list_selected(f);
-                    let n = self.list_len(f);
-                    if n > 0 {
-                        self.list_select(f, (cur + 1) % n);
-                    }
-                    return;
-                }
-                _ => {}
-            }
-        }
+        // 默认：未被控件消费的按键走焦点导航 / Clicked
         match key {
             Key::Next | Key::Right | Key::Down => self.group_focus_next(),
             Key::Prev | Key::Left | Key::Up => self.group_focus_prev(),
-            Key::Enter => self.activate(f),
+            Key::Enter => self.send_event(f, crate::event::EventKind::Clicked),
             Key::Esc => {}
+        }
+    }
+
+    /// 控件的按键处理：kind 拆出后调用其 on_key，放回再执行通用副作用。
+    /// （拆出期间节点 kind 为占位 Obj，故内置控件的 on_key 不接收 &mut Ui）
+    fn call_on_key(&mut self, obj: ObjRef, key: crate::input::Key) -> bool {
+        use crate::widgets::KeyCtx;
+        let edited = self.state(obj).contains(State::EDITED);
+        let vis_h = self.rect(obj).h;
+        let now = self.time_ms;
+        let mut kind = match self.arena.get_mut(obj) {
+            Some(n) => core::mem::replace(&mut n.kind, WidgetKind::Obj),
+            None => return false,
+        };
+        let out = kind.on_key(key, KeyCtx { edited, vis_h, now });
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.kind = kind;
+        } else {
+            return true; // 节点已在处理过程中被删除：视为已消费
+        }
+        self.apply_key_outcome(obj, out)
+    }
+
+    fn apply_key_outcome(&mut self, obj: ObjRef, out: crate::widgets::KeyOutcome) -> bool {
+        use crate::widgets::KeyOutcome;
+        match out {
+            KeyOutcome::Pass => false,
+            KeyOutcome::Consumed => {
+                self.invalidate_obj(obj);
+                true
+            }
+            KeyOutcome::ValueChanged => {
+                self.invalidate_obj(obj);
+                self.send_event(obj, crate::event::EventKind::ValueChanged);
+                true
+            }
+            KeyOutcome::EnterEdit => {
+                self.set_state(obj, State::EDITED, true);
+                true
+            }
+            KeyOutcome::ExitEdit => {
+                self.set_state(obj, State::EDITED, false);
+                self.invalidate_obj(obj);
+                true
+            }
+            KeyOutcome::OpenDropdown => {
+                crate::widgets::dropdown::open(self, obj);
+                true
+            }
         }
     }
 
@@ -1201,84 +1167,6 @@ impl Ui {
     /// 测试/调试用：返回对象 kind 的引用。不稳定 API。
     pub fn debug_kind(&self, obj: ObjRef) -> &WidgetKind {
         &self.arena.get(obj).expect("invalid ObjRef").kind
-    }
-
-    fn activate(&mut self, obj: ObjRef) {
-        // 按控件类型分派
-        let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider(_)));
-        let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch(_)));
-        let is_checkbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Checkbox(_)));
-        let is_dropdown = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Dropdown(_)));
-        let is_spinbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Spinbox(_)));
-        if is_slider || is_spinbox {
-            self.set_state(obj, State::EDITED, true);
-        } else if is_switch {
-            self.toggle_switch(obj);
-        } else if is_checkbox {
-            self.toggle_checkbox(obj);
-        } else if is_dropdown {
-            self.open_dropdown(obj);
-        } else {
-            self.send_event(obj, crate::event::EventKind::Clicked);
-        }
-    }
-
-    fn roller_step(&mut self, obj: ObjRef, dir: i32) {
-        let now = self.time_ms;
-        self.invalidate_obj(obj);
-        if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::Roller(s) = &mut n.kind {
-                let next = (s.selected as i32 + dir).clamp(0, s.items.len().saturating_sub(1) as i32);
-                crate::widgets::roller::select(&s.items, &mut s.selected, &mut s.sel_from, next as usize, now);
-            }
-        }
-        self.invalidate_obj(obj);
-    }
-
-    /// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）
-    fn open_dropdown(&mut self, obj: ObjRef) {
-        let Some((items, sel, w)) = self.arena.get(obj).map(|n| match &n.kind {
-            WidgetKind::Dropdown(s) => (s.items.clone(), s.selected, n.rect.w),
-            _ => (Vec::new(), 0, 0),
-        }) else { return };
-        if items.is_empty() {
-            return;
-        }
-        let prev = self.focused();
-        let screen = self.screen;
-        let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
-        let lst = self.create_list(screen, &refs);
-        self.set_size(lst, w.max(80), (items.len().min(5) * 16 + 2) as i32);
-        self.list_select(lst, sel);
-        self.set_floating(lst, obj, crate::layout::Attach::Bottom);
-        self.group_add(lst);
-        self.set_modal(lst);
-        // 选中：写回 dropdown 并发 ValueChanged，关闭浮层，还原焦点
-        self.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
-            let idx = ui.list_selected(l);
-            if let Some(n) = ui.arena.get_mut(obj) {
-                if let WidgetKind::Dropdown(s) = &mut n.kind {
-                    s.selected = idx;
-                }
-            }
-            ui.invalidate_obj(obj);
-            ui.send_event(obj, crate::event::EventKind::ValueChanged);
-            ui.clear_modal();
-            ui.delete(l);
-            if let Some(p) = prev {
-                ui.group_focus(p);
-            }
-        }));
-        // Esc：不改值，直接关闭
-        self.add_event_cb(lst, crate::event::EventKind::Key(crate::input::Key::Esc), Box::new(move |ui, l, k| {
-            if k == crate::event::EventKind::Key(crate::input::Key::Esc) {
-                ui.clear_modal();
-                ui.delete(l);
-                if let Some(p) = prev {
-                    ui.group_focus(p);
-                }
-            }
-        }));
     }
 
     pub fn toggle_checkbox(&mut self, obj: ObjRef) {

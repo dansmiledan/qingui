@@ -5,6 +5,7 @@ use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Point, Rect};
+use crate::input::Key;
 use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -17,6 +18,27 @@ pub struct SpinboxState {
     pub value: i32,
     pub digits: u8,
     pub cursor: u8,
+}
+
+impl SpinboxState {
+    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
+        use super::KeyOutcome::*;
+        if !ctx.edited {
+            return if key == Key::Enter { EnterEdit } else { Pass };
+        }
+        match key {
+            Key::Left => { move_cursor(self.digits, &mut self.cursor, -1); Consumed }
+            Key::Right => { move_cursor(self.digits, &mut self.cursor, 1); Consumed }
+            Key::Up | Key::Down => {
+                let d = if key == Key::Up { 1 } else { -1 };
+                let mut nv = self.value;
+                step_digit(self.min, self.max, &mut nv, self.digits, self.cursor, d);
+                if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
+            }
+            Key::Enter | Key::Esc => ExitEdit,
+            _ => Consumed,
+        }
+    }
 }
 
 pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {

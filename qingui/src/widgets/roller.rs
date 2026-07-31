@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::{Color, Point, Rect};
+use crate::input::Key;
 use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -28,6 +29,18 @@ impl RollerState {
         }
         // 有 fx（含本帧过期）就重绘：完成帧必须补最后一定格
         super::TickOut { redraw: had_fx, active }
+    }
+
+    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
+        match key {
+            Key::Up | Key::Down => {
+                let dir = if key == Key::Up { -1 } else { 1 };
+                let next = (self.selected as i32 + dir).clamp(0, self.items.len().saturating_sub(1) as i32);
+                select(&self.items, &mut self.selected, &mut self.sel_from, next as usize, ctx.now);
+                super::KeyOutcome::Consumed
+            }
+            _ => super::KeyOutcome::Pass,
+        }
     }
 }
 

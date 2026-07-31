@@ -5,6 +5,7 @@ use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Rect};
+use crate::input::Key;
 use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -15,6 +16,24 @@ pub struct SliderState {
     pub min: i32,
     pub max: i32,
     pub value: i32,
+}
+
+impl SliderState {
+    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
+        use super::KeyOutcome::*;
+        if ctx.edited {
+            return match key {
+                Key::Left | Key::Right => {
+                    let d = if key == Key::Left { -1 } else { 1 };
+                    let nv = (self.value + d).clamp(self.min, self.max);
+                    if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
+                }
+                Key::Enter | Key::Esc => ExitEdit,
+                _ => Consumed,
+            };
+        }
+        if key == Key::Enter { EnterEdit } else { Pass }
+    }
 }
 
 pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
