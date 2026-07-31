@@ -10,6 +10,12 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct LedState {
+    pub color: Color,
+    pub bright: u8,
+}
+
 pub(crate) fn draw(color: Color, bright: u8, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
@@ -72,7 +78,7 @@ impl LedBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Led { color: self.color, bright: self.bright.unwrap_or(255) },
+            WidgetKind::Led(LedState { color: self.color, bright: self.bright.unwrap_or(255) }),
         );
         let mut s = self.style.unwrap_or_default();
         if s.bg_opa.is_none() {

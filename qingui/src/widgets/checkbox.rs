@@ -12,6 +12,12 @@ use super::{WidgetCtx, WidgetKind};
 
 const BOX: i32 = 12;
 
+#[derive(Clone)]
+pub struct CheckboxState {
+    pub text: alloc::string::String,
+    pub checked: bool,
+}
+
 pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let ap = |b: u8| ctx.ap(b);
@@ -104,7 +110,7 @@ impl CheckboxBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Checkbox { text: self.text, checked: self.checked },
+            WidgetKind::Checkbox(CheckboxState { text: self.text, checked: self.checked }),
         );
         let base = self.style.unwrap_or_else(|| {
             let mut s = Style::default();

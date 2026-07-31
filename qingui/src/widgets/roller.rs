@@ -12,6 +12,13 @@ use super::{WidgetCtx, WidgetKind};
 pub const ROW_H: i32 = 16;
 pub const ROLL_DUR: u64 = 150;
 
+#[derive(Clone)]
+pub struct RollerState {
+    pub items: Vec<String>,
+    pub selected: usize,
+    pub sel_from: Option<(f32, u64)>,
+}
+
 /// 滚动位置：从 from 平滑过渡到 selected
 fn sel_f(selected: usize, sel_from: Option<(f32, u64)>, now: u64) -> f32 {
     match sel_from {
@@ -133,7 +140,7 @@ impl RollerBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Roller { items: self.items, selected, sel_from: None },
+            WidgetKind::Roller(RollerState { items: self.items, selected, sel_from: None }),
         );
         let base = self.style.unwrap_or_else(|| {
             let mut s = Style::default();

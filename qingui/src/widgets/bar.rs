@@ -10,6 +10,13 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct BarState {
+    pub min: i32,
+    pub max: i32,
+    pub value: i32,
+}
+
 pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
@@ -76,7 +83,7 @@ impl BarBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Bar { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) },
+            WidgetKind::Bar(BarState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
         );
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_bar));
         if let Some((sw, sh)) = self.sizing {

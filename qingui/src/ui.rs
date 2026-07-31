@@ -314,17 +314,17 @@ impl Ui {
             let (children, redraw, active) = match self.arena.get_mut(r) {
                 Some(n) => {
                     let (redraw, active) = match &mut n.kind {
-                        WidgetKind::List { fx, .. } => {
-                            let was_active = fx.active(now);
-                            let removed = fx.prune(now);
+                        WidgetKind::List(s) => {
+                            let was_active = s.fx.active(now);
+                            let removed = s.fx.prune(now);
                             // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
-                            (was_active || removed, fx.active(now))
+                            (was_active || removed, s.fx.active(now))
                         }
-                        WidgetKind::Roller { sel_from, .. } => {
-                            let had_fx = sel_from.is_some();
-                            let active = crate::widgets::roller::fx_active(*sel_from, now);
+                        WidgetKind::Roller(s) => {
+                            let had_fx = s.sel_from.is_some();
+                            let active = crate::widgets::roller::fx_active(s.sel_from, now);
                             if !active {
-                                *sel_from = None;
+                                s.sel_from = None;
                             }
                             // 有 fx（含本帧过期）就重绘：完成帧必须补最后一定格
                             (had_fx, active)
@@ -799,8 +799,8 @@ impl Ui {
     }
     pub fn msgbox_selected(&self, obj: ObjRef) -> i32 {
         if let Some(n) = self.arena.get(obj) {
-            if let WidgetKind::Msgbox { selected } = &n.kind {
-                return *selected;
+            if let WidgetKind::Msgbox(s) = &n.kind {
+                return s.selected;
             }
         }
         -1
@@ -817,9 +817,9 @@ impl Ui {
     pub fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::Table { cols, rows, cells } = &mut n.kind {
-                if row < *rows && col < *cols {
-                    cells[row as usize * *cols as usize + col as usize] = text.into();
+            if let WidgetKind::Table(s) = &mut n.kind {
+                if row < s.rows && col < s.cols {
+                    s.cells[row as usize * s.cols as usize + col as usize] = text.into();
                 }
             }
         }
@@ -836,8 +836,8 @@ impl Ui {
 
     pub fn roller_selected(&self, obj: ObjRef) -> usize {
         if let Some(n) = self.arena.get(obj) {
-            if let WidgetKind::Roller { selected, .. } = &n.kind {
-                return *selected;
+            if let WidgetKind::Roller(s) = &n.kind {
+                return s.selected;
             }
         }
         0
@@ -878,8 +878,8 @@ impl Ui {
 
     pub fn list_selected(&self, obj: ObjRef) -> usize {
         if let Some(n) = self.arena.get(obj) {
-            if let WidgetKind::List { selected, .. } = &n.kind {
-                return *selected;
+            if let WidgetKind::List(s) = &n.kind {
+                return s.selected;
             }
         }
         0
@@ -890,8 +890,8 @@ impl Ui {
         let now = self.time_ms;
         if let Some(n) = self.arena.get_mut(obj) {
             let vis_h = n.rect.h;
-            if let WidgetKind::List { items, selected, scroll, fx } = &mut n.kind {
-                crate::widgets::list::select(items, selected, scroll, fx, idx, vis_h, now);
+            if let WidgetKind::List(s) = &mut n.kind {
+                crate::widgets::list::select(&mut s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now);
             }
         }
         self.invalidate_obj(obj);
@@ -903,13 +903,13 @@ impl Ui {
         self.invalidate_obj(obj);
         let now = self.time_ms;
         if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::List { items, selected, fx, .. } = &mut n.kind {
-                let idx = idx.min(items.len());
+            if let WidgetKind::List(s) = &mut n.kind {
+                let idx = idx.min(s.items.len());
                 // 插入位置在选中项之上时，选中索引顺延
-                if !items.is_empty() && *selected >= idx {
-                    *selected += 1;
+                if !s.items.is_empty() && s.selected >= idx {
+                    s.selected += 1;
                 }
-                crate::widgets::list::insert(items, fx, idx, text, now);
+                crate::widgets::list::insert(&mut s.items, &mut s.fx, idx, text, now);
             }
         }
         self.invalidate_obj(obj);
@@ -922,10 +922,10 @@ impl Ui {
         let ok = match self.arena.get_mut(obj) {
             Some(n) => {
                 let vis_h = n.rect.h;
-                if let WidgetKind::List { items, selected, scroll, fx } = &mut n.kind {
-                    let ok = crate::widgets::list::remove(items, fx, selected, now);
+                if let WidgetKind::List(s) = &mut n.kind {
+                    let ok = crate::widgets::list::remove(&mut s.items, &mut s.fx, &mut s.selected, now);
                     // 删除后尾部空窗时自动上滚填满窗口
-                    crate::widgets::list::ensure_visible(*selected, items.len(), scroll, fx, vis_h, now);
+                    crate::widgets::list::ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now);
                     ok
                 } else {
                     false
@@ -1124,7 +1124,7 @@ impl Ui {
         let edited = self.state(f).contains(State::EDITED);
         self.send_event(f, crate::event::EventKind::Key(key));
         if edited {
-            let is_spinbox = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Spinbox { .. }));
+            let is_spinbox = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Spinbox(_)));
             if is_spinbox {
                 // Spinbox 编辑态：Left/Right 选位，Up/Down 增减，Enter/Esc 退出
                 enum Act {
@@ -1133,24 +1133,24 @@ impl Ui {
                     Exit,
                 }
                 let act = if let Some(n) = self.arena.get_mut(f) {
-                    if let WidgetKind::Spinbox { min, max, value, digits, cursor } = &mut n.kind {
+                    if let WidgetKind::Spinbox(s) = &mut n.kind {
                         match key {
                             Key::Left => {
-                                crate::widgets::spinbox::move_cursor(*digits, cursor, -1);
+                                crate::widgets::spinbox::move_cursor(s.digits, &mut s.cursor, -1);
                                 Act::Idle
                             }
                             Key::Right => {
-                                crate::widgets::spinbox::move_cursor(*digits, cursor, 1);
+                                crate::widgets::spinbox::move_cursor(s.digits, &mut s.cursor, 1);
                                 Act::Idle
                             }
                             Key::Up => {
-                                let mut nv = *value;
-                                crate::widgets::spinbox::step_digit(*min, *max, &mut nv, *digits, *cursor, 1);
+                                let mut nv = s.value;
+                                crate::widgets::spinbox::step_digit(s.min, s.max, &mut nv, s.digits, s.cursor, 1);
                                 Act::Set(nv)
                             }
                             Key::Down => {
-                                let mut nv = *value;
-                                crate::widgets::spinbox::step_digit(*min, *max, &mut nv, *digits, *cursor, -1);
+                                let mut nv = s.value;
+                                crate::widgets::spinbox::step_digit(s.min, s.max, &mut nv, s.digits, s.cursor, -1);
                                 Act::Set(nv)
                             }
                             Key::Enter | Key::Esc => Act::Exit,
@@ -1180,8 +1180,8 @@ impl Ui {
             }
             return;
         }
-        let is_list = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::List { .. }));
-        let is_roller = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Roller { .. }));
+        let is_list = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::List(_)));
+        let is_roller = matches!(self.arena.get(f).map(|n| &n.kind), Some(WidgetKind::Roller(_)));
         if is_roller {
             // Roller：Up/Down 滚轮选择（首尾停止）
             match key {
@@ -1221,8 +1221,8 @@ impl Ui {
 
     pub fn list_len(&self, obj: ObjRef) -> usize {
         if let Some(n) = self.arena.get(obj) {
-            if let WidgetKind::List { items, .. } = &n.kind {
-                return items.len();
+            if let WidgetKind::List(s) = &n.kind {
+                return s.items.len();
             }
         }
         0
@@ -1235,11 +1235,11 @@ impl Ui {
 
     fn activate(&mut self, obj: ObjRef) {
         // 按控件类型分派
-        let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider { .. }));
-        let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch { .. }));
-        let is_checkbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Checkbox { .. }));
-        let is_dropdown = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Dropdown { .. }));
-        let is_spinbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Spinbox { .. }));
+        let is_slider = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Slider(_)));
+        let is_switch = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Switch(_)));
+        let is_checkbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Checkbox(_)));
+        let is_dropdown = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Dropdown(_)));
+        let is_spinbox = matches!(self.arena.get(obj).map(|n| &n.kind), Some(WidgetKind::Spinbox(_)));
         if is_slider || is_spinbox {
             self.set_state(obj, State::EDITED, true);
         } else if is_switch {
@@ -1257,9 +1257,9 @@ impl Ui {
         let now = self.time_ms;
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::Roller { items, selected, sel_from } = &mut n.kind {
-                let next = (*selected as i32 + dir).clamp(0, items.len().saturating_sub(1) as i32);
-                crate::widgets::roller::select(items, selected, sel_from, next as usize, now);
+            if let WidgetKind::Roller(s) = &mut n.kind {
+                let next = (s.selected as i32 + dir).clamp(0, s.items.len().saturating_sub(1) as i32);
+                crate::widgets::roller::select(&s.items, &mut s.selected, &mut s.sel_from, next as usize, now);
             }
         }
         self.invalidate_obj(obj);
@@ -1268,7 +1268,7 @@ impl Ui {
     /// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）
     fn open_dropdown(&mut self, obj: ObjRef) {
         let Some((items, sel, w)) = self.arena.get(obj).map(|n| match &n.kind {
-            WidgetKind::Dropdown { items, selected } => (items.clone(), *selected, n.rect.w),
+            WidgetKind::Dropdown(s) => (s.items.clone(), s.selected, n.rect.w),
             _ => (Vec::new(), 0, 0),
         }) else { return };
         if items.is_empty() {
@@ -1287,8 +1287,8 @@ impl Ui {
         self.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
             let idx = ui.list_selected(l);
             if let Some(n) = ui.arena.get_mut(obj) {
-                if let WidgetKind::Dropdown { selected, .. } = &mut n.kind {
-                    *selected = idx;
+                if let WidgetKind::Dropdown(s) = &mut n.kind {
+                    s.selected = idx;
                 }
             }
             ui.invalidate_obj(obj);
@@ -1314,8 +1314,8 @@ impl Ui {
     pub fn toggle_checkbox(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::Checkbox { checked, .. } = &mut n.kind {
-                *checked = !*checked;
+            if let WidgetKind::Checkbox(s) = &mut n.kind {
+                s.checked = !s.checked;
             }
         }
         self.invalidate_obj(obj);
@@ -1325,8 +1325,8 @@ impl Ui {
     pub fn toggle_switch(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
-            if let WidgetKind::Switch { on } = &mut n.kind {
-                *on = !*on;
+            if let WidgetKind::Switch(s) = &mut n.kind {
+                s.on = !s.on;
             }
         }
         self.invalidate_obj(obj);

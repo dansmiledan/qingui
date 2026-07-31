@@ -11,6 +11,13 @@ use super::{WidgetCtx, WidgetKind};
 pub const CELL_W: i32 = 60;
 pub const CELL_H: i32 = 16;
 
+#[derive(Clone)]
+pub struct TableState {
+    pub cols: u8,
+    pub rows: u8,
+    pub cells: Vec<String>,
+}
+
 pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
@@ -97,7 +104,7 @@ impl TableBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Table { cols: self.cols, rows: self.rows, cells: self.cells },
+            WidgetKind::Table(TableState { cols: self.cols, rows: self.rows, cells: self.cells }),
         );
         let mut s = self.style.unwrap_or_default();
         if s.bg_opa.is_none() {

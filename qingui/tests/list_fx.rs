@@ -3,7 +3,7 @@ use qingui::Ui;
 
 fn list_fx(ui: &Ui, l: qingui::ObjRef) -> qingui::widgets::list::ListFx {
     match ui.debug_kind(l) {
-        WidgetKind::List { fx, .. } => fx.clone(),
+        WidgetKind::List(s) => s.fx.clone(),
         _ => panic!("not a list"),
     }
 }
@@ -15,13 +15,13 @@ fn insert_adds_item_with_fade_and_shift_fx() {
     ui.list_insert(l, 1, "x");
     assert_eq!(ui.list_len(l), 4);
     match ui.debug_kind(l) {
-        WidgetKind::List { items, fx, .. } => {
-            assert_eq!(items, &["a", "x", "b", "c"]);
+        WidgetKind::List(s) => {
+            assert_eq!(s.items, ["a", "x", "b", "c"]);
             // 新项淡入
-            assert!(fx.item_fx.iter().any(|f| f.index == 1 && f.fade_in));
+            assert!(s.fx.item_fx.iter().any(|f| f.index == 1 && f.fade_in));
             // 下方 item 下滑让位（起始位移为负）
-            assert!(fx.item_fx.iter().any(|f| f.index == 2 && f.dy < 0));
-            assert!(fx.item_fx.iter().any(|f| f.index == 3 && f.dy < 0));
+            assert!(s.fx.item_fx.iter().any(|f| f.index == 2 && f.dy < 0));
+            assert!(s.fx.item_fx.iter().any(|f| f.index == 3 && f.dy < 0));
         }
         _ => panic!(),
     }
@@ -44,13 +44,13 @@ fn remove_selected_fades_ghost_and_shifts_up() {
     assert!(ui.list_remove(l));
     assert_eq!(ui.list_len(l), 2);
     match ui.debug_kind(l) {
-        WidgetKind::List { items, selected, fx, .. } => {
-            assert_eq!(items, &["a", "c"]);
-            assert_eq!(*selected, 1); // 仍指向原位置（现在是 "c"）
+        WidgetKind::List(s) => {
+            assert_eq!(s.items, ["a", "c"]);
+            assert_eq!(s.selected, 1); // 仍指向原位置（现在是 "c"）
             // ghost 渐隐
-            assert!(fx.ghost.as_ref().is_some_and(|g| g.text == "b" && g.index == 1));
+            assert!(s.fx.ghost.as_ref().is_some_and(|g| g.text == "b" && g.index == 1));
             // 下方 item 上移补位（起始位移为正）
-            assert!(fx.item_fx.iter().any(|f| f.index == 1 && f.dy > 0));
+            assert!(s.fx.item_fx.iter().any(|f| f.index == 1 && f.dy > 0));
         }
         _ => panic!(),
     }
@@ -91,14 +91,14 @@ fn scroll_is_row_aligned() {
     for i in 1..8 {
         ui.list_select(l, i);
         match ui.debug_kind(l) {
-            WidgetKind::List { scroll, .. } => assert_eq!(scroll % 16, 0, "scroll 必须行对齐"),
+            WidgetKind::List(s) => assert_eq!(s.scroll % 16, 0, "scroll 必须行对齐"),
             _ => panic!(),
         }
     }
     // 选中 6：窗口已是行 3..7（scroll=48），6 仍可见，scroll 不变
     ui.list_select(l, 6);
     match ui.debug_kind(l) {
-        WidgetKind::List { scroll, .. } => assert_eq!(*scroll, 48),
+        WidgetKind::List(s) => assert_eq!(s.scroll, 48),
         _ => panic!(),
     }
 }
@@ -114,9 +114,9 @@ fn remove_pulls_window_up_when_tail_emptied() {
     assert_eq!(ui.list_len(l), 3);
     // 窗口自动上滚到顶（不留下尾部空窗）
     match ui.debug_kind(l) {
-        WidgetKind::List { scroll, fx, .. } => {
-            assert_eq!(*scroll, 0);
-            assert!(fx.scroll_from.is_some()); // 上滚有平滑动画
+        WidgetKind::List(s) => {
+            assert_eq!(s.scroll, 0);
+            assert!(s.fx.scroll_from.is_some()); // 上滚有平滑动画
         }
         _ => panic!(),
     }

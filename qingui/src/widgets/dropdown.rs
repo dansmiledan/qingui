@@ -9,6 +9,12 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct DropdownState {
+    pub items: Vec<String>,
+    pub selected: usize,
+}
+
 pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
@@ -95,7 +101,7 @@ impl DropdownBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Dropdown { items: self.items, selected },
+            WidgetKind::Dropdown(DropdownState { items: self.items, selected }),
         );
         let base = self.style.unwrap_or_else(|| {
             let mut s = Style::default();

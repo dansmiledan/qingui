@@ -49,7 +49,7 @@ fn selection_keeps_visible_with_scroll() {
     assert_eq!(ui.list_selected(l), 7);
     // scroll 已下滚保证第 7 行可见：scroll > 0
     let scroll = match &ui.debug_kind(l) {
-        qingui::node::WidgetKind::List { scroll, .. } => *scroll,
+        qingui::node::WidgetKind::List(s) => s.scroll,
         _ => panic!(),
     };
     assert!(scroll > 0);

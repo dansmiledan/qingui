@@ -15,6 +15,13 @@ pub const START_DEG: i32 = 135;
 pub const SWEEP_DEG: i32 = 270;
 pub const TRACK_W: i32 = 4;
 
+#[derive(Clone)]
+pub struct ArcState {
+    pub min: i32,
+    pub max: i32,
+    pub value: i32,
+}
+
 pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
@@ -84,7 +91,7 @@ impl ArcBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Arc { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) },
+            WidgetKind::Arc(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
         );
         let mut s = self.style.unwrap_or_default();
         if s.bg_opa.is_none() {

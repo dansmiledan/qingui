@@ -11,6 +11,11 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct LabelState {
+    pub text: String,
+}
+
 pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     d.draw_text_opa(
         Point { x: ctx.abs.x, y: ctx.abs.y },
@@ -60,7 +65,7 @@ impl LabelBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = crate::font::text_size(&self.text);
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label { text: self.text });
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label(LabelState { text: self.text }));
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_label));
         if let Some((sw, sh)) = self.sizing {
             ui.set_sizing(r, sw, sh);
@@ -83,8 +88,8 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     ui.invalidate_obj(obj);
     let (w, h) = crate::font::text_size(text);
     if let Some(n) = ui.arena.get_mut(obj) {
-        if let WidgetKind::Label { text: t } = &mut n.kind {
-            *t = text.into();
+        if let WidgetKind::Label(s) = &mut n.kind {
+            s.text = text.into();
             n.rect.w = w;
             n.rect.h = h;
         }
@@ -95,8 +100,8 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
 
 pub(crate) fn text(ui: &Ui, obj: ObjRef) -> String {
     if let Some(n) = ui.arena.get(obj) {
-        if let WidgetKind::Label { text } = &n.kind {
-            return text.clone();
+        if let WidgetKind::Label(s) = &n.kind {
+            return s.text.clone();
         }
     }
     String::new()

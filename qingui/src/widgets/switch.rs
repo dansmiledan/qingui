@@ -10,6 +10,11 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct SwitchState {
+    pub on: bool,
+}
+
 pub(crate) fn draw(on: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     let tc = if on { Color::rgb(60, 180, 90) } else { Color::rgb(90, 90, 90) };
@@ -73,7 +78,7 @@ impl SwitchBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((40, 20));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Switch { on: self.on });
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Switch(SwitchState { on: self.on }));
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_switch));
         ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_switch_focused));
         if let Some((sw, sh)) = self.sizing {

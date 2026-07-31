@@ -8,6 +8,11 @@ use crate::style::Layout;
 use crate::ui::Ui;
 use super::WidgetKind;
 
+#[derive(Clone)]
+pub struct MsgboxState {
+    pub selected: i32,
+}
+
 /// 模态消息框：标题 + 文本 + 按钮行，浮层居中并锁定焦点。
 /// 按钮点击后关闭：根对象收到 `EventKind::ValueChanged`，
 /// 用 `Ui::msgbox_selected` 读取点击的按钮索引（Esc 关闭为 -1）。
@@ -38,7 +43,7 @@ impl MsgboxBuilder {
 }
 
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
-    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), WidgetKind::Msgbox { selected: -1 });
+    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), WidgetKind::Msgbox(MsgboxState { selected: -1 }));
     ui.set_floating(root, parent, Attach::Center);
     // 样式：对话框 + 列布局
     ui.widget(root).style(
@@ -68,8 +73,8 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
         // 点击：记录索引 → 通知 → 解锁并删除
         ui.add_event_cb(btn, EventKind::Clicked, Box::new(move |ui, _x, _| {
             if let Some(n) = ui.arena.get_mut(root) {
-                if let WidgetKind::Msgbox { selected } = &mut n.kind {
-                    *selected = i as i32;
+                if let WidgetKind::Msgbox(s) = &mut n.kind {
+                    s.selected = i as i32;
                 }
             }
             let root = root;

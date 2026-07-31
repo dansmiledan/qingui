@@ -10,6 +10,11 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct ButtonState {
+    pub text: alloc::string::String,
+}
+
 pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let (tw, th) = crate::font::text_size(text);
     let p = Point {
@@ -77,7 +82,7 @@ impl ButtonBuilder {
             let (tw, th) = crate::font::text_size(&self.text);
             (tw + 24, th + 12)
         });
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Button { text: self.text });
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Button(ButtonState { text: self.text }));
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_button));
         ui.set_style_pressed(r, self.style_pressed.unwrap_or_else(crate::style::theme_button_pressed));
         ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_button_focused));

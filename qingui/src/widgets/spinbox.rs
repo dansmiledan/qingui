@@ -10,6 +10,15 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+#[derive(Clone)]
+pub struct SpinboxState {
+    pub min: i32,
+    pub max: i32,
+    pub value: i32,
+    pub digits: u8,
+    pub cursor: u8,
+}
+
 pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let _ = (min, max);
     let abs = ctx.abs;
@@ -119,13 +128,13 @@ impl SpinboxBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Spinbox {
+            WidgetKind::Spinbox(SpinboxState {
                 min: self.min,
                 max: self.max,
                 value: self.value.unwrap_or(self.min),
                 digits: self.digits,
                 cursor: self.digits - 1,
-            },
+            }),
         );
         let base = self.style.unwrap_or_else(|| {
             let mut s = Style::default();

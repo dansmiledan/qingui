@@ -11,6 +11,14 @@ use super::{WidgetCtx, WidgetKind};
 pub const ROW_H: i32 = 16;
 pub const FX_DUR: u64 = 200;
 
+#[derive(Clone)]
+pub struct ListState {
+    pub items: Vec<String>,
+    pub selected: usize,
+    pub scroll: i32,
+    pub fx: ListFx,
+}
+
 /// 单个 item 的入场/位移效果（绘制时按时间插值，收敛后由 prune 清理）
 #[derive(Clone)]
 pub struct ItemFx {
@@ -284,7 +292,7 @@ impl ListBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::List { items: self.items, selected, scroll: 0, fx: ListFx::default() },
+            WidgetKind::List(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() }),
         );
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_list));
         ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_list_focused));

@@ -125,8 +125,8 @@ fn roller_rapid_select_continues_from_visual_pos() {
     ui.keypad_input(Key::Down); // 1 → 2（连按）
     // 新动画应从插值位置（0 < from < 1）续接，而非从 1 跳变
     match ui.debug_kind(r) {
-        qingui::node::WidgetKind::Roller { sel_from, .. } => {
-            let (from, _) = sel_from.expect("有滚动动画");
+        qingui::node::WidgetKind::Roller(s) => {
+            let (from, _) = s.sel_from.expect("有滚动动画");
             assert!(from > 0.0 && from < 1.0, "from={}", from);
         }
         _ => panic!(),
