@@ -8,6 +8,7 @@ pub mod bar;
 pub mod button;
 pub mod canvas;
 pub mod checkbox;
+pub mod custom;
 pub mod dropdown;
 pub mod label;
 pub mod led;
@@ -20,7 +21,6 @@ pub mod spinner;
 pub mod switch;
 pub mod table;
 
-#[derive(Clone)]
 pub enum WidgetKind {
     Obj,
     Label(label::LabelState),
@@ -38,6 +38,8 @@ pub enum WidgetKind {
     Spinbox(spinbox::SpinboxState),
     Roller(roller::RollerState),
     Dropdown(dropdown::DropdownState),
+    /// 用户自定义 widget（逃生舱；不可 Clone，故 WidgetKind 不再 derive Clone）
+    Custom(alloc::boxed::Box<dyn custom::Widget>),
 }
 
 /// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
@@ -106,6 +108,7 @@ impl WidgetKind {
             WidgetKind::Spinbox(s) => spinbox::draw(s.min, s.max, s.value, s.digits, s.cursor, ctx, d, clip),
             WidgetKind::Roller(s) => roller::draw(&s.items, s.selected, s.sel_from, ctx, d, clip),
             WidgetKind::Dropdown(s) => dropdown::draw(&s.items, s.selected, ctx, d, clip),
+            WidgetKind::Custom(w) => w.draw(ctx, d, clip),
         }
     }
 
@@ -196,6 +199,7 @@ impl WidgetKind {
             WidgetKind::Roller(s) => s.tick(now),
             // Spinner 永远自转
             WidgetKind::Spinner => TickOut::ACTIVE,
+            WidgetKind::Custom(w) => w.tick(now),
             _ => TickOut::IDLE,
         }
     }
@@ -297,5 +301,11 @@ impl WidgetKind {
     }
     pub fn as_arc_mut(&mut self) -> Option<&mut arc::ArcState> {
         match self { WidgetKind::Arc(s) => Some(s), _ => None }
+    }
+    pub(crate) fn as_custom(&self) -> Option<&dyn custom::Widget> {
+        match self { WidgetKind::Custom(w) => Some(w.as_ref()), _ => None }
+    }
+    pub(crate) fn as_custom_mut(&mut self) -> Option<&mut dyn custom::Widget> {
+        match self { WidgetKind::Custom(w) => Some(w.as_mut()), _ => None }
     }
 }

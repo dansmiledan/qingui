@@ -68,6 +68,31 @@ impl Ui {
         self.insert_node(parent, Rect::default(), WidgetKind::Obj)
     }
 
+    /// 挂载用户自定义 widget（实现 widgets::custom::Widget）
+    pub fn create_custom(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::custom::Widget>) -> ObjRef {
+        self.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Custom(widget))
+    }
+
+    /// 只读查询自定义 widget 状态（类型不匹配或对象非 Custom 返回 None）
+    pub fn custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
+        self.arena.get(obj)?.kind.as_custom()?.as_any().downcast_ref::<T>()
+    }
+
+    /// 可变更新自定义 widget 状态（前后自动标脏）
+    pub fn custom_mut<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+        self.invalidate_obj(obj);
+        let r = self
+            .arena
+            .get_mut(obj)?
+            .kind
+            .as_custom_mut()?
+            .as_any_mut()
+            .downcast_mut::<T>()
+            .map(f);
+        self.invalidate_obj(obj);
+        r
+    }
+
     pub fn delete(&mut self, obj: ObjRef) {
         if obj == self.screen || !self.is_valid(obj) {
             return;
@@ -1139,6 +1164,17 @@ impl Ui {
             Some(n) => core::mem::replace(&mut n.kind, WidgetKind::Obj),
             None => return false,
         };
+        // Custom：用户状态在拆出的 Box 里，on_key 可安全接收 &mut Ui
+        if let Some(w) = kind.as_custom_mut() {
+            let consumed = w.on_key(self, obj, key);
+            if let Some(n) = self.arena.get_mut(obj) {
+                n.kind = kind;
+            }
+            if consumed {
+                self.invalidate_obj(obj);
+            }
+            return consumed;
+        }
         let out = kind.on_key(key, KeyCtx { edited, vis_h, now });
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind = kind;

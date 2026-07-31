@@ -20,3 +20,5 @@ pub use arena::ObjRef;
 pub use event::EventKind;
 pub use geometry::{Color, Point, Rect};
 pub use ui::Ui;
+pub use widgets::custom::Widget;
+pub use widgets::TickOut;
