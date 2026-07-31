@@ -1095,6 +1095,8 @@ impl Ui {
             let consumed = w.on_key(self, obj, key);
             if let Some(n) = self.arena.get_mut(obj) {
                 n.kind = kind;
+            } else {
+                return true; // 节点已在处理过程中被删除：视为已消费（与内置分支对称）
             }
             if consumed {
                 self.invalidate_obj(obj);

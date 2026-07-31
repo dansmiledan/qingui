@@ -8,14 +8,25 @@ use qingui::widgets::slider::SliderBuilder;
 use qingui::{Color, EventKind, Ui};
 
 #[test]
-fn slider_builder_defaults_match_create() {
+fn slider_builder_defaults() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = SliderBuilder::new(0, 100).build(&mut ui, scr);
-    let b = SliderBuilder::new(0, 100).build(&mut ui, scr);
-    assert_eq!(a.rect(&ui), b.rect(&ui));
-    assert_eq!(a.resolved_style(&ui), b.resolved_style(&ui));
-    assert_eq!(a.value(&ui), b.value(&ui));
+    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let r = s.rect(&ui);
+    assert_eq!((r.w, r.h), (100, 12)); // 默认尺寸
+    assert_eq!(s.value(&ui), 0); // 默认 value = min
+    let st = s.resolved_style(&ui); // theme_slider
+    assert_eq!(st.bg_color, Color::rgb(70, 70, 80));
+    assert_eq!(st.radius, 6);
+    assert_eq!(st.bg_opa, 255);
+    assert_eq!(st.text_color, Color::WHITE);
+    assert_eq!(st.border_width, 0);
+    // theme_slider_focused：白边 2px，其余字段回落 theme_slider
+    s.set_state(&mut ui, qingui::node::State::FOCUSED, true);
+    let st = s.resolved_style(&ui);
+    assert_eq!(st.border_color, Color::WHITE);
+    assert_eq!(st.border_width, 2);
+    assert_eq!(st.bg_color, Color::rgb(70, 70, 80));
 }
 
 #[test]
@@ -41,37 +52,88 @@ fn slider_builder_overrides() {
 fn button_builder_pressed_focused_styles() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = ButtonBuilder::new("OK").build(&mut ui, scr);
     let b = ButtonBuilder::new("OK").build(&mut ui, scr);
-    assert_eq!(a.rect(&ui), b.rect(&ui));
-    assert_eq!(a.resolved_style(&ui), b.resolved_style(&ui));
-    // focused 样式也一致
-    a.set_state(&mut ui, qingui::node::State::FOCUSED, true);
+    // 默认尺寸 = 文本尺寸 + (24, 12)；"OK" 为 2 个 8x8 字模
+    let r = b.rect(&ui);
+    assert_eq!((r.w, r.h), (2 * 8 + 24, 8 + 12));
+    // theme_button
+    let st = b.resolved_style(&ui);
+    assert_eq!(st.bg_color, Color::rgb(60, 90, 160));
+    assert_eq!(st.radius, 6);
+    assert_eq!(st.border_color, Color::rgb(90, 120, 200));
+    assert_eq!(st.border_width, 1);
+    assert_eq!(st.text_color, Color::WHITE);
+    // theme_button_pressed：只覆盖背景，其余回落 theme_button
+    b.set_state(&mut ui, qingui::node::State::PRESSED, true);
+    let st = b.resolved_style(&ui);
+    assert_eq!(st.bg_color, Color::rgb(40, 60, 110));
+    assert_eq!(st.radius, 6);
+    assert_eq!(st.border_color, Color::rgb(90, 120, 200));
+    b.set_state(&mut ui, qingui::node::State::PRESSED, false);
+    // theme_button_focused：白边 2px，其余回落 theme_button
     b.set_state(&mut ui, qingui::node::State::FOCUSED, true);
-    assert_eq!(a.resolved_style(&ui), b.resolved_style(&ui));
+    let st = b.resolved_style(&ui);
+    assert_eq!(st.border_color, Color::WHITE);
+    assert_eq!(st.border_width, 2);
+    assert_eq!(st.bg_color, Color::rgb(60, 90, 160));
 }
 
 #[test]
 fn list_builder_size_and_style() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = ListBuilder::new(&["x", "y", "z"]).build(&mut ui, scr);
-    let b = ListBuilder::new(&["x", "y", "z"]).build(&mut ui, scr);
-    assert_eq!(a.rect(&ui), b.rect(&ui));
-    assert_eq!(a.list_len(&ui), b.list_len(&ui));
+    let l = ListBuilder::new(&["x", "y", "z"]).build(&mut ui, scr);
+    // 默认尺寸：宽 120，高 min(5, n)*16 + 2
+    let r = l.rect(&ui);
+    assert_eq!((r.w, r.h), (120, 3 * 16 + 2));
+    assert_eq!(l.list_len(&ui), 3);
+    // theme_list
+    let st = l.resolved_style(&ui);
+    assert_eq!(st.bg_color, Color::rgb(34, 34, 44));
+    assert_eq!(st.radius, 4);
+    assert_eq!(st.border_color, Color::rgb(70, 70, 90));
+    assert_eq!(st.border_width, 1);
+    assert_eq!(st.text_color, Color::WHITE);
+    // theme_list_focused：白边（宽度回落 theme_list 的 1px）
+    l.set_state(&mut ui, qingui::node::State::FOCUSED, true);
+    let st = l.resolved_style(&ui);
+    assert_eq!(st.border_color, Color::WHITE);
+    assert_eq!(st.border_width, 1);
+    assert_eq!(st.bg_color, Color::rgb(34, 34, 44));
 }
 
 #[test]
 fn roller_dropdown_builders() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = RollerBuilder::new(&["A", "B"]).build(&mut ui, scr);
-    let b = RollerBuilder::new(&["A", "B"]).build(&mut ui, scr);
-    assert_eq!(a.rect(&ui), b.rect(&ui));
-    let c = DropdownBuilder::new(&["R", "G"]).build(&mut ui, scr);
-    let d = DropdownBuilder::new(&["R", "G"]).build(&mut ui, scr);
-    assert_eq!(c.rect(&ui), d.rect(&ui));
-    assert_eq!(c.resolved_style(&ui), d.resolved_style(&ui));
+    // Roller 默认尺寸：80 x (min(3, n)*16 + 8)
+    let ro = RollerBuilder::new(&["A", "B"]).build(&mut ui, scr);
+    let r = ro.rect(&ui);
+    assert_eq!((r.w, r.h), (80, 2 * 16 + 8));
+    let st = ro.resolved_style(&ui);
+    assert_eq!(st.bg_color, Color::rgb(34, 34, 44));
+    assert_eq!(st.radius, 4);
+    assert_eq!(st.text_color, Color::WHITE);
+    // Roller focused 默认：白边 1px
+    ro.set_state(&mut ui, qingui::node::State::FOCUSED, true);
+    let st = ro.resolved_style(&ui);
+    assert_eq!(st.border_color, Color::WHITE);
+    assert_eq!(st.border_width, 1);
+    assert_eq!(st.bg_color, Color::rgb(34, 34, 44));
+    // Dropdown 默认尺寸：100 x 20
+    let dd = DropdownBuilder::new(&["R", "G"]).build(&mut ui, scr);
+    let r = dd.rect(&ui);
+    assert_eq!((r.w, r.h), (100, 20));
+    let st = dd.resolved_style(&ui);
+    assert_eq!(st.bg_color, Color::rgb(40, 40, 52));
+    assert_eq!(st.radius, 4);
+    assert_eq!(st.text_color, Color::WHITE);
+    // Dropdown focused 默认：白边 1px
+    dd.set_state(&mut ui, qingui::node::State::FOCUSED, true);
+    let st = dd.resolved_style(&ui);
+    assert_eq!(st.border_color, Color::WHITE);
+    assert_eq!(st.border_width, 1);
+    assert_eq!(st.bg_color, Color::rgb(40, 40, 52));
 }
 
 #[test]
