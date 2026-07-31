@@ -1,5 +1,6 @@
 use qingui::display::Flush;
 use qingui::layout::Attach;
+use qingui::widgets::obj::ObjBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,10 +27,10 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 }
 
 fn solid(ui: &mut Ui, parent: qingui::ObjRef, c: Color) -> qingui::ObjRef {
-    let o = ui.create_obj(parent);
+    let o = ObjBuilder::new().build(ui, parent);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(c);
-    ui.set_style(o, s);
+    o.set_style(ui, s);
     o
 }
 
@@ -38,14 +39,14 @@ fn floating_center_on_target() {
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let target = solid(&mut ui, scr, Color::BLUE);
-    ui.set_pos(target, 50, 50);
-    ui.set_size(target, 100, 60);
+    target.set_pos(&mut ui, 50, 50);
+    target.set_size(&mut ui, 100, 60);
     let tip = solid(&mut ui, scr, Color::RED);
-    ui.set_size(tip, 20, 20);
-    ui.set_floating(tip, target, Attach::Center);
+    tip.set_size(&mut ui, 20, 20);
+    tip.set_floating(&mut ui, target, Attach::Center);
     ui.timer_handler();
     // 居中：(50+(100-20)/2, 50+(60-20)/2) = (90, 70)
-    assert_eq!(ui.abs_rect(tip), Rect::new(90, 70, 20, 20));
+    assert_eq!(tip.abs_rect(&ui), Rect::new(90, 70, 20, 20));
 }
 
 #[test]
@@ -53,14 +54,14 @@ fn floating_bottom_of_target() {
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let target = solid(&mut ui, scr, Color::BLUE);
-    ui.set_pos(target, 50, 50);
-    ui.set_size(target, 100, 60);
+    target.set_pos(&mut ui, 50, 50);
+    target.set_size(&mut ui, 100, 60);
     let tip = solid(&mut ui, scr, Color::RED);
-    ui.set_size(tip, 20, 20);
-    ui.set_floating(tip, target, Attach::Bottom);
+    tip.set_size(&mut ui, 20, 20);
+    tip.set_floating(&mut ui, target, Attach::Bottom);
     ui.timer_handler();
     // 目标下边缘居中：(90, 110)
-    assert_eq!(ui.abs_rect(tip), Rect::new(90, 110, 20, 20));
+    assert_eq!(tip.abs_rect(&ui), Rect::new(90, 110, 20, 20));
 }
 
 #[test]
@@ -68,15 +69,15 @@ fn floating_follows_target_move() {
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let target = solid(&mut ui, scr, Color::BLUE);
-    ui.set_pos(target, 50, 50);
-    ui.set_size(target, 100, 60);
+    target.set_pos(&mut ui, 50, 50);
+    target.set_size(&mut ui, 100, 60);
     let tip = solid(&mut ui, scr, Color::RED);
-    ui.set_size(tip, 20, 20);
-    ui.set_floating(tip, target, Attach::Center);
+    tip.set_size(&mut ui, 20, 20);
+    tip.set_floating(&mut ui, target, Attach::Center);
     ui.timer_handler();
-    ui.set_pos(target, 100, 100); // 目标移动 → 浮层跟随
+    target.set_pos(&mut ui, 100, 100); // 目标移动 → 浮层跟随
     ui.timer_handler();
-    assert_eq!(ui.abs_rect(tip), Rect::new(140, 120, 20, 20));
+    assert_eq!(tip.abs_rect(&ui), Rect::new(140, 120, 20, 20));
 }
 
 #[test]
@@ -87,18 +88,18 @@ fn z_index_changes_draw_order() {
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     let scr = ui.screen();
-    ui.set_style(scr, bg);
+    scr.set_style(&mut ui, bg);
     let a = solid(&mut ui, scr, Color::RED);
-    ui.set_pos(a, 0, 0);
-    ui.set_size(a, 20, 20);
+    a.set_pos(&mut ui, 0, 0);
+    a.set_size(&mut ui, 20, 20);
     let b = solid(&mut ui, scr, Color::GREEN);
-    ui.set_pos(b, 10, 10);
-    ui.set_size(b, 20, 20);
+    b.set_pos(&mut ui, 10, 10);
+    b.set_size(&mut ui, 20, 20);
     ui.render();
     // 后创建的 b 在上
     assert_eq!(px(&rec, 15, 15), Color::GREEN);
     // b 降到 -1 → a 在上
-    ui.set_z_index(b, -1);
+    b.set_z_index(&mut ui, -1);
     ui.render();
     assert_eq!(px(&rec, 15, 15), Color::RED);
 }

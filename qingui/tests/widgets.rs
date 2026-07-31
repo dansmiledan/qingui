@@ -1,4 +1,9 @@
 use qingui::display::Flush;
+use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::list::ListBuilder;
+use qingui::widgets::slider::SliderBuilder;
+use qingui::widgets::switch::SwitchBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -20,7 +25,8 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
-    ui.set_style(ui.screen(), bg);
+    let scr = ui.screen();
+    scr.set_style(&mut ui, bg);
     (ui, rec)
 }
 
@@ -37,11 +43,12 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 #[test]
 fn slider_value_and_indicator() {
     let (mut ui, rec) = setup();
-    let s = ui.create_slider(ui.screen(), 0, 100);
-    ui.set_pos(s, 10, 10);
-    ui.set_value(s, 50);
+    let scr = ui.screen();
+    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    s.set_pos(&mut ui, 10, 10);
+    s.set_value(&mut ui, 50);
     ui.render();
-    assert_eq!(ui.value(s), 50);
+    assert_eq!(s.value(&ui), 50);
     // 轨道 y 中心 = 10+6，指示条到 50% ≈ x=10+50
     assert_eq!(px(&rec, 20, 16), Color::rgb(80, 140, 255));
     // 指示条末端之后是轨道色（非指示色）
@@ -53,18 +60,20 @@ fn slider_value_and_indicator() {
 #[test]
 fn slider_value_clamped_to_range() {
     let (mut ui, _) = setup();
-    let s = ui.create_slider(ui.screen(), 10, 20);
-    ui.set_value(s, 999);
-    assert_eq!(ui.value(s), 20);
-    ui.set_value(s, -5);
-    assert_eq!(ui.value(s), 10);
+    let scr = ui.screen();
+    let s = SliderBuilder::new(10, 20).build(&mut ui, scr);
+    s.set_value(&mut ui, 999);
+    assert_eq!(s.value(&ui), 20);
+    s.set_value(&mut ui, -5);
+    assert_eq!(s.value(&ui), 10);
 }
 
 #[test]
 fn switch_toggle_visual() {
     let (mut ui, rec) = setup();
-    let sw = ui.create_switch(ui.screen());
-    ui.set_pos(sw, 10, 10);
+    let scr = ui.screen();
+    let sw = SwitchBuilder::new().build(&mut ui, scr);
+    sw.set_pos(&mut ui, 10, 10);
     ui.render();
     // off：轨道灰，旋钮在左（采样圆内部点，避开抗锯齿边缘）
     assert_eq!(px(&rec, 16, 20), Color::WHITE); // 旋钮左
@@ -74,9 +83,10 @@ fn switch_toggle_visual() {
 #[test]
 fn bar_renders_progress() {
     let (mut ui, rec) = setup();
-    let b = ui.create_bar(ui.screen(), 0, 100);
-    ui.set_pos(b, 10, 10);
-    ui.set_value(b, 25);
+    let scr = ui.screen();
+    let b = BarBuilder::new(0, 100).build(&mut ui, scr);
+    b.set_pos(&mut ui, 10, 10);
+    b.set_value(&mut ui, 25);
     ui.render();
     assert_eq!(px(&rec, 20, 14), Color::rgb(80, 140, 255));
     assert_ne!(px(&rec, 100, 14), Color::rgb(80, 140, 255));
@@ -85,9 +95,10 @@ fn bar_renders_progress() {
 #[test]
 fn bar_small_value_keeps_left_semicircle() {
     let (mut ui, rec) = setup();
-    let b = ui.create_bar(ui.screen(), 0, 100);
-    ui.set_pos(b, 10, 10); // 默认尺寸 100x8，radius=4
-    ui.set_value(b, 5); // 指示宽 iw=5
+    let scr = ui.screen();
+    let b = BarBuilder::new(0, 100).build(&mut ui, scr);
+    b.set_pos(&mut ui, 10, 10); // 默认尺寸 100x8，radius=4
+    b.set_value(&mut ui, 5); // 指示宽 iw=5
     ui.render();
     let ind = Color::rgb(80, 140, 255);
     // 左端按轨道形状(radius=4)裁剪：(11,11) 在半圆外 → 非指示色
@@ -101,10 +112,11 @@ fn bar_small_value_keeps_left_semicircle() {
 #[test]
 fn list_selected_row_highlighted() {
     let (mut ui, rec) = setup();
-    let l = ui.create_list(ui.screen(), &["alpha", "beta", "gamma"]);
-    ui.set_pos(l, 10, 10);
-    ui.list_select(l, 1);
-    assert_eq!(ui.list_selected(l), 1);
+    let scr = ui.screen();
+    let l = ListBuilder::new(&["alpha", "beta", "gamma"]).build(&mut ui, scr);
+    l.set_pos(&mut ui, 10, 10);
+    l.list_select(&mut ui, 1);
+    assert_eq!(l.list_selected(&ui), 1);
     ui.tick_inc(300); // 让高亮滑动动画播完
     ui.timer_handler();
     // 第 2 行（beta）底色 = 高亮色。行高 16，行 1 中心 y = 10+16+8=34，文本左侧 x=12
@@ -114,10 +126,11 @@ fn list_selected_row_highlighted() {
 #[test]
 fn button_renders_text_centered() {
     let (mut ui, rec) = setup();
-    let b = ui.create_button(ui.screen(), "OK");
-    ui.set_pos(b, 10, 10);
+    let scr = ui.screen();
+    let b = ButtonBuilder::new("OK").build(&mut ui, scr);
+    b.set_pos(&mut ui, 10, 10);
     ui.render();
-    let r = ui.rect(b);
+    let r = b.rect(&ui);
     // 文字 "OK" 宽 16px，居中：起始 x = 10 + (w-16)/2；'O' 第一行有像素点亮
     assert!(r.w > 16);
     let text_x = 10 + (r.w - 16) / 2;

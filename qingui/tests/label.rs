@@ -1,4 +1,5 @@
 use qingui::display::Flush;
+use qingui::widgets::label::LabelBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -33,9 +34,10 @@ fn label_renders_glyph_pixels() {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
-    ui.set_style(ui.screen(), bg);
-    let l = ui.create_label(ui.screen(), "A");
-    ui.set_pos(l, 0, 0);
+    let scr = ui.screen();
+    scr.set_style(&mut ui, bg);
+    let l = LabelBuilder::new("A").build(&mut ui, scr);
+    l.set_pos(&mut ui, 0, 0);
     ui.render();
     let chunks = &rec.borrow().chunks;
     let px = &chunks[chunks.len() - 1].1;
@@ -45,19 +47,20 @@ fn label_renders_glyph_pixels() {
     assert_eq!(px[2], Color::WHITE); // (x=2, y=0)
     assert_eq!(px[3], Color::WHITE);
     assert_eq!(px[0], Color::BLACK);
-    assert_eq!(ui.text(l), "A");
-    assert_eq!(ui.rect(l).w, 8);
-    assert_eq!(ui.rect(l).h, 8);
+    assert_eq!(l.text(&ui), "A");
+    assert_eq!(l.rect(&ui).w, 8);
+    assert_eq!(l.rect(&ui).h, 8);
 }
 
 #[test]
 fn set_text_invalidates_and_resizes() {
     let mut ui = Ui::new(64, 48, 48);
-    let l = ui.create_label(ui.screen(), "A");
-    ui.set_pos(l, 10, 10);
+    let scr = ui.screen();
+    let l = LabelBuilder::new("A").build(&mut ui, scr);
+    l.set_pos(&mut ui, 10, 10);
     ui.take_dirty();
-    ui.set_text(l, "ABCD");
-    assert_eq!(ui.rect(l).w, 32);
+    l.set_text(&mut ui, "ABCD");
+    assert_eq!(l.rect(&ui).w, 32);
     let dirty = ui.take_dirty();
     // 旧区域 (10,10,8,8) 与新区域 (10,10,32,8) 共边合并
     assert_eq!(dirty.len(), 1);

@@ -1,5 +1,6 @@
 use qingui::display::Flush;
 use qingui::style::theme_screen;
+use qingui::widgets::obj::ObjBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -22,14 +23,15 @@ fn chunked_render_covers_dirty_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16); // 缓冲 16 行 → 全屏 48 行 = 3 chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    ui.set_style(ui.screen(), theme_screen());
-    let o = ui.create_obj(ui.screen());
-    ui.set_pos(o, 8, 8);
-    ui.set_size(o, 16, 16);
+    let scr = ui.screen();
+    scr.set_style(&mut ui, theme_screen());
+    let o = ObjBuilder::new().build(&mut ui, scr);
+    o.set_pos(&mut ui, 8, 8);
+    o.set_size(&mut ui, 16, 16);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(Color::RED);
     s.bg_opa = Some(255);
-    ui.set_style(o, s);
+    o.set_style(&mut ui, s);
 
     ui.render();
 
@@ -72,14 +74,15 @@ fn small_dirty_flushes_only_that_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    ui.set_style(ui.screen(), theme_screen());
+    let scr = ui.screen();
+    scr.set_style(&mut ui, theme_screen());
     ui.render();
-    let o = ui.create_obj(ui.screen());
-    ui.set_pos(o, 40, 40);
-    ui.set_size(o, 8, 8);
+    let o = ObjBuilder::new().build(&mut ui, scr);
+    o.set_pos(&mut ui, 40, 40);
+    o.set_size(&mut ui, 8, 8);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(Color::GREEN);
-    ui.set_style(o, s);
+    o.set_style(&mut ui, s);
     ui.render();
     let chunks = &rec.borrow().chunks;
     // 累计 3（首帧全屏）+ 1：最后一个 chunk 恰好覆盖对象脏区

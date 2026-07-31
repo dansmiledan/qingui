@@ -56,16 +56,16 @@ fn custom_widget_draws_and_handles_keys() {
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let g = ui.create_custom(ui.screen(), 20, 20, Box::new(Gauge { v: 0 }));
-    ui.set_pos(g, 5, 5);
+    g.set_pos(&mut ui, 5, 5);
     ui.render();
     assert_eq!(px(&rec, 6, 6), Color::RED); // draw 被调用
 
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 0);
-    ui.group_add(g);
+    assert_eq!(g.custom::<Gauge>(&ui).unwrap().v, 0);
+    g.group_add(&mut ui);
     ui.keypad_input(Key::Up); // 焦点对象收到键 → on_key 消费
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 1);
+    assert_eq!(g.custom::<Gauge>(&ui).unwrap().v, 1);
 
-    ui.custom_mut::<Gauge, _>(g, |g| g.v = 42);
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 42);
-    assert!(ui.custom::<String>(g).is_none()); // 类型不匹配 → None
+    g.custom_mut::<Gauge, _>(&mut ui, |g| g.v = 42);
+    assert_eq!(g.custom::<Gauge>(&ui).unwrap().v, 42);
+    assert!(g.custom::<String>(&ui).is_none()); // 类型不匹配 → None
 }

@@ -2,6 +2,9 @@
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::Layout;
+use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::list::ListBuilder;
+use qingui::widgets::obj::ObjBuilder;
 use qingui::{Color, ObjRef, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -40,35 +43,35 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     }));
     ss.pad_left = Some(8);
     ss.pad_top = Some(8);
-    ui.set_style(screen, ss);
+    screen.set_style(&mut ui, ss);
 
-    let menu = ui.create_list(screen, &["Settings", "About"]);
-    ui.set_grid_cell(menu, (0, 1), (1, 1));
-    ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
+    let menu = ListBuilder::new(&["Settings", "About"]).build(&mut ui, screen);
+    menu.set_grid_cell(&mut ui, (0, 1), (1, 1));
+    menu.set_sizing(&mut ui, Some(Sizing::GROW), Some(Sizing::GROW));
 
-    let panel = ui.create_obj(screen);
-    ui.set_grid_cell(panel, (1, 1), (1, 1));
-    ui.set_style(panel, qingui::style::theme_obj());
-    ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(panel, Layout::Flex(Flex {
+    let panel = ObjBuilder::new().build(&mut ui, screen);
+    panel.set_grid_cell(&mut ui, (1, 1), (1, 1));
+    panel.set_style(&mut ui, qingui::style::theme_obj());
+    panel.set_sizing(&mut ui, Some(Sizing::GROW), Some(Sizing::GROW));
+    panel.set_layout(&mut ui, Layout::Flex(Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
 
-    let page = ui.create_obj(panel);
+    let page = ObjBuilder::new().build(&mut ui, panel);
     let mut ps = qingui::style::Style::default();
     ps.bg_opa = Some(0);
-    ui.set_style(page, ps);
-    ui.set_sizing(page, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page, Layout::Flex(Flex {
+    page.set_style(&mut ui, ps);
+    page.set_sizing(&mut ui, Some(Sizing::GROW), Some(Sizing::GROW));
+    page.set_layout(&mut ui, Layout::Flex(Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
-    let _la = ui.create_label(page, TEXT);
+    let _la = LabelBuilder::new(TEXT).build(&mut ui, page);
 
     if with_transition {
         for &o in &[menu, panel, page] {
-            ui.set_transition(o, Some((250, qingui::anim::Easing::Linear)));
+            o.set_transition(&mut ui, Some((250, qingui::anim::Easing::Linear)));
         }
     }
     (ui, rec, menu, panel)
@@ -90,7 +93,8 @@ fn repro_wide_transition_text_ghost() {
     let (mut ui, rec, _, _) = build(false, true);
     ui.tick_inc(1);
     ui.timer_handler();
-    ui.set_layout(ui.screen(), Layout::Grid(Grid {
+    let scr = ui.screen();
+    scr.set_layout(&mut ui, Layout::Grid(Grid {
         cols: vec![Track::Px(108), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,

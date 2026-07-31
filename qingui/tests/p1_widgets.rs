@@ -1,5 +1,11 @@
 use qingui::display::Flush;
 use qingui::input::Key;
+use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::led::LedBuilder;
+use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::spinbox::SpinboxBuilder;
+use qingui::widgets::table::TableBuilder;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -21,7 +27,8 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
-    ui.set_style(ui.screen(), bg);
+    let scr = ui.screen();
+    scr.set_style(&mut ui, bg);
     (ui, rec)
 }
 
@@ -38,11 +45,12 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 #[test]
 fn led_brightness() {
     let (mut ui, rec) = setup();
-    let led = ui.create_led(ui.screen(), Color::RED);
-    ui.set_pos(led, 10, 10);
+    let scr = ui.screen();
+    let led = LedBuilder::new(Color::RED).build(&mut ui, scr);
+    led.set_pos(&mut ui, 10, 10);
     ui.render();
     assert_eq!(px(&rec, 18, 18), Color::RED); // 全亮中心
-    ui.set_value(led, 128);
+    led.set_value(&mut ui, 128);
     ui.render();
     let dim = px(&rec, 18, 18);
     assert!(dim.r < 255 && dim.r > 100, "半亮: {:?}", dim);
@@ -52,10 +60,11 @@ fn led_brightness() {
 #[test]
 fn table_cells() {
     let (mut ui, rec) = setup();
-    let t = ui.create_table(ui.screen(), 2, 2);
-    ui.set_pos(t, 10, 10);
-    ui.table_set_cell(t, 0, 0, "A1");
-    ui.table_set_cell(t, 1, 1, "B2");
+    let scr = ui.screen();
+    let t = TableBuilder::new(2, 2).build(&mut ui, scr);
+    t.set_pos(&mut ui, 10, 10);
+    t.table_set_cell(&mut ui, 0, 0, "A1");
+    t.table_set_cell(&mut ui, 1, 1, "B2");
     ui.render();
     // 'A' 第一行 0x0C → 文本区有白色像素
     let glyph = qingui::font::glyph('A');
@@ -74,26 +83,27 @@ fn spinbox_digit_edit() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
     let (mut ui, _) = setup();
-    let sb = ui.create_spinbox(ui.screen(), 0, 999, 3);
-    let other = ui.create_button(ui.screen(), "X");
-    ui.add_event_cb(sb, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
-    ui.group_add(sb);
-    ui.group_add(other);
+    let scr = ui.screen();
+    let sb = SpinboxBuilder::new(0, 999, 3).build(&mut ui, scr);
+    let other = ButtonBuilder::new("X").build(&mut ui, scr);
+    sb.on(&mut ui, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
+    sb.group_add(&mut ui);
+    other.group_add(&mut ui);
     // 未进编辑态：方向键是焦点导航，值不变
     ui.keypad_input(Key::Up);
-    assert_eq!(ui.value(sb), 0);
+    assert_eq!(sb.value(&ui), 0);
     assert_eq!(ui.focused(), Some(other));
     ui.keypad_input(Key::Prev);
     // Enter 进编辑态：Up → +1；Left 到十位 Up → +10；Left 到百位 Down → clamp min
     ui.keypad_input(Key::Enter);
     ui.keypad_input(Key::Up);
-    assert_eq!(ui.value(sb), 1);
+    assert_eq!(sb.value(&ui), 1);
     ui.keypad_input(Key::Left);
     ui.keypad_input(Key::Up);
-    assert_eq!(ui.value(sb), 11);
+    assert_eq!(sb.value(&ui), 11);
     ui.keypad_input(Key::Left);
     ui.keypad_input(Key::Down);
-    assert_eq!(ui.value(sb), 0);
+    assert_eq!(sb.value(&ui), 0);
     assert_eq!(log.borrow().len(), 3);
     // Esc 退出编辑态，方向键可以移出焦点
     ui.keypad_input(Key::Esc);
@@ -104,10 +114,11 @@ fn spinbox_digit_edit() {
 #[test]
 fn spinbox_cursor_highlight() {
     let (mut ui, rec) = setup();
-    let sb = ui.create_spinbox(ui.screen(), 0, 999, 3);
-    ui.set_pos(sb, 10, 10);
-    ui.set_value(sb, 5);
-    ui.set_state(sb, qingui::node::State::EDITED, true); // 编辑态才显示光标高亮
+    let scr = ui.screen();
+    let sb = SpinboxBuilder::new(0, 999, 3).build(&mut ui, scr);
+    sb.set_pos(&mut ui, 10, 10);
+    sb.set_value(&mut ui, 5);
+    sb.set_state(&mut ui, qingui::node::State::EDITED, true); // 编辑态才显示光标高亮
     ui.render();
     // 个位（右端第 3 位）高亮：取高亮块内字形之外的像素 (40,15)
     assert_eq!(px(&rec, 40, 15), Color::rgb(80, 140, 255));
@@ -118,19 +129,16 @@ fn spinbox_cursor_highlight() {
 #[test]
 fn roller_rapid_select_continues_from_visual_pos() {
     let (mut ui, _) = setup();
-    let r = ui.create_roller(ui.screen(), &["One", "Two", "Three", "Four"]);
-    ui.group_add(r);
+    let scr = ui.screen();
+    let r = RollerBuilder::new(&["One", "Two", "Three", "Four"]).build(&mut ui, scr);
+    r.group_add(&mut ui);
     ui.keypad_input(Key::Down); // 0 → 1（动画开始）
     ui.tick_inc(50); // 动画中途（约 1/3）
     ui.keypad_input(Key::Down); // 1 → 2（连按）
     // 新动画应从插值位置（0 < from < 1）续接，而非从 1 跳变
-    match ui.debug_kind(r) {
-        qingui::node::WidgetKind::Roller(s) => {
-            let (from, _) = s.sel_from.expect("有滚动动画");
-            assert!(from > 0.0 && from < 1.0, "from={}", from);
-        }
-        _ => panic!(),
-    }
+    let s = r.as_roller(&ui).unwrap();
+    let (from, _) = s.sel_from.expect("有滚动动画");
+    assert!(from > 0.0 && from < 1.0, "from={}", from);
 }
 
 #[test]
@@ -138,17 +146,18 @@ fn roller_navigation_and_fx() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
     let (mut ui, _) = setup();
-    let r = ui.create_roller(ui.screen(), &["One", "Two", "Three"]);
-    ui.add_event_cb(r, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
-    ui.group_add(r);
+    let scr = ui.screen();
+    let r = RollerBuilder::new(&["One", "Two", "Three"]).build(&mut ui, scr);
+    r.on(&mut ui, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
+    r.group_add(&mut ui);
     ui.keypad_input(Key::Down);
-    assert_eq!(ui.roller_selected(r), 1);
+    assert_eq!(r.roller_selected(&ui), 1);
     assert_eq!(ui.timer_handler(), 0); // 滚动动画活动
     ui.keypad_input(Key::Down);
     ui.keypad_input(Key::Down); // 到末尾停止
-    assert_eq!(ui.roller_selected(r), 2);
+    assert_eq!(r.roller_selected(&ui), 2);
     ui.keypad_input(Key::Up);
-    assert_eq!(ui.roller_selected(r), 1);
+    assert_eq!(r.roller_selected(&ui), 1);
     ui.tick_inc(300);
     ui.timer_handler();
     ui.keypad_input(Key::Enter);
@@ -160,9 +169,10 @@ fn dropdown_open_select_close() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
     let (mut ui, _) = setup();
-    let dd = ui.create_dropdown(ui.screen(), &["Red", "Green", "Blue"]);
-    ui.add_event_cb(dd, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
-    ui.group_add(dd);
+    let scr = ui.screen();
+    let dd = DropdownBuilder::new(&["Red", "Green", "Blue"]).build(&mut ui, scr);
+    dd.on(&mut ui, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
+    dd.group_add(&mut ui);
     // Enter 打开浮层列表（模态）
     ui.keypad_input(Key::Enter);
     let overlay = ui.focused().expect("有焦点");
@@ -170,13 +180,13 @@ fn dropdown_open_select_close() {
     // Down 到 Green，Enter 选中
     ui.keypad_input(Key::Down);
     ui.keypad_input(Key::Enter);
-    assert_eq!(ui.value(dd), 1);
+    assert_eq!(dd.value(&ui), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
     assert_eq!(ui.focused(), Some(dd)); // 焦点还原
     // 再次打开，Esc 关闭不改值
     ui.keypad_input(Key::Enter);
     ui.keypad_input(Key::Down);
     ui.keypad_input(Key::Esc);
-    assert_eq!(ui.value(dd), 1);
+    assert_eq!(dd.value(&ui), 1);
     assert_eq!(ui.focused(), Some(dd));
 }

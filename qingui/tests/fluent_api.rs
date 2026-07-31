@@ -1,6 +1,8 @@
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::Sizing;
 use qingui::style::Style;
+use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::obj::ObjBuilder;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -20,7 +22,8 @@ fn style_builder_chain() {
 #[test]
 fn anim_builder_chain() {
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     ui.anim_start(
         Anim::new(o, AnimProp::X, 0, 100, 100)
             .easing(Easing::EaseInOutQuad)
@@ -30,10 +33,10 @@ fn anim_builder_chain() {
     );
     ui.tick_inc(50); // delay 内不动
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 0);
+    assert_eq!(o.rect(&ui).x, 0);
     ui.tick_inc(100); // 第 1 轮结束
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 100);
+    assert_eq!(o.rect(&ui).x, 100);
 }
 
 #[test]
@@ -41,15 +44,15 @@ fn widget_mut_chain() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
     let mut ui = Ui::new(160, 120, 120);
-    let b = ui.create_button(ui.screen(), "OK");
-    ui.widget(b)
-        .pos(10, 20)
-        .size(60, 30)
-        .sizing(Some(Sizing::GROW), None)
-        .z_index(2)
-        .group_add()
-        .on(EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
-    assert_eq!(ui.rect(b), Rect::new(10, 20, 60, 30));
+    let scr = ui.screen();
+    let b = ButtonBuilder::new("OK").build(&mut ui, scr);
+    b.set_pos(&mut ui, 10, 20);
+    b.set_size(&mut ui, 60, 30);
+    b.set_sizing(&mut ui, Some(Sizing::GROW), None);
+    b.set_z_index(&mut ui, 2);
+    b.group_add(&mut ui);
+    b.on(&mut ui, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
+    assert_eq!(b.rect(&ui), Rect::new(10, 20, 60, 30));
     assert_eq!(ui.focused(), Some(b));
     ui.keypad_input(qingui::input::Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::Clicked]);

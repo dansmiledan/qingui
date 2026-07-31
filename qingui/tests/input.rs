@@ -1,4 +1,9 @@
 use qingui::input::Key;
+use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::slider::SliderBuilder;
+use qingui::widgets::switch::SwitchBuilder;
 use qingui::{EventKind, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,10 +18,11 @@ fn logger(log: &Log) -> impl FnMut(&mut Ui, qingui::ObjRef, EventKind) + 'static
 #[test]
 fn focus_cycles_with_next_prev() {
     let mut ui = Ui::new(160, 120, 120);
-    let a = ui.create_button(ui.screen(), "A");
-    let b = ui.create_button(ui.screen(), "B");
-    ui.group_add(a);
-    ui.group_add(b);
+    let scr = ui.screen();
+    let a = ButtonBuilder::new("A").build(&mut ui, scr);
+    let b = ButtonBuilder::new("B").build(&mut ui, scr);
+    a.group_add(&mut ui);
+    b.group_add(&mut ui);
     assert_eq!(ui.focused(), Some(a)); // 首个入组自动聚焦
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(b));
@@ -30,24 +36,26 @@ fn focus_cycles_with_next_prev() {
 fn focus_events_and_state_flag() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
-    let a = ui.create_button(ui.screen(), "A");
-    let b = ui.create_button(ui.screen(), "B");
-    ui.add_event_cb(a, EventKind::Defocused, Box::new(logger(&log)));
-    ui.add_event_cb(b, EventKind::Focused, Box::new(logger(&log)));
-    ui.group_add(a);
-    ui.group_add(b);
+    let scr = ui.screen();
+    let a = ButtonBuilder::new("A").build(&mut ui, scr);
+    let b = ButtonBuilder::new("B").build(&mut ui, scr);
+    a.on(&mut ui, EventKind::Defocused, Box::new(logger(&log)));
+    b.on(&mut ui, EventKind::Focused, Box::new(logger(&log)));
+    a.group_add(&mut ui);
+    b.group_add(&mut ui);
     ui.keypad_input(Key::Next);
     assert_eq!(*log.borrow(), vec![EventKind::Defocused, EventKind::Focused]);
-    assert_eq!(ui.state(b) & qingui::node::State::FOCUSED, qingui::node::State::FOCUSED);
+    assert_eq!(b.state(&ui) & qingui::node::State::FOCUSED, qingui::node::State::FOCUSED);
 }
 
 #[test]
 fn enter_clicks_button() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
-    let a = ui.create_button(ui.screen(), "A");
-    ui.add_event_cb(a, EventKind::Clicked, Box::new(logger(&log)));
-    ui.group_add(a);
+    let scr = ui.screen();
+    let a = ButtonBuilder::new("A").build(&mut ui, scr);
+    a.on(&mut ui, EventKind::Clicked, Box::new(logger(&log)));
+    a.group_add(&mut ui);
     ui.keypad_input(Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::Clicked]);
 }
@@ -56,56 +64,60 @@ fn enter_clicks_button() {
 fn slider_edit_mode() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
-    let s = ui.create_slider(ui.screen(), 0, 100);
-    ui.add_event_cb(s, EventKind::ValueChanged, Box::new(logger(&log)));
-    ui.group_add(s);
+    let scr = ui.screen();
+    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    s.on(&mut ui, EventKind::ValueChanged, Box::new(logger(&log)));
+    s.group_add(&mut ui);
     ui.keypad_input(Key::Right);
-    assert_eq!(ui.value(s), 0); // 非编辑态：Right 是焦点移动（组内仅一个对象，值不变）
+    assert_eq!(s.value(&ui), 0); // 非编辑态：Right 是焦点移动（组内仅一个对象，值不变）
     ui.keypad_input(Key::Enter); // 进入编辑态
-    assert!(ui.state(s).contains(qingui::node::State::EDITED));
+    assert!(s.state(&ui).contains(qingui::node::State::EDITED));
     ui.keypad_input(Key::Right);
-    assert_eq!(ui.value(s), 1);
+    assert_eq!(s.value(&ui), 1);
     ui.keypad_input(Key::Right);
     ui.keypad_input(Key::Left);
-    assert_eq!(ui.value(s), 1);
+    assert_eq!(s.value(&ui), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged, EventKind::ValueChanged, EventKind::ValueChanged]);
     ui.keypad_input(Key::Esc); // 退出编辑态
-    assert!(!ui.state(s).contains(qingui::node::State::EDITED));
+    assert!(!s.state(&ui).contains(qingui::node::State::EDITED));
 }
 
 #[test]
 fn switch_toggles_on_enter() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
-    let sw = ui.create_switch(ui.screen());
-    ui.add_event_cb(sw, EventKind::ValueChanged, Box::new(logger(&log)));
-    ui.group_add(sw);
+    let scr = ui.screen();
+    let sw = SwitchBuilder::new().build(&mut ui, scr);
+    sw.on(&mut ui, EventKind::ValueChanged, Box::new(logger(&log)));
+    sw.group_add(&mut ui);
     ui.keypad_input(Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
-    assert_eq!(ui.value(sw), 1); // Switch 的 value：on=1 off=0
+    assert_eq!(sw.value(&ui), 1); // Switch 的 value：on=1 off=0
     ui.keypad_input(Key::Enter);
-    assert_eq!(ui.value(sw), 0);
+    assert_eq!(sw.value(&ui), 0);
 }
 
 #[test]
 fn set_value_fires_value_changed() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
-    let b = ui.create_bar(ui.screen(), 0, 100);
-    ui.add_event_cb(b, EventKind::ValueChanged, Box::new(logger(&log)));
-    ui.set_value(b, 42);
+    let scr = ui.screen();
+    let b = BarBuilder::new(0, 100).build(&mut ui, scr);
+    b.on(&mut ui, EventKind::ValueChanged, Box::new(logger(&log)));
+    b.set_value(&mut ui, 42);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
 }
 
 #[test]
 fn focus_skips_hidden_objects() {
     let mut ui = Ui::new(160, 120, 120);
-    let page = ui.create_obj(ui.screen());
-    let a = ui.create_button(page, "A"); // 随 page 隐藏
-    let b = ui.create_button(ui.screen(), "B");
-    ui.group_add(a);
-    ui.group_add(b);
-    ui.set_hidden(page, true);
+    let scr = ui.screen();
+    let page = ObjBuilder::new().build(&mut ui, scr);
+    let a = ButtonBuilder::new("A").build(&mut ui, page); // 随 page 隐藏
+    let b = ButtonBuilder::new("B").build(&mut ui, scr);
+    a.group_add(&mut ui);
+    b.group_add(&mut ui);
+    page.set_hidden(&mut ui, true);
     // 当前焦点在 a（隐藏）→ Next 应跳到 b
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(b));
@@ -119,11 +131,12 @@ fn focus_skips_hidden_objects() {
 #[test]
 fn modal_restricts_focus_navigation() {
     let mut ui = Ui::new(160, 120, 120);
-    let a = ui.create_button(ui.screen(), "A");
-    let dlg = ui.create_obj(ui.screen());
-    let ok = ui.create_button(dlg, "OK");
-    ui.group_add(a);
-    ui.group_add(ok);
+    let scr = ui.screen();
+    let a = ButtonBuilder::new("A").build(&mut ui, scr);
+    let dlg = ObjBuilder::new().build(&mut ui, scr);
+    let ok = ButtonBuilder::new("OK").build(&mut ui, dlg);
+    a.group_add(&mut ui);
+    ok.group_add(&mut ui);
     // 设置 modal 前焦点可在 a/ok 间循环
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(ok));

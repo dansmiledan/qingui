@@ -1,4 +1,6 @@
 use qingui::display::Flush;
+use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::obj::ObjBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -28,11 +30,12 @@ fn draw_hook_overlays_builtin_widget() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    let btn = ui.create_button(ui.screen(), "ok");
-    ui.set_pos(btn, 10, 10);
-    ui.set_draw_hook(btn, Some(Box::new(|d, abs, clip, _now| {
+    let scr = ui.screen();
+    let btn = ButtonBuilder::new("ok").build(&mut ui, scr);
+    btn.set_pos(&mut ui, 10, 10);
+    btn.on_draw(&mut ui, Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, 255, clip);
-    })));
+    }));
     ui.render();
     // 钩子叠加在按钮自带内容之上（左上角 3x3 被覆盖为红色）
     assert_eq!(px(&rec, 10, 10), Color::RED);
@@ -42,18 +45,19 @@ fn draw_hook_overlays_builtin_widget() {
 #[test]
 fn tick_hook_drives_wakeup_and_redraw() {
     let mut ui = Ui::new(64, 64, 16);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     let hits = Rc::new(Cell::new(0u32));
     let h = hits.clone();
-    ui.set_tick_hook(o, Some(Box::new(move |_ui, _obj, _now| {
+    o.on_tick(&mut ui, Box::new(move |_ui, _obj, _now| {
         h.set(h.get() + 1);
         true
-    })));
+    }));
     ui.tick_inc(16);
     ui.timer_handler(); // 首帧（含建屏全屏脏）
     assert!(hits.get() >= 1);
     assert_eq!(ui.timer_handler(), 0); // 活动 hook 保持唤醒
     // 换成不活动的 hook → 睡眠
-    ui.set_tick_hook(o, Some(Box::new(|_, _, _| false)));
+    o.on_tick(&mut ui, Box::new(|_, _, _| false));
     assert_eq!(ui.timer_handler(), u32::MAX);
 }

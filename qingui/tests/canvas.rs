@@ -1,4 +1,5 @@
 use qingui::display::Flush;
+use qingui::widgets::canvas::CanvasBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -31,9 +32,10 @@ fn canvas_callback_draws_custom_content() {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
-    ui.set_style(ui.screen(), bg);
+    let scr = ui.screen();
+    scr.set_style(&mut ui, bg);
 
-    let cv = ui.create_canvas(ui.screen(), 30, 30, Box::new(|d, abs, clip, _now| {
+    let cv = CanvasBuilder::new(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x + 2, abs.y + 2, 5, 5), Color::RED, 255, clip);
         d.draw_arc(
             qingui::Point { x: abs.x + 20, y: abs.y + 20 },
@@ -45,8 +47,10 @@ fn canvas_callback_draws_custom_content() {
             255,
             clip,
         );
-    }));
-    ui.set_pos(cv, 10, 10);
+    }))
+    .size(30, 30)
+    .build(&mut ui, scr);
+    cv.set_pos(&mut ui, 10, 10);
     ui.render();
 
     // 自定义矩形
@@ -62,9 +66,12 @@ fn canvas_clipped_by_chunk() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16); // 小缓冲 → 多 chunk
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    let cv = ui.create_canvas(ui.screen(), 64, 48, Box::new(|d, abs, clip, _now| {
+    let scr = ui.screen();
+    let cv = CanvasBuilder::new(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x, abs.y, 64, 48), Color::WHITE, 255, clip);
-    }));
+    }))
+    .size(64, 48)
+    .build(&mut ui, scr);
     let _ = cv;
     ui.render();
     // 全屏 3 个 chunk，每个 chunk 内全白（clip 生效，不越界）

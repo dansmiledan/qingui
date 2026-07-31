@@ -1,5 +1,9 @@
 use qingui::display::Flush;
 use qingui::input::Key;
+use qingui::widgets::arc::ArcBuilder;
+use qingui::widgets::checkbox::CheckboxBuilder;
+use qingui::widgets::msgbox::MsgboxBuilder;
+use qingui::widgets::spinner::SpinnerBuilder;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -21,7 +25,8 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
-    ui.set_style(ui.screen(), bg);
+    let scr = ui.screen();
+    scr.set_style(&mut ui, bg);
     (ui, rec)
 }
 
@@ -38,11 +43,12 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 #[test]
 fn arc_value_and_indicator() {
     let (mut ui, rec) = setup();
-    let a = ui.create_arc(ui.screen(), 0, 100);
-    ui.set_pos(a, 10, 10);
-    ui.set_value(a, 50);
+    let scr = ui.screen();
+    let a = ArcBuilder::new(0, 100).build(&mut ui, scr);
+    a.set_pos(&mut ui, 10, 10);
+    a.set_value(&mut ui, 50);
     ui.render();
-    assert_eq!(ui.value(a), 50);
+    assert_eq!(a.value(&ui), 50);
     // 中心 (40,40)，r=27。START=135°(左下)。50% → 指示到 135+135=270°(正上)
     // 轨道色采样 300° 方向（指示范围之外、非边界）：(40+13, 40-23) = (53, 17)
     assert_eq!(px(&rec, 53, 17), Color::rgb(70, 70, 80));
@@ -57,10 +63,11 @@ fn arc_value_and_indicator() {
 #[test]
 fn arc_edited_turns_indicator_yellow() {
     let (mut ui, rec) = setup();
-    let a = ui.create_arc(ui.screen(), 0, 100);
-    ui.set_pos(a, 10, 10);
-    ui.set_value(a, 50);
-    ui.set_state(a, qingui::node::State::EDITED, true);
+    let scr = ui.screen();
+    let a = ArcBuilder::new(0, 100).build(&mut ui, scr);
+    a.set_pos(&mut ui, 10, 10);
+    a.set_value(&mut ui, 50);
+    a.set_state(&mut ui, qingui::node::State::EDITED, true);
     ui.render();
     // 编辑态：指示弧变黄（180° 方向 (15,40)）
     assert_eq!(px(&rec, 15, 40), Color::rgb(255, 200, 60));
@@ -71,29 +78,31 @@ fn checkbox_toggles_on_enter() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
     let (mut ui, rec) = setup();
-    let cb = ui.create_checkbox(ui.screen(), "OK");
-    ui.set_pos(cb, 10, 10);
-    ui.add_event_cb(cb, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
-    ui.group_add(cb);
+    let scr = ui.screen();
+    let cb = CheckboxBuilder::new("OK").build(&mut ui, scr);
+    cb.set_pos(&mut ui, 10, 10);
+    cb.on(&mut ui, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
+    cb.group_add(&mut ui);
     ui.render();
     // 未选中：方框顶边灰（避开控件聚焦边框），内部无勾
     assert_eq!(px(&rec, 16, 12), Color::rgb(150, 150, 160)); // 框顶边
     assert_ne!(px(&rec, 15, 16), Color::rgb(80, 140, 255)); // 无勾
     ui.keypad_input(Key::Enter);
-    assert_eq!(ui.value(cb), 1);
+    assert_eq!(cb.value(&ui), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
     ui.render();
     // 勾选后勾线经过 (17,19)
     assert_eq!(px(&rec, 17, 19), Color::rgb(80, 140, 255));
     ui.keypad_input(Key::Enter);
-    assert_eq!(ui.value(cb), 0);
+    assert_eq!(cb.value(&ui), 0);
 }
 
 #[test]
 fn spinner_keeps_timer_busy_and_draws_arc() {
     let (mut ui, rec) = setup();
-    let s = ui.create_spinner(ui.screen());
-    ui.set_pos(s, 10, 10);
+    let scr = ui.screen();
+    let s = SpinnerBuilder::new().build(&mut ui, scr);
+    s.set_pos(&mut ui, 10, 10);
     ui.render();
     assert_eq!(ui.timer_handler(), 0); // 自转：永远唤醒
     // 某处有弧像素
@@ -113,9 +122,10 @@ fn msgbox_click_records_index_and_closes() {
     let (mut ui, _) = setup();
     let sel_log = Rc::new(RefCell::new(Vec::new()));
     let sl = sel_log.clone();
-    let mb = ui.create_msgbox(ui.screen(), "Title", "Body text", &["Yes", "No"]);
-    ui.add_event_cb(mb, EventKind::ValueChanged, Box::new(move |ui, t, _| {
-        sl.borrow_mut().push(ui.msgbox_selected(t));
+    let scr = ui.screen();
+    let mb = MsgboxBuilder::new("Title", "Body text").buttons(&["Yes", "No"]).build(&mut ui, scr);
+    mb.on(&mut ui, EventKind::ValueChanged, Box::new(move |ui, t, _| {
+        sl.borrow_mut().push(t.msgbox_selected(ui));
     }));
     assert!(ui.is_valid(mb));
     // 焦点锁定在 msgbox 内：Tab 应在两个按钮间循环
@@ -136,9 +146,10 @@ fn msgbox_esc_closes_with_minus_one() {
     let (mut ui, _) = setup();
     let sel_log = Rc::new(RefCell::new(Vec::new()));
     let sl = sel_log.clone();
-    let mb = ui.create_msgbox(ui.screen(), "T", "B", &["OK"]);
-    ui.add_event_cb(mb, EventKind::ValueChanged, Box::new(move |ui, t, _| {
-        sl.borrow_mut().push(ui.msgbox_selected(t));
+    let scr = ui.screen();
+    let mb = MsgboxBuilder::new("T", "B").buttons(&["OK"]).build(&mut ui, scr);
+    mb.on(&mut ui, EventKind::ValueChanged, Box::new(move |ui, t, _| {
+        sl.borrow_mut().push(t.msgbox_selected(ui));
     }));
     ui.keypad_input(Key::Esc);
     assert_eq!(*sel_log.borrow(), vec![-1]);

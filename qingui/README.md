@@ -32,12 +32,13 @@ let mut ui = Ui::new(320, 240, 24); // 屏幕 320x240，PFB 缓冲 24 行
 ui.set_flush(Box::new(MyFlush));
 
 // Builder：默认尺寸/样式（通用 theme_base + 控件专属）可链式覆盖
+let scr = ui.screen();
 let slider = SliderBuilder::new(0, 100)
     .size(140, 14)
     .value(50)
     .style_with(|s| s.bg(Color::rgb(90, 90, 120)))
-    .build(&mut ui, ui.screen());
-ui.widget(slider).pos(20, 20);
+    .build(&mut ui, scr);
+slider.set_pos(&mut ui, 20, 20);
 
 loop {
     ui.tick_inc(16);

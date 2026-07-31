@@ -1,4 +1,6 @@
 use qingui::anim::{Anim, AnimProp, Easing};
+use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::slider::SliderBuilder;
 use qingui::Ui;
 
 fn anim_to(target: qingui::ObjRef, prop: AnimProp, end: i32, dur: u32) -> Anim {
@@ -19,16 +21,17 @@ fn easing_bounds() {
 #[test]
 fn linear_anim_progresses_with_tick() {
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
-    ui.set_pos(o, 0, 0);
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
+    o.set_pos(&mut ui, 0, 0);
     ui.anim_start(anim_to(o, AnimProp::X, 100, 100));
     assert!(ui.anim_running());
     ui.tick_inc(50);
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 50);
+    assert_eq!(o.rect(&ui).x, 50);
     ui.tick_inc(50);
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 100);
+    assert_eq!(o.rect(&ui).x, 100);
     assert!(!ui.anim_running());
     // 结束后 timer_handler 返回 u32::MAX（无待唤醒任务）
     assert_eq!(ui.timer_handler(), u32::MAX);
@@ -37,42 +40,45 @@ fn linear_anim_progresses_with_tick() {
 #[test]
 fn anim_with_delay() {
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 100, 100);
     a.delay_ms = 100;
     ui.anim_start(a);
     ui.tick_inc(100);
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 0); // delay 期间不动
+    assert_eq!(o.rect(&ui).x, 0); // delay 期间不动
     ui.tick_inc(100);
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 100);
+    assert_eq!(o.rect(&ui).x, 100);
 }
 
 #[test]
 fn playback_reverses() {
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 100, 100);
     a.repeat = 2;
     a.playback = true;
     ui.anim_start(a);
     ui.tick_inc(100);
     ui.timer_handler(); // 第 1 轮结束 x=100
-    assert_eq!(ui.rect(o).x, 100);
+    assert_eq!(o.rect(&ui).x, 100);
     ui.tick_inc(50);
     ui.timer_handler(); // 第 2 轮反向中点
-    assert_eq!(ui.rect(o).x, 50);
+    assert_eq!(o.rect(&ui).x, 50);
     ui.tick_inc(50);
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 0);
+    assert_eq!(o.rect(&ui).x, 0);
     assert!(!ui.anim_running());
 }
 
 #[test]
 fn anim_stop_removes() {
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     ui.anim_start(anim_to(o, AnimProp::X, 100, 1000));
     ui.anim_stop(o, AnimProp::X);
     assert!(!ui.anim_running());
@@ -85,7 +91,8 @@ fn on_done_callback_fires() {
     let fired = Rc::new(Cell::new(false));
     let fired2 = fired.clone();
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 10, 10);
     a.on_done = Some(Box::new(move |_ui: &mut Ui| fired2.set(true)));
     ui.anim_start(a);
@@ -97,14 +104,15 @@ fn on_done_callback_fires() {
 #[test]
 fn anim_value_updates_widget_and_dirty() {
     let mut ui = Ui::new(64, 48, 48);
-    let s = ui.create_slider(ui.screen(), 0, 100);
+    let scr = ui.screen();
+    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
     ui.take_dirty();
     ui.anim_start(anim_to(s, AnimProp::Value, 100, 100));
     // anim_start 立即应用起始值 → 标脏（动画与脏矩形联动）
     assert!(!ui.dirty_is_empty());
     ui.tick_inc(100);
     ui.timer_handler();
-    assert_eq!(ui.value(s), 100);
+    assert_eq!(s.value(&ui), 100);
 }
 
 #[test]
@@ -112,21 +120,22 @@ fn anim_x_on_flex_child_not_reset_by_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
     use qingui::style::Layout;
     let mut ui = Ui::new(320, 240, 240);
-    let c = ui.create_obj(ui.screen());
-    ui.set_size(c, 200, 100);
-    ui.set_layout(c, Layout::Flex(Flex {
+    let scr = ui.screen();
+    let c = ObjBuilder::new().build(&mut ui, scr);
+    c.set_size(&mut ui, 200, 100);
+    c.set_layout(&mut ui, Layout::Flex(Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
     }));
-    let k = ui.create_obj(c);
-    ui.set_size(k, 20, 10);
+    let k = ObjBuilder::new().build(&mut ui, c);
+    k.set_size(&mut ui, 20, 10);
     ui.timer_handler();
-    assert_eq!(ui.rect(k).x, 0); // 布局计算位置
+    assert_eq!(k.rect(&ui).x, 0); // 布局计算位置
     // 动画写 x：set_pos 不标布局脏 → 布局不重算 → 动画值保持（未被布局重置为 0）
     ui.anim_start(anim_to(k, AnimProp::X, 50, 100));
     ui.tick_inc(50);
     ui.timer_handler();
-    assert_eq!(ui.rect(k).x, 25);
+    assert_eq!(k.rect(&ui).x, 25);
 }
 
 #[test]
@@ -135,30 +144,32 @@ fn translate_offsets_abs_rect_and_survives_layout() {
     use qingui::style::Layout;
     use qingui::Rect;
     let mut ui = Ui::new(320, 240, 240);
-    let c = ui.create_obj(ui.screen());
-    ui.set_size(c, 200, 100);
-    ui.set_layout(c, Layout::Flex(Flex {
+    let scr = ui.screen();
+    let c = ObjBuilder::new().build(&mut ui, scr);
+    c.set_size(&mut ui, 200, 100);
+    c.set_layout(&mut ui, Layout::Flex(Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
     }));
-    let k = ui.create_obj(c);
-    ui.set_size(k, 20, 10);
-    ui.set_translate(c, 5, 7); // 父容器平移 → 子树整体偏移
+    let k = ObjBuilder::new().build(&mut ui, c);
+    k.set_size(&mut ui, 20, 10);
+    c.set_translate(&mut ui, 5, 7); // 父容器平移 → 子树整体偏移
     ui.timer_handler();
-    assert_eq!(ui.rect(k), Rect::new(0, 0, 20, 10)); // rect 不变
-    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // 子对象 abs 也叠加父平移
-    ui.set_size(c, 150, 100); // 触发布局重算
+    assert_eq!(k.rect(&ui), Rect::new(0, 0, 20, 10)); // rect 不变
+    assert_eq!(k.abs_rect(&ui), Rect::new(5, 7, 20, 10)); // 子对象 abs 也叠加父平移
+    c.set_size(&mut ui, 150, 100); // 触发布局重算
     ui.timer_handler();
-    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // translate 保留
+    assert_eq!(k.abs_rect(&ui), Rect::new(5, 7, 20, 10)); // translate 保留
 }
 
 #[test]
 fn anim_translate_x() {
     let mut ui = Ui::new(64, 48, 48);
-    let o = ui.create_obj(ui.screen());
+    let scr = ui.screen();
+    let o = ObjBuilder::new().build(&mut ui, scr);
     ui.anim_start(anim_to(o, AnimProp::TranslateX, 100, 100));
     ui.tick_inc(50);
     ui.timer_handler();
-    assert_eq!(ui.abs_rect(o).x, 50);
-    assert_eq!(ui.rect(o).x, 0); // 布局坐标不受影响
+    assert_eq!(o.abs_rect(&ui).x, 50);
+    assert_eq!(o.rect(&ui).x, 0); // 布局坐标不受影响
 }
