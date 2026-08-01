@@ -134,3 +134,32 @@ fn empty_list_key_does_not_panic_and_consumes() {
     assert_eq!(ui.focused(), Some(il));
     assert!(!ui.itemlist_remove_selected(il));
 }
+
+/// 用户绕过 remove_selected 直接 delete item：selected 越界漂移后 select/键盘导航不 panic，
+/// itemlist_select 会把越界的 selected clamp 回合法范围并写回
+#[test]
+fn direct_item_delete_does_not_panic_and_clamps_selection() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let mut items = Vec::new();
+    for t in ["a", "b", "c"] {
+        let it = ui.itemlist_add_item(il).expect("add_item on ItemList");
+        LabelBuilder::new(t).build(&mut ui, it);
+        ui.set_size(it, 60, 20);
+        items.push(it);
+    }
+    ui.set_pos(il, 0, 0);
+    ui.group_add(il);
+    // 直接删除末项（非选中项）：select 与键盘导航不 panic，selected 保持合法
+    ui.delete(items[2]);
+    ui.itemlist_select(il, 0);
+    ui.keypad_input(Key::Down); // 键盘导航走同一条 itemlist_select 路径
+    assert!(ui.itemlist_selected(il) < ui.itemlist_len(il));
+    assert_eq!(ui.itemlist_selected(il), 1);
+    // 直接删除当前选中项：selected=1 越界（len=1），select 时 clamp 写回，不 panic
+    ui.delete(items[1]);
+    ui.itemlist_select(il, 0);
+    assert_eq!(ui.itemlist_selected(il), 0); // 漂移被 clamp 消除
+    assert!(ui.itemlist_selected(il) < ui.itemlist_len(il));
+}

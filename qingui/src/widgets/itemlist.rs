@@ -50,7 +50,7 @@ fn column_layout() -> Layout {
     })
 }
 
-/// ItemList 构建器：默认 120x100，theme_itemlist 视口样式 + 默认选中样式（蓝底）
+/// ItemList 构建器：默认 120x100，内联默认视口样式（深色底+边框）与默认选中样式（蓝底）
 pub struct ItemListBuilder {
     size: Option<(i32, i32)>,
     style: Option<Style>,

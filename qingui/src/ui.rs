@@ -1257,6 +1257,13 @@ impl Ui {
         if kids.is_empty() {
             return;
         }
+        // 用户可能绕过 itemlist_remove_selected 直接 delete item：clamp 掉越界的 selected 并写回，消除漂移
+        let cur = cur.min(kids.len() - 1);
+        if let Some(s) = self.arena.get_mut(il).and_then(|n| n.kind.as_itemlist_mut()) {
+            if s.selected != cur {
+                s.selected = cur;
+            }
+        }
         let nidx = idx.min(kids.len() - 1);
         if nidx == cur {
             return;
