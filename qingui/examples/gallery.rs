@@ -14,6 +14,7 @@ use qingui::widgets::button::ButtonBuilder;
 use qingui::widgets::canvas::CanvasBuilder;
 use qingui::widgets::checkbox::CheckboxBuilder;
 use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
@@ -62,11 +63,12 @@ struct Demo {
     spinbox: Option<ObjRef>,
     roller: Option<ObjRef>,
     list: Option<ObjRef>,
+    itemlist: Option<ObjRef>,
     dropdown: Option<ObjRef>,
     table: Option<ObjRef>,
     // 调度
     next_reorder: u64,
-    next: [u64; 9],
+    next: [u64; 10],
     rng: Rng,
     table_val: i32,
 }
@@ -164,6 +166,33 @@ impl Demo {
         self.list = Some(list);
         kids.push(list);
 
+        // ItemList：菜单型列表（每项 Led 图标 + Label 文字）；
+        // 视口高 60 < 内容高 5*16=80，滚动选中时演示 content 滚动
+        let menu = ItemListBuilder::new().size(140, 60).build(ui, screen);
+        for (color, name) in [
+            (Color::GREEN, "Wi-Fi"),
+            (Color::BLUE, "Bluetooth"),
+            (Color::RED, "Airplane"),
+            (Color::rgb(255, 200, 0), "Location"),
+            (Color::WHITE, "About"),
+        ] {
+            let it = ui.itemlist_add_item(menu).unwrap();
+            ui.set_layout(it, Layout::Flex(Flex {
+                dir: FlexDir::Row,
+                wrap: false,
+                main: Align::Start,
+                cross: Align::Center,
+                track: Align::Start,
+                gap: 6,
+            }));
+            ui.set_size(it, 140, 16);
+            LedBuilder::new(color).size(8, 8).build(ui, it);
+            LabelBuilder::new(name).build(ui, it);
+        }
+        ui.group_add(menu);
+        self.itemlist = Some(menu);
+        kids.push(menu);
+
         let table = TableBuilder::new(2, 2)
             .cell(0, 0, "id")
             .cell(0, 1, "val")
@@ -219,7 +248,7 @@ impl Demo {
             }
         }
 
-        let fire = |i: usize, period: u64, now: u64, next: &mut [u64; 9]| -> bool {
+        let fire = |i: usize, period: u64, now: u64, next: &mut [u64; 10]| -> bool {
             if now >= next[i] {
                 next[i] = now + period;
                 true
@@ -274,6 +303,11 @@ impl Demo {
         if fire(8, 1500, now, &mut self.next) {
             self.table_val += 1;
             ui.table_set_cell(self.table.unwrap(), 1, 1, &self.table_val.to_string());
+        }
+        // ItemList：下一项（5 项循环，越界时演示滚动）
+        if fire(9, 1700, now, &mut self.next) {
+            let m = self.itemlist.unwrap();
+            ui.itemlist_select(m, (ui.itemlist_selected(m) + 1) % 5);
         }
     }
 }
