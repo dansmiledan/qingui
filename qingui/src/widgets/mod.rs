@@ -7,6 +7,7 @@ pub mod arc;
 pub mod bar;
 pub mod button;
 pub mod canvas;
+pub mod chart;
 pub mod checkbox;
 pub mod custom;
 pub mod dropdown;
@@ -34,6 +35,7 @@ pub enum WidgetKind {
     List(list::ListState),
     Arc(arc::ArcState),
     Checkbox(checkbox::CheckboxState),
+    Chart(chart::ChartState),
     Spinner,
     Msgbox(msgbox::MsgboxState),
     Led(led::LedState),
@@ -105,6 +107,7 @@ impl WidgetKind {
             WidgetKind::List(s) => list::draw(&s.items, s.selected, s.scroll, &s.fx, ctx, d, clip),
             WidgetKind::Arc(s) => arc::draw(s.min, s.max, s.value, ctx, d, clip),
             WidgetKind::Checkbox(s) => checkbox::draw(&s.text, s.checked, ctx, d, clip),
+            WidgetKind::Chart(s) => chart::draw(s, ctx, d, clip),
             WidgetKind::Spinner => spinner::draw(ctx, d, clip),
             // Msgbox 是普通容器（子对象正常绘制）
             WidgetKind::Msgbox(_) => {}
@@ -262,6 +265,12 @@ impl WidgetKind {
     }
     pub fn as_checkbox_mut(&mut self) -> Option<&mut checkbox::CheckboxState> {
         match self { WidgetKind::Checkbox(s) => Some(s), _ => None }
+    }
+    pub fn as_chart(&self) -> Option<&chart::ChartState> {
+        match self { WidgetKind::Chart(s) => Some(s), _ => None }
+    }
+    pub fn as_chart_mut(&mut self) -> Option<&mut chart::ChartState> {
+        match self { WidgetKind::Chart(s) => Some(s), _ => None }
     }
     pub fn as_switch(&self) -> Option<&switch::SwitchState> {
         match self { WidgetKind::Switch(s) => Some(s), _ => None }
