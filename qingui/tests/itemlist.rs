@@ -109,7 +109,7 @@ fn viewport_clips_scrolled_items() {
     ui.itemlist_select(il, 3); // 滚动 40px：item2 → y 30..50，item3 → y 50..70
     ui.render();
     assert_eq!(px(&rec, 15, 35), Color::WHITE); // item2 可见
-    assert_eq!(px(&rec, 15, 55), Color::WHITE); // item3 可见
+    assert_eq!(px(&rec, 15, 55), Color::rgb(50, 70, 120)); // item3 选中：叠加默认选中样式
     assert_eq!(px(&rec, 15, 25), Color::BLACK); // item1（abs y 10..30）滚出视口上方：被裁
     assert_eq!(px(&rec, 15, 5), Color::BLACK);  // item0（abs y -10..10）滚出视口上方：被裁
 }

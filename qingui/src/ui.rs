@@ -248,14 +248,9 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 整体替换对象样式（同时重置 pressed/focused/selected 状态叠加样式——
-    /// 全量替换语义：用户接管样式后，旧的状态叠加不再生效）
     pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style = style;
-            n.style_pressed = crate::style::Style::default();
-            n.style_focused = crate::style::Style::default();
-            n.style_selected = crate::style::Style::default();
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
