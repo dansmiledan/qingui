@@ -269,6 +269,13 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
+    pub fn set_style_selected(&mut self, obj: ObjRef, style: crate::style::Style) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style_selected = style;
+        }
+        self.invalidate_obj(obj);
+        self.layout_dirty = true;
+    }
     pub fn set_state(&mut self, obj: ObjRef, state: State, on: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.state.set(state, on);
@@ -283,11 +290,13 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else {
             return crate::style::ResolvedStyle::default();
         };
-        // pressed 优先于 focused
+        // pressed > focused > selected（互斥取一）
         let overlay = if n.state.contains(State::PRESSED) {
             Some(&n.style_pressed)
         } else if n.state.contains(State::FOCUSED) {
             Some(&n.style_focused)
+        } else if n.state.contains(State::SELECTED) {
+            Some(&n.style_selected)
         } else {
             None
         };

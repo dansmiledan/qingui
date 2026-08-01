@@ -17,6 +17,8 @@ bitflags::bitflags! {
         const FOCUSED = 1 << 1;
         const DISABLED = 1 << 2;
         const EDITED = 1 << 3;
+        /// 选中态：列表项/条目高亮用，叠加优先级低于 pressed/focused
+        const SELECTED = 1 << 4;
     }
 
     /// 对象标志位
@@ -41,6 +43,7 @@ pub struct Node {
     pub style: crate::style::Style,
     pub style_pressed: crate::style::Style,
     pub style_focused: crate::style::Style,
+    pub style_selected: crate::style::Style,
     pub opa: u8,
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
     pub draw_hook: Option<DrawHook>,
@@ -69,6 +72,7 @@ impl Node {
             style: crate::style::Style::default(),
             style_pressed: crate::style::Style::default(),
             style_focused: crate::style::Style::default(),
+            style_selected: crate::style::Style::default(),
             opa: 255,
             events: Vec::new(),
             draw_hook: None,
