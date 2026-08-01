@@ -348,6 +348,12 @@ impl Ui {
         let mut any = false;
         let mut stack = alloc::vec![self.screen];
         while let Some(r) = stack.pop() {
+            // HIDDEN 子树整体跳过：祖先被剪掉保证了被访问节点的祖先均可见，
+            // 故只需查自身标志。隐藏节点不 tick、不标脏、不计活动。
+            let hidden = self.arena.get(r).map(|n| n.flags.contains(Flag::HIDDEN)).unwrap_or(false);
+            if hidden {
+                continue;
+            }
             let (out, children, has_hook) = match self.arena.get_mut(r) {
                 Some(n) => (n.kind.tick(now), n.children.clone(), n.tick_hook.is_some()),
                 None => continue,
