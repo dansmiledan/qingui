@@ -10,6 +10,7 @@ pub mod canvas;
 pub mod checkbox;
 pub mod custom;
 pub mod dropdown;
+pub mod itemlist;
 pub mod label;
 pub mod led;
 pub mod list;
@@ -24,6 +25,7 @@ pub mod table;
 
 pub enum WidgetKind {
     Obj,
+    ItemList(itemlist::ItemListState),
     Label(label::LabelState),
     Button(button::ButtonState),
     Slider(slider::SliderState),
@@ -87,6 +89,8 @@ pub(crate) enum KeyOutcome {
     EnterEdit,     // 进入 EDITED 态
     ExitEdit,      // 退出 EDITED 态并标脏
     OpenDropdown,  // 打开下拉浮层
+    /// 列表型控件移动选中（步进 ±1），由 Ui 执行（需要子节点/滚动/事件）
+    NavSelect(i32),
 }
 
 impl WidgetKind {
@@ -104,6 +108,8 @@ impl WidgetKind {
             WidgetKind::Spinner => spinner::draw(ctx, d, clip),
             // Msgbox 是普通容器（子对象正常绘制）
             WidgetKind::Msgbox(_) => {}
+            // ItemList 同为容器：内容由子节点绘制
+            WidgetKind::ItemList(_) => {}
             WidgetKind::Led(s) => led::draw(s.color, s.bright, ctx, d, clip),
             WidgetKind::Table(s) => table::draw(s.cols, s.rows, &s.cells, ctx, d, clip),
             WidgetKind::Spinbox(s) => spinbox::draw(s.min, s.max, s.value, s.digits, s.cursor, ctx, d, clip),
@@ -134,6 +140,7 @@ impl WidgetKind {
             WidgetKind::Led(s) => s.bright as i32,
             WidgetKind::Roller(s) => s.selected as i32,
             WidgetKind::Dropdown(s) => s.selected as i32,
+            WidgetKind::ItemList(s) => s.selected as i32,
             _ => 0,
         }
     }
@@ -215,6 +222,7 @@ impl WidgetKind {
             WidgetKind::List(s) => s.on_key(key, ctx),
             WidgetKind::Roller(s) => s.on_key(key, ctx),
             WidgetKind::Dropdown(s) => s.on_key(key, ctx),
+            WidgetKind::ItemList(s) => s.on_key(key, ctx),
             _ => KeyOutcome::Pass,
         }
     }
@@ -224,6 +232,12 @@ impl WidgetKind {
     }
     pub fn as_list_mut(&mut self) -> Option<&mut list::ListState> {
         match self { WidgetKind::List(s) => Some(s), _ => None }
+    }
+    pub fn as_itemlist(&self) -> Option<&itemlist::ItemListState> {
+        match self { WidgetKind::ItemList(s) => Some(s), _ => None }
+    }
+    pub fn as_itemlist_mut(&mut self) -> Option<&mut itemlist::ItemListState> {
+        match self { WidgetKind::ItemList(s) => Some(s), _ => None }
     }
     pub fn as_roller(&self) -> Option<&roller::RollerState> {
         match self { WidgetKind::Roller(s) => Some(s), _ => None }

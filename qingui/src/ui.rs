@@ -248,9 +248,14 @@ impl Ui {
         self.layout_dirty = true;
     }
 
+    /// 整体替换对象样式（同时重置 pressed/focused/selected 状态叠加样式——
+    /// 全量替换语义：用户接管样式后，旧的状态叠加不再生效）
     pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style = style;
+            n.style_pressed = crate::style::Style::default();
+            n.style_focused = crate::style::Style::default();
+            n.style_selected = crate::style::Style::default();
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
@@ -1175,6 +1180,16 @@ impl Ui {
                 crate::widgets::dropdown::open(self, obj);
                 true
             }
+            KeyOutcome::NavSelect(d) => {
+                // 列表型控件移动选中（空列表也消费按键，对齐文本 List）
+                let n = self.itemlist_len(obj);
+                if n > 0 {
+                    let cur = self.itemlist_selected(obj);
+                    let next = (cur as i32 + d).rem_euclid(n as i32) as usize;
+                    self.itemlist_select(obj, next);
+                }
+                true
+            }
         }
     }
 
@@ -1183,6 +1198,146 @@ impl Ui {
             return s.items.len();
         }
         0
+    }
+
+    /// 向 ItemList 追加一个 item 容器（Obj，宽 GROW，透明背景，带 SELECTED 样式），
+    /// 返回该容器（用户往里搭建内容）；il 非 ItemList 时返回 None
+    pub fn itemlist_add_item(&mut self, il: ObjRef) -> Option<ObjRef> {
+        let (content, sel_style, was_empty) = {
+            let s = self.arena.get(il)?.kind.as_itemlist()?;
+            (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
+        };
+        let item = self.insert_node(content, Rect::default(), WidgetKind::Obj);
+        let mut st = crate::widgets::itemlist::item_base_style();
+        st.sizing_w = Some(crate::layout::Sizing::GROW);
+        self.set_style(item, st);
+        self.set_style_selected(item, sel_style);
+        // 首项自动选中
+        if was_empty {
+            self.set_state(item, State::SELECTED, true);
+        }
+        Some(item)
+    }
+
+    /// 删除 ItemList 的选中 item（空列表返回 false），selected 收敛并把选中位移给相邻项
+    pub fn itemlist_remove_selected(&mut self, il: ObjRef) -> bool {
+        let Some((content, selected)) = self
+            .arena
+            .get(il)
+            .and_then(|n| n.kind.as_itemlist())
+            .map(|s| (s.content, s.selected))
+        else {
+            return false;
+        };
+        let kids = self.children(content);
+        if kids.is_empty() || selected >= kids.len() {
+            return false;
+        }
+        self.delete(kids[selected]);
+        let new_len = kids.len() - 1;
+        let new_sel = if new_len == 0 { 0 } else { selected.min(new_len - 1) };
+        if let Some(s) = self.arena.get_mut(il).and_then(|n| n.kind.as_itemlist_mut()) {
+            s.selected = new_sel;
+        }
+        // 选中位移给相邻项（删除中间项 → 原下一项；删除末项 → 原上一项）
+        if new_len > 0 {
+            let target = if selected < new_len { kids[selected + 1] } else { kids[selected - 1] };
+            self.set_state(target, State::SELECTED, true);
+        }
+        self.itemlist_ensure_visible(il);
+        true
+    }
+
+    /// 选中 ItemList 第 idx 项（clamp 到合法范围）；变化才切换并发 ValueChanged
+    pub fn itemlist_select(&mut self, il: ObjRef, idx: usize) {
+        let Some((content, cur)) = self
+            .arena
+            .get(il)
+            .and_then(|n| n.kind.as_itemlist())
+            .map(|s| (s.content, s.selected))
+        else {
+            return;
+        };
+        let kids = self.children(content);
+        if kids.is_empty() {
+            return;
+        }
+        let nidx = idx.min(kids.len() - 1);
+        if nidx == cur {
+            return;
+        }
+        self.set_state(kids[cur], State::SELECTED, false);
+        self.set_state(kids[nidx], State::SELECTED, true);
+        if let Some(s) = self.arena.get_mut(il).and_then(|n| n.kind.as_itemlist_mut()) {
+            s.selected = nidx;
+        }
+        self.itemlist_ensure_visible(il);
+        self.send_event(il, crate::event::EventKind::ValueChanged);
+    }
+
+    pub fn itemlist_selected(&self, il: ObjRef) -> usize {
+        self.arena
+            .get(il)
+            .and_then(|n| n.kind.as_itemlist())
+            .map(|s| s.selected)
+            .unwrap_or(0)
+    }
+
+    pub fn itemlist_len(&self, il: ObjRef) -> usize {
+        self.arena
+            .get(il)
+            .and_then(|n| n.kind.as_itemlist())
+            .map(|s| self.children(s.content).len())
+            .unwrap_or(0)
+    }
+
+    /// 滚动 content（translate.y）使选中 item 在视口内可见（瞬时，无动画）
+    fn itemlist_ensure_visible(&mut self, il: ObjRef) {
+        // item 位置由 Flex 布局产出：先冲刷待处理布局，保证下面读到的是最新 rect
+        if self.layout_dirty {
+            self.layout_pass();
+            self.layout_dirty = false;
+        }
+        let Some((content, selected)) = self
+            .arena
+            .get(il)
+            .and_then(|n| n.kind.as_itemlist())
+            .map(|s| (s.content, s.selected))
+        else {
+            return;
+        };
+        let Some(item) = self.arena.get(content).and_then(|c| c.children.get(selected).copied()) else {
+            return;
+        };
+        let vp_h = self.rect(il).h;
+        // 视口无布局，content 高度不会被撑开：取子项最大底边作为内容总高
+        let content_h = self
+            .children(content)
+            .iter()
+            .map(|&k| self.rect(k).bottom())
+            .max()
+            .unwrap_or(0);
+        let ir = self.rect(item); // 相对 content 的本地 rect
+        let off = self.translate(content).y;
+        let mut new_off = if content_h <= vp_h {
+            0 // 内容不足一屏：不滚动
+        } else if ir.h >= vp_h {
+            -ir.y // item 高于视口：顶对齐
+        } else {
+            let top = ir.y + off;
+            let bottom = top + ir.h;
+            if top < 0 {
+                off - top // 上滚：顶对齐
+            } else if bottom > vp_h {
+                off - (bottom - vp_h) // 下滚：底对齐
+            } else {
+                off
+            }
+        };
+        new_off = new_off.min(0); // 不允许向下露出内容顶部空白
+        if new_off != off {
+            self.set_translate(content, 0, new_off);
+        }
     }
 
     pub fn toggle_checkbox(&mut self, obj: ObjRef) {
