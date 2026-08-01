@@ -163,3 +163,43 @@ fn direct_item_delete_does_not_panic_and_clamps_selection() {
     assert_eq!(ui.itemlist_selected(il), 0); // 漂移被 clamp 消除
     assert!(ui.itemlist_selected(il) < ui.itemlist_len(il));
 }
+
+/// 不等高 item：导航命中已可见项不滚动，不可见项按顶/底对齐滚动
+/// 视口 60x40，item 高度 10/30/20（gap 0 → rect y 分别为 0..10 / 10..40 / 40..60，总高 60 > 40）
+#[test]
+fn uneven_items_scroll_minimally() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let mut items = Vec::new();
+    for h in [10, 30, 20] {
+        let it = ui.itemlist_add_item(il).expect("add_item on ItemList");
+        ui.set_size(it, 60, h);
+        items.push(it);
+    }
+    ui.set_pos(il, 0, 0);
+    // 选 30 高的 item1（y 10..40）：已在视口内（顶 10 ≥ 0、底 40 ≤ 40），不滚动
+    ui.itemlist_select(il, 1);
+    assert_eq!(ui.abs_rect(items[1]).y, 10);
+    // 选 item2（y 40..60，完全在视口外）→ 底对齐：item2 底贴视口底 40，即 y = 20
+    ui.itemlist_select(il, 2);
+    assert_eq!(ui.abs_rect(items[2]).y, 20);
+    assert_eq!(ui.abs_rect(items[1]).y, -10); // item1 随动滚出视口上方
+    // 再选 item0（y 0..10，已滚出上方）→ 顶对齐回滚到 0
+    ui.itemlist_select(il, 0);
+    assert_eq!(ui.abs_rect(items[0]).y, 0);
+}
+
+/// Enter 对聚焦的 ItemList 触发 Clicked；导航键（Down）被控件消费，不触发
+#[test]
+fn enter_fires_clicked_but_nav_key_does_not() {
+    let (mut ui, il, _items) = build4();
+    ui.group_add(il);
+    let hits = Rc::new(Cell::new(0));
+    let h = hits.clone();
+    ui.add_event_cb(il, EventKind::Clicked, Box::new(move |_, _, _| h.set(h.get() + 1)));
+    ui.keypad_input(Key::Enter);
+    assert_eq!(hits.get(), 1);
+    ui.keypad_input(Key::Down); // 导航键被 ItemList 消费 → 不触发 Clicked
+    assert_eq!(hits.get(), 1);
+}

@@ -55,6 +55,7 @@ pub struct ItemListBuilder {
     size: Option<(i32, i32)>,
     style: Option<Style>,
     style_selected: Option<Style>,
+    style_focused: Option<Style>,
     sizing: Option<(Option<Sizing>, Option<Sizing>)>,
     transition: Option<(u32, crate::anim::Easing)>,
     events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
@@ -62,13 +63,15 @@ pub struct ItemListBuilder {
 
 impl ItemListBuilder {
     pub fn new() -> Self {
-        Self { size: None, style: None, style_selected: None, sizing: None, transition: None, events: Vec::new() }
+        Self { size: None, style: None, style_selected: None, style_focused: None, sizing: None, transition: None, events: Vec::new() }
     }
     pub fn size(mut self, w: i32, h: i32) -> Self { self.size = Some((w, h)); self }
     pub fn style(mut self, s: Style) -> Self { self.style = Some(s); self }
     /// item 的选中样式（叠加于 State::SELECTED）。
     /// 注意：必须显式含 bg_opa，否则 item 基底的 bg_opa(0) 会让高亮不可见
     pub fn style_selected(mut self, s: Style) -> Self { self.style_selected = Some(s); self }
+    /// 视口的聚焦样式（叠加于 State::FOCUSED）
+    pub fn style_focused(mut self, s: Style) -> Self { self.style_focused = Some(s); self }
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self { self.sizing = Some((w, h)); self }
     pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self { self.transition = Some((dur, easing)); self }
     pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
@@ -106,6 +109,7 @@ impl ItemListBuilder {
         if let Some((sw, sh)) = self.sizing {
             ui.set_sizing(r, sw, sh);
         }
+        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_list_focused));
         if let Some(t) = self.transition {
             ui.set_transition(r, Some(t));
         }
