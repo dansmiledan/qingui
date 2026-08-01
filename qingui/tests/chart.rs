@@ -1,5 +1,9 @@
+use qingui::display::Flush;
 use qingui::widgets::chart::ChartBuilder;
+use qingui::Rect;
 use qingui::{Color, Ui};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[test]
 fn builder_defaults_and_add_series() {
@@ -82,4 +86,43 @@ fn push_marks_dirty() {
     assert!(ui.dirty_is_empty());
     ui.chart_push(c, 0, 10);
     assert!(!ui.dirty_is_empty());
+}
+
+#[derive(Default)]
+struct RecFlush {
+    chunks: Vec<(Rect, Vec<Color>)>,
+}
+
+/// Rc 不是 fundamental type，orphan rule 要求包一层本地 newtype
+struct SharedFlush(Rc<RefCell<RecFlush>>);
+impl Flush for SharedFlush {
+    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+        self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
+    }
+}
+
+#[test]
+fn renders_flat_line_at_bottom_for_min_values() {
+    let rec = Rc::new(RefCell::new(RecFlush::default()));
+    let mut ui = Ui::new(64, 48, 48); // 整屏一个 chunk
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
+    let s = ui.screen();
+    // chart 铺满屏幕，容量=宽 → 每列一个点；全部推 min → 折线贴底行
+    let c = ChartBuilder::new()
+        .range(0, 47)
+        .size(64, 48)
+        .series(Color::RED, 64)
+        .build(&mut ui, s);
+    for _ in 0..64 {
+        ui.chart_push(c, 0, 0);
+    }
+    ui.render();
+    let chunks = &rec.borrow().chunks;
+    assert_eq!(chunks.len(), 1);
+    let px = &chunks[0].1;
+    // y = 47 底行：min 值映射到 abs.y + h - 1；线宽 2 → 底两行都有色
+    assert_eq!(px[47 * 64 + 10], Color::RED);
+    assert_eq!(px[47 * 64 + 60], Color::RED);
+    // 顶行不应有折线
+    assert_ne!(px[10], Color::RED);
 }
