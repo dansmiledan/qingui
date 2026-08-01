@@ -81,8 +81,7 @@ impl Demo {
     fn build(&mut self, ui: &mut Ui) {
         let screen = ui.screen();
         // 屏幕：flex 行 + wrap，padding 8，gap 8
-        screen.set_style(
-            ui,
+        ui.set_style(screen,
             qingui::style::theme_screen()
                 .pads(8)
                 .layout(Layout::Flex(Flex {
@@ -125,13 +124,13 @@ impl Demo {
         kids.push(bar);
 
         let arc = ArcBuilder::new(0, 100).build(ui, screen);
-        arc.set_size(ui, 56, 56);
+        ui.set_size(arc, 56, 56);
         // Arc 无限循环旋转
         ui.anim_start(Anim::new(arc, AnimProp::Value, 0, 100, 3000).repeat(-1));
         kids.push(arc);
 
         let sp = SpinnerBuilder::new().build(ui, screen);
-        sp.set_size(ui, 26, 26);
+        ui.set_size(sp, 26, 26);
         kids.push(sp);
 
         let led = LedBuilder::new(Color::rgb(60, 180, 90)).build(ui, screen);
@@ -145,7 +144,7 @@ impl Demo {
         kids.push(led);
 
         let sb = SpinboxBuilder::new(0, 999, 3).build(ui, screen);
-        sb.set_value(ui, 42);
+        ui.set_value(sb, 42);
         self.spinbox = Some(sb);
         kids.push(sb);
 
@@ -156,12 +155,12 @@ impl Demo {
         kids.push(roller);
 
         let dd = DropdownBuilder::new(&["Red", "Green"]).build(ui, screen);
-        dd.set_size(ui, 80, 20);
+        ui.set_size(dd, 80, 20);
         self.dropdown = Some(dd);
         kids.push(dd);
 
         let list = ListBuilder::new(&["item 1", "item 2", "item 3"]).build(ui, screen);
-        list.set_size(ui, 80, 50);
+        ui.set_size(list, 80, 50);
         self.list = Some(list);
         kids.push(list);
 
@@ -185,19 +184,19 @@ impl Demo {
         .build(ui, screen);
         kids.push(cv);
         // tick_hook 驱动 Canvas 逐帧重绘
-        cv.on_tick(ui, Box::new(|ui, cv, _now| {
-            cv.invalidate(ui);
+        ui.set_tick_hook(cv, Some(Box::new(|ui, cv, _now| {
+            ui.invalidate_obj(cv);
             true // 每帧重绘
-        }));
+        })));
 
         let obj = ObjBuilder::new().build(ui, screen);
-        obj.set_size(ui, 40, 40);
-        obj.set_style(ui, qingui::style::theme_obj());
+        ui.set_size(obj, 40, 40);
+        ui.set_style(obj, qingui::style::theme_obj());
         kids.push(obj);
 
         // 全部控件开启布局过渡：重排时自动动画换位
         for &k in &kids {
-            k.set_transition(ui, Some((300, Easing::EaseInOutQuad)));
+            ui.set_transition(k, Some((300, Easing::EaseInOutQuad)));
         }
 
         // 调度起点（错开相位）
@@ -214,9 +213,9 @@ impl Demo {
         if now >= self.next_reorder {
             self.next_reorder += 3000;
             let scr = ui.screen();
-            let kids = scr.children(ui);
+            let kids = ui.children(scr);
             if let Some(&last) = kids.last() {
-                last.move_child_to_index(ui, 0);
+                ui.move_child_to_index(last, 0);
             }
         }
 
@@ -232,49 +231,49 @@ impl Demo {
         // Bar：随机进度（动画）
         if fire(0, 1500, now, &mut self.next) {
             let b = self.bar.unwrap();
-            let cur = b.value(ui);
+            let cur = ui.value(b);
             let target = self.rng.next(101);
             ui.anim_start(Anim::new(b, AnimProp::Value, cur, target, 700).easing(Easing::EaseOutQuad));
         }
         // Slider：随机值（动画）
         if fire(1, 1800, now, &mut self.next) {
             let s = self.slider.unwrap();
-            let cur = s.value(ui);
+            let cur = ui.value(s);
             let target = self.rng.next(101);
             ui.anim_start(Anim::new(s, AnimProp::Value, cur, target, 800).easing(Easing::EaseInOutQuad));
         }
         // Switch：切换
         if fire(2, 2300, now, &mut self.next) {
-            self.switch.unwrap().toggle_switch(ui);
+            ui.toggle_switch(self.switch.unwrap());
         }
         // Checkbox：切换
         if fire(3, 2600, now, &mut self.next) {
-            self.checkbox.unwrap().toggle_checkbox(ui);
+            ui.toggle_checkbox(self.checkbox.unwrap());
         }
         // Roller：下一项（首尾循环由手动取模）
         if fire(4, 2000, now, &mut self.next) {
             let r = self.roller.unwrap();
-            r.set_value(ui, (r.value(ui) + 1) % 3);
+            ui.set_value(r, (ui.value(r) + 1) % 3);
         }
         // List：下一项
         if fire(5, 1900, now, &mut self.next) {
             let l = self.list.unwrap();
-            l.list_select(ui, (l.list_selected(ui) + 1) % 3);
+            ui.list_select(l, (ui.list_selected(l) + 1) % 3);
         }
         // Dropdown：下一项
         if fire(6, 2200, now, &mut self.next) {
             let d = self.dropdown.unwrap();
-            d.set_value(ui, (d.value(ui) + 1) % 2);
+            ui.set_value(d, (ui.value(d) + 1) % 2);
         }
         // Spinbox：自增
         if fire(7, 2100, now, &mut self.next) {
             let sb = self.spinbox.unwrap();
-            sb.set_value(ui, (sb.value(ui) + 7) % 1000);
+            ui.set_value(sb, (ui.value(sb) + 7) % 1000);
         }
         // Table：数值自增
         if fire(8, 1500, now, &mut self.next) {
             self.table_val += 1;
-            self.table.unwrap().table_set_cell(ui, 1, 1, &self.table_val.to_string());
+            ui.table_set_cell(self.table.unwrap(), 1, 1, &self.table_val.to_string());
         }
     }
 }

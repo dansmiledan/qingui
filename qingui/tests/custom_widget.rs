@@ -61,18 +61,18 @@ fn custom_widget_draws_and_handles_keys() {
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let g = ui.create_custom(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
-    g.set_pos(&mut ui, 5, 5);
+    ui.set_pos(g, 5, 5);
     ui.render();
     assert_eq!(px(&rec, 6, 6), Color::RED); // draw 被调用
 
-    assert_eq!(g.custom::<Gauge>(&ui).unwrap().v, 0);
-    g.group_add(&mut ui);
+    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 0);
+    ui.group_add(g);
     ui.keypad_input(Key::Up); // 焦点对象收到键 → on_key 消费
-    assert_eq!(g.custom::<Gauge>(&ui).unwrap().v, 1);
+    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 1);
 
-    g.custom_mut::<Gauge, _>(&mut ui, |g| g.v = 42);
-    assert_eq!(g.custom::<Gauge>(&ui).unwrap().v, 42);
-    assert!(g.custom::<String>(&ui).is_none()); // 类型不匹配 → None
+    ui.custom_mut::<Gauge, _>(g, |g| g.v = 42);
+    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 42);
+    assert!(ui.custom::<String>(g).is_none()); // 类型不匹配 → None
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn custom_widget_tick_dispatch() {
     // Gauge::tick 返回 ACTIVE → timer_handler 保持唤醒（返回 0）
     assert_eq!(ui.timer_handler(), 0);
     // WidgetKind::Custom(w) => w.tick(now) 分派被真正调用：每帧一次，计数器递增
-    assert_eq!(g.custom::<Gauge>(&ui).unwrap().ticks, 1);
+    assert_eq!(ui.custom::<Gauge>(g).unwrap().ticks, 1);
     assert_eq!(ui.timer_handler(), 0);
-    assert_eq!(g.custom::<Gauge>(&ui).unwrap().ticks, 2);
+    assert_eq!(ui.custom::<Gauge>(g).unwrap().ticks, 2);
 }

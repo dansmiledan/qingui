@@ -47,8 +47,8 @@ fn default_button_resolves_theme() {
     let mut ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
     let b = ObjBuilder::new().build(&mut ui, scr);
-    b.set_style(&mut ui, theme_button());
-    let r = b.resolved_style(&ui);
+    ui.set_style(b, theme_button());
+    let r = ui.resolved_style(b);
     assert_eq!(r.bg_color, theme_button().bg_color.unwrap());
     assert_eq!(r.bg_opa, 255);
     assert_eq!(r.border_width, theme_button().border_width.unwrap());
@@ -61,8 +61,8 @@ fn base_style_field_fallback() {
     let o = ObjBuilder::new().build(&mut ui, scr);
     let mut s = Style::default();
     s.bg_color = Some(Color::RED);
-    o.set_style(&mut ui, s);
-    let r = o.resolved_style(&ui);
+    ui.set_style(o, s);
+    let r = ui.resolved_style(o);
     assert_eq!(r.bg_color, Color::RED);
     assert_eq!(r.bg_opa, 255); // 未设置字段落回默认
 }
@@ -74,14 +74,14 @@ fn state_override_wins_then_falls_back() {
     let b = ObjBuilder::new().build(&mut ui, scr);
     let mut base = theme_button();
     base.bg_color = Some(Color::BLUE);
-    b.set_style(&mut ui, base.clone());
+    ui.set_style(b, base.clone());
     let mut pressed = theme_button_pressed();
     pressed.bg_color = Some(Color::GREEN);
-    b.set_style_pressed(&mut ui, pressed);
-    assert_eq!(b.resolved_style(&ui).bg_color, Color::BLUE);
+    ui.set_style_pressed(b, pressed);
+    assert_eq!(ui.resolved_style(b).bg_color, Color::BLUE);
 
-    b.set_state(&mut ui, qingui::node::State::PRESSED, true);
-    assert_eq!(b.resolved_style(&ui).bg_color, Color::GREEN);
+    ui.set_state(b, qingui::node::State::PRESSED, true);
+    assert_eq!(ui.resolved_style(b).bg_color, Color::GREEN);
     // pressed 未覆盖的字段仍回落到 base
-    assert_eq!(b.resolved_style(&ui).radius, base.radius.unwrap());
+    assert_eq!(ui.resolved_style(b).radius, base.radius.unwrap());
 }

@@ -7,10 +7,10 @@ fn move_obj_marks_old_and_new_area() {
     ui.take_dirty(); // 清掉建屏时的全屏脏
     let scr = ui.screen();
     let o = ObjBuilder::new().build(&mut ui, scr);
-    o.set_pos(&mut ui, 10, 10);
-    o.set_size(&mut ui, 20, 20);
+    ui.set_pos(o, 10, 10);
+    ui.set_size(o, 20, 20);
     ui.take_dirty();
-    o.set_pos(&mut ui, 50, 50);
+    ui.set_pos(o, 50, 50);
     let dirty = ui.take_dirty();
     // 旧区域与新区域不相交 → 两个独立脏矩形
     assert_eq!(dirty.len(), 2);
@@ -43,11 +43,11 @@ fn style_change_invalidates_obj() {
     let mut ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
     let o = ObjBuilder::new().build(&mut ui, scr);
-    o.set_pos(&mut ui, 10, 10);
-    o.set_size(&mut ui, 20, 20);
+    ui.set_pos(o, 10, 10);
+    ui.set_size(o, 20, 20);
     ui.take_dirty();
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(qingui::Color::RED);
-    o.set_style(&mut ui, s);
+    ui.set_style(o, s);
     assert_eq!(ui.take_dirty(), vec![Rect::new(10, 10, 20, 20)]);
 }

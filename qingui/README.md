@@ -38,7 +38,7 @@ let slider = SliderBuilder::new(0, 100)
     .value(50)
     .style_with(|s| s.bg(Color::rgb(90, 90, 120)))
     .build(&mut ui, scr);
-slider.set_pos(&mut ui, 20, 20);
+ui.set_pos(slider, 20, 20);
 
 loop {
     ui.tick_inc(16);

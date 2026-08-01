@@ -33,10 +33,10 @@ fn anim_builder_chain() {
     );
     ui.tick_inc(50); // delay 内不动
     ui.timer_handler();
-    assert_eq!(o.rect(&ui).x, 0);
+    assert_eq!(ui.rect(o).x, 0);
     ui.tick_inc(100); // 第 1 轮结束
     ui.timer_handler();
-    assert_eq!(o.rect(&ui).x, 100);
+    assert_eq!(ui.rect(o).x, 100);
 }
 
 #[test]
@@ -46,13 +46,13 @@ fn widget_mut_chain() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = ButtonBuilder::new("OK").build(&mut ui, scr);
-    b.set_pos(&mut ui, 10, 20);
-    b.set_size(&mut ui, 60, 30);
-    b.set_sizing(&mut ui, Some(Sizing::GROW), None);
-    b.set_z_index(&mut ui, 2);
-    b.group_add(&mut ui);
-    b.on(&mut ui, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
-    assert_eq!(b.rect(&ui), Rect::new(10, 20, 60, 30));
+    ui.set_pos(b, 10, 20);
+    ui.set_size(b, 60, 30);
+    ui.set_sizing(b, Some(Sizing::GROW), None);
+    ui.set_z_index(b, 2);
+    ui.group_add(b);
+    ui.add_event_cb(b, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
+    assert_eq!(ui.rect(b), Rect::new(10, 20, 60, 30));
     assert_eq!(ui.focused(), Some(b));
     ui.keypad_input(qingui::input::Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::Clicked]);

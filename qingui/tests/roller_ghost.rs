@@ -30,7 +30,7 @@ fn build() -> (Ui, Rc<RefCell<RecFlush>>) {
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     let scr = ui.screen();
-    scr.set_style(&mut ui, bg);
+    ui.set_style(scr, bg);
     (ui, rec)
 }
 
@@ -40,8 +40,8 @@ fn repro_roller_rapid_press_ghost() {
     let (mut ui, rec) = build();
     let scr = ui.screen();
     let r = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui, scr);
-    r.set_pos(&mut ui, 10, 10);
-    r.group_add(&mut ui);
+    ui.set_pos(r, 10, 10);
+    ui.group_add(r);
     ui.tick_inc(1);
     ui.timer_handler();
     for _ in 0..3 {
@@ -60,9 +60,9 @@ fn repro_roller_rapid_press_ghost() {
     let (mut ui2, rec2) = build();
     let scr2 = ui2.screen();
     let r2 = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui2, scr2);
-    r2.set_pos(&mut ui2, 10, 10);
-    r2.set_value(&mut ui2, 3);
-    r2.group_add(&mut ui2);
+    ui2.set_pos(r2, 10, 10);
+    ui2.set_value(r2, 3);
+    ui2.group_add(r2);
     ui2.tick_inc(1);
     ui2.timer_handler();
     let reference = rec2.borrow().fb.clone();

@@ -43,17 +43,17 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     }));
     ss.pad_left = Some(8);
     ss.pad_top = Some(8);
-    screen.set_style(&mut ui, ss);
+    ui.set_style(screen, ss);
 
     let menu = ListBuilder::new(&["Settings", "About"]).build(&mut ui, screen);
-    menu.set_grid_cell(&mut ui, (0, 1), (1, 1));
-    menu.set_sizing(&mut ui, Some(Sizing::GROW), Some(Sizing::GROW));
+    ui.set_grid_cell(menu, (0, 1), (1, 1));
+    ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
 
     let panel = ObjBuilder::new().build(&mut ui, screen);
-    panel.set_grid_cell(&mut ui, (1, 1), (1, 1));
-    panel.set_style(&mut ui, qingui::style::theme_obj());
-    panel.set_sizing(&mut ui, Some(Sizing::GROW), Some(Sizing::GROW));
-    panel.set_layout(&mut ui, Layout::Flex(Flex {
+    ui.set_grid_cell(panel, (1, 1), (1, 1));
+    ui.set_style(panel, qingui::style::theme_obj());
+    ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
+    ui.set_layout(panel, Layout::Flex(Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
@@ -61,9 +61,9 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     let page = ObjBuilder::new().build(&mut ui, panel);
     let mut ps = qingui::style::Style::default();
     ps.bg_opa = Some(0);
-    page.set_style(&mut ui, ps);
-    page.set_sizing(&mut ui, Some(Sizing::GROW), Some(Sizing::GROW));
-    page.set_layout(&mut ui, Layout::Flex(Flex {
+    ui.set_style(page, ps);
+    ui.set_sizing(page, Some(Sizing::GROW), Some(Sizing::GROW));
+    ui.set_layout(page, Layout::Flex(Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
@@ -71,7 +71,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
 
     if with_transition {
         for &o in &[menu, panel, page] {
-            o.set_transition(&mut ui, Some((250, qingui::anim::Easing::Linear)));
+            ui.set_transition(o, Some((250, qingui::anim::Easing::Linear)));
         }
     }
     (ui, rec, menu, panel)
@@ -94,7 +94,7 @@ fn repro_wide_transition_text_ghost() {
     ui.tick_inc(1);
     ui.timer_handler();
     let scr = ui.screen();
-    scr.set_layout(&mut ui, Layout::Grid(Grid {
+    ui.set_layout(scr, Layout::Grid(Grid {
         cols: vec![Track::Px(108), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,

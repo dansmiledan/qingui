@@ -33,7 +33,7 @@ fn canvas_callback_draws_custom_content() {
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
     let scr = ui.screen();
-    scr.set_style(&mut ui, bg);
+    ui.set_style(scr, bg);
 
     let cv = CanvasBuilder::new(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x + 2, abs.y + 2, 5, 5), Color::RED, 255, clip);
@@ -50,7 +50,7 @@ fn canvas_callback_draws_custom_content() {
     }))
     .size(30, 30)
     .build(&mut ui, scr);
-    cv.set_pos(&mut ui, 10, 10);
+    ui.set_pos(cv, 10, 10);
     ui.render();
 
     // 自定义矩形

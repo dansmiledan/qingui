@@ -27,7 +27,7 @@ fn list_fx_expires_and_sleeps() {
     let mut ui = Ui::new(160, 120, 120);
     let s = ui.screen();
     let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, s);
-    l.list_select(&mut ui, 2); // 触发高亮滑动 fx（FX_DUR=200ms）
+    ui.list_select(l, 2); // 触发高亮滑动 fx（FX_DUR=200ms）
     ui.tick_inc(16);
     assert_eq!(ui.timer_handler(), 0); // fx 活动
     ui.tick_inc(300); // 超过 FX_DUR

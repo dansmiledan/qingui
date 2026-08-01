@@ -32,10 +32,10 @@ fn draw_hook_overlays_builtin_widget() {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     let btn = ButtonBuilder::new("ok").build(&mut ui, scr);
-    btn.set_pos(&mut ui, 10, 10);
-    btn.on_draw(&mut ui, Box::new(|d, abs, clip, _now| {
+    ui.set_pos(btn, 10, 10);
+    ui.set_draw_hook(btn, Some(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, 255, clip);
-    }));
+    })));
     ui.render();
     // 钩子叠加在按钮自带内容之上（左上角 3x3 被覆盖为红色）
     assert_eq!(px(&rec, 10, 10), Color::RED);
@@ -49,15 +49,15 @@ fn tick_hook_drives_wakeup_and_redraw() {
     let o = ObjBuilder::new().build(&mut ui, scr);
     let hits = Rc::new(Cell::new(0u32));
     let h = hits.clone();
-    o.on_tick(&mut ui, Box::new(move |_ui, _obj, _now| {
+    ui.set_tick_hook(o, Some(Box::new(move |_ui, _obj, _now| {
         h.set(h.get() + 1);
         true
-    }));
+    })));
     ui.tick_inc(16);
     ui.timer_handler(); // 首帧（含建屏全屏脏）
     assert!(hits.get() >= 1);
     assert_eq!(ui.timer_handler(), 0); // 活动 hook 保持唤醒
     // 换成不活动的 hook → 睡眠
-    o.on_tick(&mut ui, Box::new(|_, _, _| false));
+    ui.set_tick_hook(o, Some(Box::new(|_, _, _| false)));
     assert_eq!(ui.timer_handler(), u32::MAX);
 }
