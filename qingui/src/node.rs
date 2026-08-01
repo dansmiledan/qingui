@@ -26,6 +26,8 @@ bitflags::bitflags! {
         const CLICKABLE = 1 << 1;
         /// 浮动对象：不参与父容器的布局（对齐 LVGL IGNORE_LAYOUT），弹窗/悬浮层用
         const IGNORE_LAYOUT = 1 << 2;
+        /// 视口裁剪：子树绘制被裁剪到本对象矩形内（滚动容器用）
+        const CLIP_CHILDREN = 1 << 3;
     }
 }
 

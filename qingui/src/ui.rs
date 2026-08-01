@@ -556,6 +556,14 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
+    /// 设置视口裁剪：子树绘制被裁剪到本对象矩形内（对齐 LVGL 的 clip 内容，滚动容器用）
+    pub fn set_clip_children(&mut self, obj: ObjRef, clip: bool) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.flags.set(Flag::CLIP_CHILDREN, clip);
+        }
+        self.invalidate_obj(obj);
+    }
+
     /// 设置/查询浮动标志：浮动对象不参与父容器布局（弹窗/悬浮层用）
     pub fn set_ignore_layout(&mut self, obj: ObjRef, ignore: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
@@ -706,7 +714,7 @@ impl Ui {
         // 2) 先序遍历对象树绘制（screen 本身不画，背景已在上面处理）
         let roots = self.children_z_sorted(self.screen);
         for r in roots {
-            self.draw_node(r, chunk, len);
+            self.draw_node(r, chunk, chunk, len);
         }
         // 3) flush
         if let Some(f) = self.flush.as_mut() {
@@ -714,7 +722,9 @@ impl Ui {
         }
     }
 
-    fn draw_node(&mut self, obj: ObjRef, clip: Rect, len: usize) {
+    /// frame 为像素缓冲对应的屏幕区域（DrawBuf 坐标系/步长），clip 为绘制裁剪矩形；
+    /// 二者在顶层相同，CLIP_CHILDREN 父节点会使子树的 clip 收缩而 frame 不变
+    fn draw_node(&mut self, obj: ObjRef, frame: Rect, clip: Rect, len: usize) {
         let Some((abs, flags, node_opa, resolved)) = self.node_draw_info(obj) else {
             return;
         };
@@ -728,8 +738,8 @@ impl Ui {
             let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
             let mut d = crate::draw::DrawBuf {
                 pixels: &mut self.buf[..len],
-                area: clip,
-                stride: clip.w,
+                area: frame,
+                stride: frame.w,
             };
             let Some(n) = self.arena.get_mut(obj) else { return };
             if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
@@ -746,8 +756,17 @@ impl Ui {
                 d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
             }
         }
+        // 视口裁剪：子树 clip 收缩到本对象矩形内；不相交则整棵子树跳过
+        let child_clip = if flags.contains(Flag::CLIP_CHILDREN) {
+            match clip.intersect(&abs) {
+                Some(c) => c,
+                None => return,
+            }
+        } else {
+            clip
+        };
         for c in self.children_z_sorted(obj) {
-            self.draw_node(c, clip, len);
+            self.draw_node(c, frame, child_clip, len);
         }
     }
 
