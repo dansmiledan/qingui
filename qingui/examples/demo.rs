@@ -1,4 +1,5 @@
 mod sim;
+mod images;
 
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
@@ -10,6 +11,7 @@ use qingui::widgets::button::ButtonBuilder;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::checkbox::CheckboxBuilder;
 use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::image::ImageBuilder;
 use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::led::LedBuilder;
@@ -143,6 +145,9 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             row_gap: 8,
         }));
     }));
+    // image widget 示例：静态图（蓝底白斜纹）+ gif 帧动画（红/绿/蓝循环）
+    let _logo = ImageBuilder::new(&images::LOGO).build(ui, page_about);
+    let _anim = ImageBuilder::new(&images::ANIM).build(ui, page_about);
 
     // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ObjBuilder::new().build(ui, panel);
