@@ -1,6 +1,5 @@
 use qingui::input::Key;
 use qingui::prelude::*;
-use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::obj::ObjBuilder;
 use qingui::widgets::scrollview::{ScrollViewBuilder, STEP};
 use qingui::{Rect, Ui};

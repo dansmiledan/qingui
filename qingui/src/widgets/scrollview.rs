@@ -86,6 +86,11 @@ impl ScrollViewBuilder {
         let mut vs = self.style.unwrap_or_default();
         if vs.bg_opa.is_none() { vs.bg_opa = Some(0); }
         ui.set_style(r, vs);
+        // 视口默认 column flex:让 content 的宽 GROW 跟随视口宽(否则 GROW 是死代码)
+        ui.set_layout(r, Layout::Flex(Flex {
+            dir: FlexDir::Column, wrap: false,
+            main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+        }));
         ui.set_style_focused(r, crate::style::theme_list_focused());
         if let Some((sw, sh)) = self.sizing {
             ui.set_sizing(r, sw, sh);
@@ -127,6 +132,9 @@ impl UiScrollViewExt for Ui {
         let view_h = self.rect(sv).h;
         let min = -(content_h - view_h).max(0);
         let ny = y.clamp(min, 0);
+        // clamp 后与当前 scroll 相同则早退:不写 state、不 set_translate,避免白重绘(同 itemlist ensure_visible)
+        let cur = self.kind(sv).and_then(|k| k.as_scrollview()).map(|s| s.scroll);
+        if cur == Some(ny) { return; }
         if let Some(s) = self.kind_mut(sv).and_then(|k| k.as_scrollview_mut()) {
             s.scroll = ny;
         }
