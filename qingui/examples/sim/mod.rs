@@ -74,6 +74,19 @@ impl Flush for SimFlush {
             }
         }
         if self.debug.get() {
+            // 同步历史快照：新 flush 覆盖的区域以新内容为准，
+            // 否则过期恢复会把旧内容写回、盖住后画的控件（如 msgbox）
+            for rec in self.history.iter_mut() {
+                if let Some(ov) = rec.rect.intersect(&area) {
+                    for y in 0..ov.h {
+                        for x in 0..ov.w {
+                            let src = ((ov.y - area.y + y) * area.w + (ov.x - area.x + x)) as usize;
+                            let dst = ((ov.y - rec.rect.y + y) * rec.rect.w + (ov.x - rec.rect.x + x)) as usize;
+                            rec.pixels[dst] = pixels[src];
+                        }
+                    }
+                }
+            }
             let mut fb = self.fb.borrow_mut();
             for x in area.x..area.right() {
                 for y in [area.y, area.bottom() - 1] {
