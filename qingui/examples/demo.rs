@@ -19,6 +19,7 @@ use qingui::widgets::list::ListBuilder;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::obj::ObjBuilder;
 use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::scrollview::ScrollViewBuilder;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::widgets::spinbox::SpinboxBuilder;
 use qingui::widgets::spinner::SpinnerBuilder;
@@ -121,16 +122,11 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         ui.anim_start(Anim::new(preview, AnimProp::Value, cur, v, 300));
     }));
 
-    // ---- About 页：多行文本 + 布局过渡演示 ----
+    // ---- About 页：Wide 按钮 + ScrollView(About 文本与两张图滚出溢出可视) ----
     let page_about = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_about, transparent());
     ui.set_sizing(page_about, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_about, column());
-    let la = LabelBuilder::new(
-        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
-    )
-    .build(ui, page_about);
-    let _ = la;
     // 布局过渡演示：切换左侧菜单列宽，界面平滑重排
     let wide = std::cell::Cell::new(false);
     let wide_btn = ButtonBuilder::new("Wide").build(ui, page_about);
@@ -145,9 +141,18 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             row_gap: 8,
         }));
     }));
-    // image widget 示例：静态图（蓝底白斜纹）+ gif 帧动画（红/绿/蓝循环）
-    let _logo = ImageBuilder::new(&images::HAIZEI).build(ui, page_about);
-    let _anim = ImageBuilder::new(&images::MIAO).build(ui, page_about);
+    // 滚动内容：文本 + image widget 示例(静态图 + gif 帧动画);
+    // 内容超视口时聚焦 ScrollView 用 Up/Down 滚动
+    let sv = ScrollViewBuilder::new().build(ui, page_about);
+    ui.set_sizing(sv, Some(Sizing::GROW), Some(Sizing::GROW));
+    let sv_content = ui.scrollview_content(sv).unwrap();
+    let la = LabelBuilder::new(
+        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
+    )
+    .build(ui, sv_content);
+    let _ = la;
+    let _logo = ImageBuilder::new(&images::HAIZEI).build(ui, sv_content);
+    let _anim = ImageBuilder::new(&images::MIAO).build(ui, sv_content);
 
     // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ObjBuilder::new().build(ui, panel);
@@ -333,12 +338,13 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         ui.anim_start(Anim::new(panel, AnimProp::TranslateX, 204, 0, 200).easing(Easing::EaseOutQuad));
     }));
 
-    // 焦点组：菜单 → slider → switch → checkbox → Wide → 超长列表 → Add/Del → P1 控件组 → ItemList
+    // 焦点组：菜单 → slider → switch → checkbox → Wide → ScrollView → 超长列表 → Add/Del → P1 控件组 → ItemList
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);
     ui.group_add(cb);
     ui.group_add(wide_btn);
+    ui.group_add(sv);
     ui.group_add(long_list);
     ui.group_add(add_btn);
     ui.group_add(del_btn);
