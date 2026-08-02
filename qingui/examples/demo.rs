@@ -146,6 +146,13 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let sv = ScrollViewBuilder::new().build(ui, page_about);
     ui.set_sizing(sv, Some(Sizing::GROW), Some(Sizing::GROW));
     let sv_content = ui.scrollview_content(sv).unwrap();
+    // 多字体展示：默认 FONT_6X10 与覆盖 FONT_10X20 并列对比
+    let small = LabelBuilder::new("FONT_6X10 small").build(ui, sv_content);
+    let mut big_style = qingui::style::Style::default();
+    big_style.font = Some(&embedded_graphics::mono_font::ascii::FONT_10X20);
+    let big = LabelBuilder::new("FONT_10X20").build(ui, sv_content);
+    ui.set_style(big, big_style);
+    let _ = small;
     let la = LabelBuilder::new(
         "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
     )

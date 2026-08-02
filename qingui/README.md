@@ -11,7 +11,7 @@
 - **控件**：Obj、Label、Button、Slider、Switch、Bar、List
 - **布局**：手动定位 + Flex（row/column、wrap、对齐）+ Grid（px/fr/content 轨道）
 - **样式**：扁平样式结构 + 按状态（Pressed/Focused/Disabled）覆盖
-- **字体**：内置 8x8 位图字体（ASCII，非 ASCII 回落 `?`）
+- **字体**：多字体——embedded-graphics MonoFont，内置 FONT_6X10 默认，可插 eg 生态字体（ASCII，非 ASCII 回落 `?`）
 
 ## 快速开始
 
