@@ -73,6 +73,28 @@ impl Ui {
         self.arena.get(obj).and_then(|n| n.kind.as_roller())
     }
 
+    #[allow(dead_code)] // 后续 Task 的 widget 专属 API 接入后移除
+    pub(crate) fn kind(&self, obj: ObjRef) -> Option<&crate::widgets::WidgetKind> {
+        self.arena.get(obj).map(|n| &n.kind)
+    }
+    #[allow(dead_code)] // 后续 Task 的 widget 专属 API 接入后移除
+    pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut crate::widgets::WidgetKind> {
+        self.arena.get_mut(obj).map(|n| &mut n.kind)
+    }
+
+    /// 唯一下发 &mut widget 状态的入口:类型匹配则执行 f 并标脏,
+    /// 返回 f 的返回值;无效对象/类型不符静默返回 None。
+    pub fn update<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+        let r = match self.arena.get_mut(obj) {
+            Some(n) => n.kind.downcast_mut::<T>().map(f),
+            None => None,
+        };
+        if r.is_some() {
+            self.invalidate_obj(obj);
+        }
+        r
+    }
+
     /// 可变更新自定义 widget 状态（前后自动标脏）
     pub fn custom_mut<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         self.invalidate_obj(obj);

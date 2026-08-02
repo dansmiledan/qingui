@@ -1,0 +1,40 @@
+use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::chart::{ChartBuilder, ChartState};
+use qingui::{Color, Ui};
+
+#[test]
+fn update_mutates_and_invalidates() {
+    let mut ui = Ui::new(64, 64, 16);
+    let s = ui.screen();
+    let c = ChartBuilder::new().series(Color::BLUE, 4).build(&mut ui, s);
+    ui.take_dirty();
+    let r = ui.update::<ChartState, _>(c, |st| {
+        st.series[0].push(7);
+        st.series.len()
+    });
+    assert_eq!(r, Some(1));
+    assert!(!ui.dirty_is_empty()); // 执行过 f → 标脏
+}
+
+#[test]
+fn update_wrong_type_is_noop() {
+    let mut ui = Ui::new(64, 64, 16);
+    let s = ui.screen();
+    let b = BarBuilder::new(0, 100).build(&mut ui, s); // BarState,不是 ChartState
+    ui.take_dirty();
+    let r = ui.update::<ChartState, _>(b, |st| st.series.len());
+    assert_eq!(r, None);
+    assert!(ui.dirty_is_empty());
+}
+
+#[test]
+fn update_deleted_obj_is_noop() {
+    let mut ui = Ui::new(64, 64, 16);
+    let s = ui.screen();
+    let c = ChartBuilder::new().series(Color::BLUE, 4).build(&mut ui, s);
+    ui.delete(c);
+    ui.take_dirty();
+    let r = ui.update::<ChartState, _>(c, |st| st.series.len());
+    assert_eq!(r, None);
+    assert!(ui.dirty_is_empty());
+}

@@ -140,7 +140,6 @@ macro_rules! define_widgets {
                 }
             )+
             /// 按类型下发 &mut 状态(Ui::update 用);TypeId 比对 + Any downcast
-            #[allow(dead_code)] // 后续 Task 的 Ui::update 接入后移除
             pub(crate) fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
                 $(
                     if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
