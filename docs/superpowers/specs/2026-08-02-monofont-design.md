@@ -24,11 +24,12 @@
 
 ### 渲染(font.rs 重写 + draw.rs)
 
-- 自写 MonoFont 文本绘制,不引入 e-g 的 Text renderer:
-  - `font::glyph_index(font, ch) -> usize`:经 `font.glyph_mapping` 查字模索引,未收录字符回落到映射表第一个索引(e-g 替换字符语义)。
-  - atlas 网格:`glyphs_per_row = font.image.width() / font.character_size.x`,按索引定位字模左上角。
-  - 1bpp 按位绘制:set bit → `put`(fg);bg 不写(保持现状:文本背景透明)。沿用现有 put/clip/opa 路径,无分配。
-- `font::text_size(font, s) -> (w, h)`:逐字 advance = `character_size.x + character_spacing`;行宽 = n × (cw + sp) − sp(n>0,末字不计 spacing,与 e-g 渲染宽度一致);高 = 行数 × `character_size.y`;支持 '\n',空串 (0, character_size.y)。
+- **经 DrawTarget 适配复用 e-g 自带的 Text 渲染器**(不自写字模数学):
+  - `EgTarget<'a,'b> { d: &'a mut DrawBuf<'b>, color: Color, opa: u8 }` 实现 `embedded_graphics::DrawTarget<Color = BinaryColor>`:`draw_iter` 中 On 像素走 `DrawBuf::put`(fg、opa、blend),Off 不写(背景透明,与现状一致)。
+  - 裁剪:`DrawTargetExt::clipped`(e-g 自带)把 clip 转为 e-g Rectangle。
+  - 文本:`Text` + `MonoTextStyle::new(font, BinaryColor::On)`,Baseline::Top(pos = 字形盒左上角,与现有 draw_text 语义一致);'\n' 多行由 e-g 原生处理。
+  - 依据:MonoFont 的 atlas 数据无私有 getter,公开的 `GetPixel::pixel` 是 O(n) 每像素(整图 O(n²)),MCU 上不可用;e-g Text 渲染器内部单次遍历,且字形定位/映射经过实战验证。
+- `font::text_size(font, s) -> (w, h)`:用 `TextRenderer::measure_string`(MonoTextStyle 已实现)取 bounding_box 尺寸,语义与渲染严格一致。
 
 ### 字体选择
 
