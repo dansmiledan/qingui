@@ -11,6 +11,7 @@ pub mod chart;
 pub mod checkbox;
 pub mod custom;
 pub mod dropdown;
+pub mod image;
 pub mod itemlist;
 pub mod label;
 pub mod led;
@@ -173,6 +174,7 @@ define_widgets! {
     Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut),
     Roller(roller::RollerState, as_roller, as_roller_mut),
     Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut),
+    Image(image::ImageState, as_image, as_image_mut),
     Custom(custom::CustomState, as_custom_state, as_custom_state_mut),
 }
 
