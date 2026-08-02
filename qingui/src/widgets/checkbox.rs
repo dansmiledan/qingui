@@ -146,6 +146,22 @@ impl CheckboxBuilder {
     }
 }
 
+/// checkbox 切换 API(经 prelude 或显式 use 引入)
+pub trait UiCheckboxExt {
+    fn toggle_checkbox(&mut self, obj: ObjRef);
+}
+
+impl UiCheckboxExt for Ui {
+    fn toggle_checkbox(&mut self, obj: ObjRef) {
+        self.invalidate_obj(obj);
+        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_checkbox_mut()) {
+            s.checked = !s.checked;
+        }
+        self.invalidate_obj(obj);
+        self.send_event(obj, EventKind::ValueChanged);
+    }
+}
+
 impl super::WidgetBehavior for CheckboxState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, self.checked, ctx, d, clip) }
     fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }

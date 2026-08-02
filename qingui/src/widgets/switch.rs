@@ -101,6 +101,22 @@ impl SwitchBuilder {
     }
 }
 
+/// switch 切换 API(经 prelude 或显式 use 引入)
+pub trait UiSwitchExt {
+    fn toggle_switch(&mut self, obj: ObjRef);
+}
+
+impl UiSwitchExt for Ui {
+    fn toggle_switch(&mut self, obj: ObjRef) {
+        self.invalidate_obj(obj);
+        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_switch_mut()) {
+            s.on = !s.on;
+        }
+        self.invalidate_obj(obj);
+        self.send_event(obj, EventKind::ValueChanged);
+    }
+}
+
 impl super::WidgetBehavior for SwitchState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.on, ctx, d, clip) }
     fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }

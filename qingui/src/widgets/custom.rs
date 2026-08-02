@@ -28,7 +28,8 @@ pub trait Widget {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-/// Custom 变体的状态包装：把 trait object 委托收进 WidgetBehavior，宏即可一视同仁
+/// Custom 变体的状态包装：把 trait object 委托收进 WidgetBehavior，宏即可一视同仁。
+/// 不可 Clone（trait object 无法克隆），故 WidgetKind 不再 derive Clone。
 pub struct CustomState(pub alloc::boxed::Box<dyn Widget>);
 
 impl super::WidgetBehavior for CustomState {

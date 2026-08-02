@@ -81,7 +81,7 @@ impl Ui {
         self.arena.get_mut(obj).map(|n| &mut n.kind)
     }
 
-    /// 唯一下发 &mut widget 状态的入口:类型匹配则执行 f 并标脏,
+    /// 内置控件扩展 API 的统一入口:类型匹配则执行 f 并标脏,
     /// 返回 f 的返回值;无效对象/类型不符静默返回 None。
     pub fn update<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         let r = match self.arena.get_mut(obj) {
@@ -1130,27 +1130,6 @@ impl Ui {
         }
     }
 
-    pub fn toggle_checkbox(&mut self, obj: ObjRef) {
-        self.invalidate_obj(obj);
-        if let Some(n) = self.arena.get_mut(obj) {
-            if let Some(s) = n.kind.as_checkbox_mut() {
-                s.checked = !s.checked;
-            }
-        }
-        self.invalidate_obj(obj);
-        self.send_event(obj, crate::event::EventKind::ValueChanged);
-    }
-
-    pub fn toggle_switch(&mut self, obj: ObjRef) {
-        self.invalidate_obj(obj);
-        if let Some(n) = self.arena.get_mut(obj) {
-            if let Some(s) = n.kind.as_switch_mut() {
-                s.on = !s.on;
-            }
-        }
-        self.invalidate_obj(obj);
-        self.send_event(obj, crate::event::EventKind::ValueChanged);
-    }
 }
 
 /// Key 事件统一存储为占位值，匹配按类别通配（见 send_event）
