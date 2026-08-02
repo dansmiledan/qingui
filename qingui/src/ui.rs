@@ -171,8 +171,9 @@ impl Ui {
 
     /// 标脏整棵子树的渲染区域（translate 变化时子元素也会移动）。
     /// 各节点按其控件类型外扩绘制溢出区（旋钮等）。
+    /// 有效隐藏的子树不产生脏区（重新显示时由 set_hidden 标脏）。
     fn invalidate_subtree(&mut self, obj: ObjRef) {
-        if !self.is_valid(obj) {
+        if !self.is_valid(obj) || self.is_hidden_eff(obj) {
             return;
         }
         let mut stack = alloc::vec![obj];
@@ -225,8 +226,10 @@ impl Ui {
     pub fn invalidate_area(&mut self, rect: Rect) {
         self.dirty.add(rect);
     }
+    /// 标脏对象区域（含控件绘制溢出外扩）。
+    /// 有效隐藏的对象不产生脏区（重新显示时由 set_hidden 标脏）。
     pub fn invalidate_obj(&mut self, obj: ObjRef) {
-        if self.is_valid(obj) {
+        if self.is_valid(obj) && !self.is_hidden_eff(obj) {
             let ext = self.arena.get(obj).map(|n| n.kind.overflow()).unwrap_or(0);
             let r = self.abs_rect(obj);
             // 控件绘制可能超出自身矩形（旋钮等），标脏外扩
@@ -241,10 +244,15 @@ impl Ui {
     }
 
     pub fn set_hidden(&mut self, obj: ObjRef, hidden: bool) {
+        if hidden {
+            self.invalidate_obj(obj); // 置位前标脏：擦除对象原区域
+        }
         if let Some(n) = self.arena.get_mut(obj) {
             n.flags.set(Flag::HIDDEN, hidden);
         }
-        self.invalidate_obj(obj);
+        if !hidden {
+            self.invalidate_obj(obj); // 显示后标脏：重绘对象
+        }
         self.layout_dirty = true;
     }
 

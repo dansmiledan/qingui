@@ -51,3 +51,68 @@ fn style_change_invalidates_obj() {
     ui.set_style(o, s);
     assert_eq!(ui.take_dirty(), vec![Rect::new(10, 10, 20, 20)]);
 }
+
+#[test]
+fn hidden_obj_setters_dont_dirty_but_hide_show_do() {
+    use qingui::widgets::bar::BarBuilder;
+    let mut ui = Ui::new(64, 48, 48);
+    let scr = ui.screen();
+    let panel = ObjBuilder::new().build(&mut ui, scr);
+    ui.set_size(panel, 40, 40);
+    let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
+    ui.take_dirty();
+    // 隐藏动作本身必须标脏（擦除对象原区域）
+    ui.set_hidden(panel, true);
+    assert!(!ui.dirty_is_empty());
+    ui.take_dirty();
+    // 有效隐藏后，setter 不再产生脏区
+    ui.set_value(bar, 50);   // invalidate_obj 路径
+    ui.set_pos(bar, 5, 5);   // invalidate_subtree 路径
+    assert!(ui.take_dirty().is_empty());
+    // 重新显示必须标脏（重绘）
+    ui.set_hidden(panel, false);
+    assert!(!ui.dirty_is_empty());
+}
+
+#[test]
+fn hidden_target_anim_does_not_dirty() {
+    use qingui::anim::{Anim, AnimProp, Easing};
+    use qingui::display::Flush;
+    use qingui::widgets::bar::BarBuilder;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    // timer_handler 末尾 render() 会消费脏区，故用 flush 记录实际重绘
+    #[derive(Default)]
+    struct RecFlush { n: usize }
+    struct SharedFlush(Rc<RefCell<RecFlush>>);
+    impl Flush for SharedFlush {
+        fn flush(&mut self, _area: Rect, _pixels: &[qingui::Color]) {
+            self.0.borrow_mut().n += 1;
+        }
+    }
+    let rec = Rc::new(RefCell::new(RecFlush::default()));
+    let mut ui = Ui::new(64, 48, 48);
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
+    let scr = ui.screen();
+    let panel = ObjBuilder::new().build(&mut ui, scr);
+    ui.set_size(panel, 40, 40);
+    let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
+    // 无限值动画（demo animate 页同款）+ 位置动画（set_pos 路径）
+    ui.anim_start(Anim { target: bar, prop: AnimProp::Value, start: 0, end: 100,
+                         duration_ms: 1200, delay_ms: 0, repeat: -1, playback: false,
+                         easing: Easing::Linear, on_done: None });
+    ui.anim_start(Anim { target: bar, prop: AnimProp::X, start: 0, end: 50,
+                         duration_ms: 1000, delay_ms: 0, repeat: -1, playback: false,
+                         easing: Easing::Linear, on_done: None });
+    ui.set_hidden(panel, true);
+    ui.tick_inc(16);
+    ui.timer_handler(); // 擦除帧
+    rec.borrow_mut().n = 0;
+    ui.tick_inc(16);
+    ui.timer_handler();
+    assert_eq!(rec.borrow().n, 0); // 隐藏页面上的动画不再触发重绘
+    // 动画本身仍在推进（重新显示时能见到当前值）
+    assert!(ui.anim_running());
+    assert!(ui.value(bar) > 0);
+}
