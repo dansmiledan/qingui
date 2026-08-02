@@ -2,6 +2,7 @@ use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::arc::ArcBuilder;
 use qingui::widgets::checkbox::CheckboxBuilder;
+use qingui::prelude::*;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::spinner::SpinnerBuilder;
 use qingui::{Color, EventKind, Rect, Ui};

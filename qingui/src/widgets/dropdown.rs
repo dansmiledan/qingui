@@ -9,6 +9,7 @@ use crate::input::Key;
 use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::list::UiListExt;
 use super::{WidgetCtx, WidgetKind};
 
 #[derive(Clone)]

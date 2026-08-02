@@ -130,3 +130,18 @@ impl TableBuilder {
 impl super::WidgetBehavior for TableState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.cols, self.rows, &self.cells, ctx, d, clip) }
 }
+
+/// table 专属 API(经 prelude 或显式 use 引入)
+pub trait UiTableExt {
+    fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str);
+}
+
+impl UiTableExt for Ui {
+    fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
+        self.update::<TableState, _>(obj, |s| {
+            if row < s.rows && col < s.cols {
+                s.cells[row as usize * s.cols as usize + col as usize] = text.into();
+            }
+        });
+    }
+}

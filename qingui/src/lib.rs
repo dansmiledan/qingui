@@ -25,4 +25,9 @@ pub use widgets::TickOut;
 /// 各 widget 扩展 trait 汇总:一行引入全部 widget 专属 API
 pub mod prelude {
     pub use crate::widgets::chart::UiChartExt;
+    pub use crate::widgets::label::UiTextExt;
+    pub use crate::widgets::list::UiListExt;
+    pub use crate::widgets::msgbox::UiMsgboxExt;
+    pub use crate::widgets::roller::UiRollerExt;
+    pub use crate::widgets::table::UiTableExt;
 }

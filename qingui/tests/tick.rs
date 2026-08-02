@@ -1,3 +1,4 @@
+use qingui::prelude::*;
 use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::spinner::SpinnerBuilder;

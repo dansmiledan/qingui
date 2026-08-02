@@ -342,3 +342,74 @@ impl super::WidgetBehavior for ListState {
     fn tick(&mut self, now: u64) -> super::TickOut { self.tick(now) }
     fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
 }
+
+/// list 专属 API(经 prelude 或显式 use 引入)
+pub trait UiListExt {
+    fn list_select(&mut self, obj: ObjRef, idx: usize);
+    fn list_selected(&self, obj: ObjRef) -> usize;
+    /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入）。
+    /// 容量上限由调用方控制（可用 list_len 判断）。
+    fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str);
+    /// 删除当前选中项（渐隐 + 下方 item 上移），返回是否成功
+    fn list_remove(&mut self, obj: ObjRef) -> bool;
+    fn list_len(&self, obj: ObjRef) -> usize;
+}
+
+impl UiListExt for Ui {
+    fn list_select(&mut self, obj: ObjRef, idx: usize) {
+        self.invalidate_obj(obj);
+        let now = self.time();
+        let vis_h = self.rect(obj).h;
+        if let Some(k) = self.kind_mut(obj) {
+            if let Some(s) = k.as_list_mut() {
+                select(&s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now);
+            }
+        }
+        self.invalidate_obj(obj);
+    }
+
+    fn list_selected(&self, obj: ObjRef) -> usize {
+        self.kind(obj).and_then(|k| k.as_list()).map(|s| s.selected).unwrap_or(0)
+    }
+
+    fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
+        self.invalidate_obj(obj);
+        let now = self.time();
+        if let Some(k) = self.kind_mut(obj) {
+            if let Some(s) = k.as_list_mut() {
+                let idx = idx.min(s.items.len());
+                // 插入位置在选中项之上时，选中索引顺延
+                if !s.items.is_empty() && s.selected >= idx {
+                    s.selected += 1;
+                }
+                insert(&mut s.items, &mut s.fx, idx, text, now);
+            }
+        }
+        self.invalidate_obj(obj);
+    }
+
+    fn list_remove(&mut self, obj: ObjRef) -> bool {
+        self.invalidate_obj(obj);
+        let now = self.time();
+        let vis_h = self.rect(obj).h;
+        let ok = match self.kind_mut(obj) {
+            Some(k) => {
+                if let Some(s) = k.as_list_mut() {
+                    let ok = remove(&mut s.items, &mut s.fx, &mut s.selected, now);
+                    // 删除后尾部空窗时自动上滚填满窗口
+                    ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now);
+                    ok
+                } else {
+                    false
+                }
+            }
+            None => false,
+        };
+        self.invalidate_obj(obj);
+        ok
+    }
+
+    fn list_len(&self, obj: ObjRef) -> usize {
+        self.kind(obj).and_then(|k| k.as_list()).map(|s| s.items.len()).unwrap_or(0)
+    }
+}

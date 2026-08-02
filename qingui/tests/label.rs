@@ -1,4 +1,5 @@
 use qingui::display::Flush;
+use qingui::prelude::*;
 use qingui::widgets::label::LabelBuilder;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;

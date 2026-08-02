@@ -202,3 +202,14 @@ impl super::WidgetBehavior for RollerState {
     fn value(&self) -> i32 { self.selected as i32 }
     fn set_value(&mut self, v: i32) -> bool { super::select_clamp(self.items.len(), &mut self.selected, v) }
 }
+
+/// roller 专属 API(经 prelude 或显式 use 引入)
+pub trait UiRollerExt {
+    fn roller_selected(&self, obj: ObjRef) -> usize;
+}
+
+impl UiRollerExt for Ui {
+    fn roller_selected(&self, obj: ObjRef) -> usize {
+        self.kind(obj).and_then(|k| k.as_roller()).map(|s| s.selected).unwrap_or(0)
+    }
+}

@@ -99,3 +99,15 @@ impl super::WidgetBehavior for MsgboxState {
     // Msgbox 是普通容器（子对象正常绘制）
     fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut crate::draw::DrawBuf, _clip: Rect) {}
 }
+
+/// msgbox 专属 API(经 prelude 或显式 use 引入)
+pub trait UiMsgboxExt {
+    /// 读取点击的按钮索引（未选择/Esc 关闭为 -1）
+    fn msgbox_selected(&self, obj: ObjRef) -> i32;
+}
+
+impl UiMsgboxExt for Ui {
+    fn msgbox_selected(&self, obj: ObjRef) -> i32 {
+        self.kind(obj).and_then(|k| k.as_msgbox()).map(|s| s.selected).unwrap_or(-1)
+    }
+}

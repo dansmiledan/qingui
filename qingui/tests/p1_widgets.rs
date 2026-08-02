@@ -3,6 +3,7 @@ use qingui::input::Key;
 use qingui::widgets::button::ButtonBuilder;
 use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::led::LedBuilder;
+use qingui::prelude::*;
 use qingui::widgets::roller::RollerBuilder;
 use qingui::widgets::spinbox::SpinboxBuilder;
 use qingui::widgets::table::TableBuilder;

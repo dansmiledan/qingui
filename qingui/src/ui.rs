@@ -76,7 +76,6 @@ impl Ui {
     pub(crate) fn kind(&self, obj: ObjRef) -> Option<&crate::widgets::WidgetKind> {
         self.arena.get(obj).map(|n| &n.kind)
     }
-    #[allow(dead_code)] // 后续 Task 的 widget 专属 API 接入后移除
     pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut crate::widgets::WidgetKind> {
         self.arena.get_mut(obj).map(|n| &mut n.kind)
     }
@@ -837,32 +836,6 @@ impl Ui {
         r
     }
 
-    pub fn msgbox_selected(&self, obj: ObjRef) -> i32 {
-        if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_msgbox()) {
-            return s.selected;
-        }
-        -1
-    }
-
-    pub fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
-        self.invalidate_obj(obj);
-        if let Some(n) = self.arena.get_mut(obj) {
-            if let Some(s) = n.kind.as_table_mut() {
-                if row < s.rows && col < s.cols {
-                    s.cells[row as usize * s.cols as usize + col as usize] = text.into();
-                }
-            }
-        }
-        self.invalidate_obj(obj);
-    }
-
-    pub fn roller_selected(&self, obj: ObjRef) -> usize {
-        if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_roller()) {
-            return s.selected;
-        }
-        0
-    }
-
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
         self.invalidate_value_area(obj);
         let changed = match self.arena.get_mut(obj) {
@@ -890,73 +863,6 @@ impl Ui {
             n.kind.set_range(min, max);
         }
         self.invalidate_obj(obj);
-    }
-
-    pub fn list_selected(&self, obj: ObjRef) -> usize {
-        if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_list()) {
-            return s.selected;
-        }
-        0
-    }
-
-    pub fn list_select(&mut self, obj: ObjRef, idx: usize) {
-        self.invalidate_obj(obj);
-        let now = self.time_ms;
-        if let Some(n) = self.arena.get_mut(obj) {
-            let vis_h = n.rect.h;
-            if let Some(s) = n.kind.as_list_mut() {
-                crate::widgets::list::select(&s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now);
-            }
-        }
-        self.invalidate_obj(obj);
-    }
-
-    /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入）。
-    /// 容量上限由调用方控制（可用 list_len 判断）。
-    pub fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
-        self.invalidate_obj(obj);
-        let now = self.time_ms;
-        if let Some(n) = self.arena.get_mut(obj) {
-            if let Some(s) = n.kind.as_list_mut() {
-                let idx = idx.min(s.items.len());
-                // 插入位置在选中项之上时，选中索引顺延
-                if !s.items.is_empty() && s.selected >= idx {
-                    s.selected += 1;
-                }
-                crate::widgets::list::insert(&mut s.items, &mut s.fx, idx, text, now);
-            }
-        }
-        self.invalidate_obj(obj);
-    }
-
-    /// 删除当前选中项（渐隐 + 下方 item 上移），返回是否成功
-    pub fn list_remove(&mut self, obj: ObjRef) -> bool {
-        self.invalidate_obj(obj);
-        let now = self.time_ms;
-        let ok = match self.arena.get_mut(obj) {
-            Some(n) => {
-                let vis_h = n.rect.h;
-                if let Some(s) = n.kind.as_list_mut() {
-                    let ok = crate::widgets::list::remove(&mut s.items, &mut s.fx, &mut s.selected, now);
-                    // 删除后尾部空窗时自动上滚填满窗口
-                    crate::widgets::list::ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now);
-                    ok
-                } else {
-                    false
-                }
-            }
-            None => false,
-        };
-        self.invalidate_obj(obj);
-        ok
-    }
-
-    pub fn set_text(&mut self, obj: ObjRef, text: &str) {
-        crate::widgets::label::set_text(self, obj, text);
-    }
-
-    pub fn text(&self, obj: ObjRef) -> alloc::string::String {
-        crate::widgets::label::text(self, obj)
     }
 
     pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {
@@ -1221,13 +1127,6 @@ impl Ui {
                 true
             }
         }
-    }
-
-    pub fn list_len(&self, obj: ObjRef) -> usize {
-        if let Some(s) = self.arena.get(obj).and_then(|n| n.kind.as_list()) {
-            return s.items.len();
-        }
-        0
     }
 
     /// 向 ItemList 追加一个 item 容器（Obj，宽 GROW，透明背景，带 SELECTED 样式），

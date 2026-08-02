@@ -110,3 +110,19 @@ pub(crate) fn text(ui: &Ui, obj: ObjRef) -> String {
 impl super::WidgetBehavior for LabelState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, ctx, d, clip) }
 }
+
+/// 文本 API(经 prelude 或显式 use 引入)
+pub trait UiTextExt {
+    fn set_text(&mut self, obj: ObjRef, text: &str);
+    fn text(&self, obj: ObjRef) -> String;
+}
+
+impl UiTextExt for Ui {
+    fn set_text(&mut self, obj: ObjRef, text: &str) {
+        set_text(self, obj, text);
+    }
+
+    fn text(&self, obj: ObjRef) -> String {
+        text(self, obj)
+    }
+}

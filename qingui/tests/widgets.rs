@@ -1,4 +1,5 @@
 use qingui::display::Flush;
+use qingui::prelude::*;
 use qingui::widgets::bar::BarBuilder;
 use qingui::widgets::button::ButtonBuilder;
 use qingui::widgets::list::ListBuilder;
