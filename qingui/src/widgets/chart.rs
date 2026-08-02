@@ -153,3 +153,66 @@ impl ChartBuilder {
 impl super::WidgetBehavior for ChartState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self, ctx, d, clip) }
 }
+
+/// chart 数据 API(经 prelude 或显式 use 引入)
+pub trait UiChartExt {
+    fn chart_add_series(&mut self, c: ObjRef, color: Color, capacity: usize) -> usize;
+    fn chart_push(&mut self, c: ObjRef, series: usize, v: i32);
+    fn chart_set_points(&mut self, c: ObjRef, series: usize, points: &[i32]);
+    fn chart_clear(&mut self, c: ObjRef, series: usize);
+    fn chart_point_count(&self, c: ObjRef, series: usize) -> usize;
+    fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32>;
+}
+
+impl UiChartExt for Ui {
+    fn chart_add_series(&mut self, c: ObjRef, color: Color, capacity: usize) -> usize {
+        self.update::<ChartState, _>(c, move |s| {
+            s.series.push(Series::new(color, capacity));
+            s.series.len() - 1
+        })
+        .unwrap_or(0)
+    }
+
+    fn chart_push(&mut self, c: ObjRef, series: usize, v: i32) {
+        self.update::<ChartState, _>(c, |s| {
+            let (min, max) = (s.min, s.max);
+            if let Some(ser) = s.series.get_mut(series) {
+                ser.push(v.clamp(min, max));
+            }
+        });
+    }
+
+    fn chart_set_points(&mut self, c: ObjRef, series: usize, points: &[i32]) {
+        self.update::<ChartState, _>(c, |s| {
+            let (min, max) = (s.min, s.max);
+            if let Some(ser) = s.series.get_mut(series) {
+                let start = points.len().saturating_sub(ser.capacity);
+                ser.points.clear();
+                ser.points.extend(points[start..].iter().map(|&v| v.clamp(min, max)));
+            }
+        });
+    }
+
+    fn chart_clear(&mut self, c: ObjRef, series: usize) {
+        self.update::<ChartState, _>(c, |s| {
+            if let Some(ser) = s.series.get_mut(series) {
+                ser.points.clear();
+            }
+        });
+    }
+
+    fn chart_point_count(&self, c: ObjRef, series: usize) -> usize {
+        self.kind(c)
+            .and_then(|k| k.as_chart())
+            .and_then(|s| s.series.get(series))
+            .map(|ser| ser.points.len())
+            .unwrap_or(0)
+    }
+
+    fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32> {
+        self.kind(c)
+            .and_then(|k| k.as_chart())
+            .and_then(|s| s.series.get(series))
+            .and_then(|ser| ser.points.get(idx).copied())
+    }
+}

@@ -21,3 +21,8 @@ pub use geometry::{Color, Point, Rect};
 pub use ui::Ui;
 pub use widgets::custom::Widget;
 pub use widgets::TickOut;
+
+/// 各 widget 扩展 trait 汇总:一行引入全部 widget 专属 API
+pub mod prelude {
+    pub use crate::widgets::chart::UiChartExt;
+}

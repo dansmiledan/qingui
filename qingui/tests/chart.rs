@@ -1,4 +1,5 @@
 use qingui::display::Flush;
+use qingui::prelude::*;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::Rect;
 use qingui::{Color, Ui};

@@ -73,7 +73,6 @@ impl Ui {
         self.arena.get(obj).and_then(|n| n.kind.as_roller())
     }
 
-    #[allow(dead_code)] // 后续 Task 的 widget 专属 API 接入后移除
     pub(crate) fn kind(&self, obj: ObjRef) -> Option<&crate::widgets::WidgetKind> {
         self.arena.get(obj).map(|n| &n.kind)
     }
@@ -950,75 +949,6 @@ impl Ui {
         };
         self.invalidate_obj(obj);
         ok
-    }
-
-    /// 追加一条序列，返回序列索引（无效对象返回 0 且不添加）
-    pub fn chart_add_series(&mut self, obj: ObjRef, color: crate::geometry::Color, capacity: usize) -> usize {
-        if let Some(s) = self.arena.get_mut(obj).and_then(|n| n.kind.as_chart_mut()) {
-            s.series.push(crate::widgets::chart::Series::new(color, capacity));
-            return s.series.len() - 1;
-        }
-        0
-    }
-
-    /// 流式追加一点（clamp 到 range；满则挤掉最旧）
-    pub fn chart_push(&mut self, obj: ObjRef, series: usize, v: i32) {
-        let mut pushed = false;
-        if let Some(s) = self.arena.get_mut(obj).and_then(|n| n.kind.as_chart_mut()) {
-            let (min, max) = (s.min, s.max);
-            if let Some(ser) = s.series.get_mut(series) {
-                ser.push(v.clamp(min, max));
-                pushed = true;
-            }
-        }
-        if pushed {
-            self.invalidate_obj(obj);
-        }
-    }
-
-    /// 整体替换序列数据；超容量只保留最新 capacity 个
-    pub fn chart_set_points(&mut self, obj: ObjRef, series: usize, points: &[i32]) {
-        let mut replaced = false;
-        if let Some(s) = self.arena.get_mut(obj).and_then(|n| n.kind.as_chart_mut()) {
-            let (min, max) = (s.min, s.max);
-            if let Some(ser) = s.series.get_mut(series) {
-                let start = points.len().saturating_sub(ser.capacity);
-                ser.points.clear();
-                ser.points.extend(points[start..].iter().map(|&v| v.clamp(min, max)));
-                replaced = true;
-            }
-        }
-        if replaced {
-            self.invalidate_obj(obj);
-        }
-    }
-
-    pub fn chart_clear(&mut self, obj: ObjRef, series: usize) {
-        let mut cleared = false;
-        if let Some(s) = self.arena.get_mut(obj).and_then(|n| n.kind.as_chart_mut()) {
-            if let Some(ser) = s.series.get_mut(series) {
-                ser.points.clear();
-                cleared = true;
-            }
-        }
-        if cleared {
-            self.invalidate_obj(obj);
-        }
-    }
-
-    pub fn chart_point_count(&self, obj: ObjRef, series: usize) -> usize {
-        self.arena.get(obj)
-            .and_then(|n| n.kind.as_chart())
-            .and_then(|s| s.series.get(series))
-            .map(|ser| ser.points.len())
-            .unwrap_or(0)
-    }
-
-    pub fn chart_point(&self, obj: ObjRef, series: usize, idx: usize) -> Option<i32> {
-        self.arena.get(obj)
-            .and_then(|n| n.kind.as_chart())
-            .and_then(|s| s.series.get(series))
-            .and_then(|ser| ser.points.get(idx).copied())
     }
 
     pub fn set_text(&mut self, obj: ObjRef, text: &str) {

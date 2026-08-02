@@ -2,6 +2,7 @@ mod sim;
 
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
+use qingui::prelude::*;
 use qingui::style::{Layout, Style};
 use qingui::widgets::arc::ArcBuilder;
 use qingui::widgets::bar::BarBuilder;
