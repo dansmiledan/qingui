@@ -31,6 +31,7 @@ pub mod prelude {
     pub use crate::widgets::list::UiListExt;
     pub use crate::widgets::msgbox::UiMsgboxExt;
     pub use crate::widgets::roller::UiRollerExt;
+    pub use crate::widgets::scrollview::UiScrollViewExt;
     pub use crate::widgets::switch::UiSwitchExt;
     pub use crate::widgets::table::UiTableExt;
 }

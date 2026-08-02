@@ -19,6 +19,7 @@ pub mod list;
 pub mod msgbox;
 pub mod obj;
 pub mod roller;
+pub mod scrollview;
 pub mod slider;
 pub mod spinbox;
 pub mod spinner;
@@ -71,6 +72,8 @@ pub(crate) enum KeyOutcome {
     OpenDropdown,  // 打开下拉浮层
     /// 列表型控件移动选中（步进 ±1），由 Ui 执行（需要子节点/滚动/事件）
     NavSelect(i32),
+    /// 滚动容器滚动(步进 ±px),由 Ui 执行(clamp + translate)
+    ScrollBy(i32),
 }
 
 /// 控件行为接口:draw 必须实现(新 widget 忘了画会编译错),
@@ -173,6 +176,7 @@ define_widgets! {
     Table(table::TableState, as_table, as_table_mut),
     Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut),
     Roller(roller::RollerState, as_roller, as_roller_mut),
+    ScrollView(scrollview::ScrollViewState, as_scrollview, as_scrollview_mut),
     Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut),
     Image(image::ImageState, as_image, as_image_mut),
     Custom(custom::CustomState, as_custom_state, as_custom_state_mut),

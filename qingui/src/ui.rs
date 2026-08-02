@@ -3,6 +3,7 @@ use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
 use crate::node::{Flag, Node, State, WidgetKind};
 use crate::widgets::itemlist::UiItemListExt;
+use crate::widgets::scrollview::UiScrollViewExt;
 
 pub struct Ui {
     pub(crate) arena: Arena<Node>,
@@ -1125,6 +1126,10 @@ impl Ui {
                     let next = (cur as i32 + d).rem_euclid(n as i32) as usize;
                     self.itemlist_select(obj, next);
                 }
+                true
+            }
+            KeyOutcome::ScrollBy(d) => {
+                self.scrollview_scroll_by(obj, d);
                 true
             }
         }
