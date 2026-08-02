@@ -4,6 +4,7 @@ use crate::arena::ObjRef;
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
 use crate::layout::{Align, Flex, FlexDir, Sizing};
+use crate::node::State;
 use crate::style::{Layout, Style};
 use crate::ui::Ui;
 use super::{KeyCtx, KeyOutcome, WidgetKind};
@@ -133,4 +134,157 @@ impl super::WidgetBehavior for ItemListState {
     fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut crate::draw::DrawBuf, _clip: Rect) {}
     fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome { self.on_key(key, ctx) }
     fn value(&self) -> i32 { self.selected as i32 }
+}
+
+/// itemlist 数据/导航 API(经 prelude 或显式 use 引入)
+pub trait UiItemListExt {
+    fn itemlist_add_item(&mut self, il: ObjRef) -> Option<ObjRef>;
+    fn itemlist_remove_selected(&mut self, il: ObjRef) -> bool;
+    fn itemlist_select(&mut self, il: ObjRef, idx: usize);
+    fn itemlist_selected(&self, il: ObjRef) -> usize;
+    fn itemlist_len(&self, il: ObjRef) -> usize;
+}
+
+impl UiItemListExt for Ui {
+    /// 向 ItemList 追加一个 item 容器（Obj，宽 GROW，透明背景，带 SELECTED 样式），
+    /// 返回该容器（用户往里搭建内容）；il 非 ItemList 时返回 None
+    fn itemlist_add_item(&mut self, il: ObjRef) -> Option<ObjRef> {
+        let (content, sel_style, was_empty) = {
+            let s = self.kind(il)?.as_itemlist()?;
+            (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
+        };
+        let item = self.insert_node(content, Rect::default(), WidgetKind::Obj(super::obj::ObjState));
+        let mut st = item_base_style();
+        st.sizing_w = Some(Sizing::GROW);
+        self.set_style(item, st);
+        self.set_style_selected(item, sel_style);
+        // 首项自动选中
+        if was_empty {
+            self.set_state(item, State::SELECTED, true);
+        }
+        Some(item)
+    }
+
+    /// 删除 ItemList 的选中 item（空列表返回 false），selected 收敛并把选中位移给相邻项
+    fn itemlist_remove_selected(&mut self, il: ObjRef) -> bool {
+        let Some((content, selected)) = self
+            .kind(il)
+            .and_then(|k| k.as_itemlist())
+            .map(|s| (s.content, s.selected))
+        else {
+            return false;
+        };
+        let kids = self.children(content);
+        if kids.is_empty() || selected >= kids.len() {
+            return false;
+        }
+        self.delete(kids[selected]);
+        let new_len = kids.len() - 1;
+        let new_sel = if new_len == 0 { 0 } else { selected.min(new_len - 1) };
+        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_itemlist_mut()) {
+            s.selected = new_sel;
+        }
+        // 选中位移给相邻项（删除中间项 → 原下一项；删除末项 → 原上一项）
+        if new_len > 0 {
+            let target = if selected < new_len { kids[selected + 1] } else { kids[selected - 1] };
+            self.set_state(target, State::SELECTED, true);
+        }
+        ensure_visible(self, il);
+        true
+    }
+
+    /// 选中 ItemList 第 idx 项（clamp 到合法范围）；变化才切换并发 ValueChanged
+    fn itemlist_select(&mut self, il: ObjRef, idx: usize) {
+        let Some((content, cur)) = self
+            .kind(il)
+            .and_then(|k| k.as_itemlist())
+            .map(|s| (s.content, s.selected))
+        else {
+            return;
+        };
+        let kids = self.children(content);
+        if kids.is_empty() {
+            return;
+        }
+        // 用户可能绕过 itemlist_remove_selected 直接 delete item：clamp 掉越界的 selected 并写回，消除漂移
+        let cur = cur.min(kids.len() - 1);
+        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_itemlist_mut()) {
+            if s.selected != cur {
+                s.selected = cur;
+            }
+        }
+        let nidx = idx.min(kids.len() - 1);
+        if nidx == cur {
+            return;
+        }
+        self.set_state(kids[cur], State::SELECTED, false);
+        self.set_state(kids[nidx], State::SELECTED, true);
+        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_itemlist_mut()) {
+            s.selected = nidx;
+        }
+        ensure_visible(self, il);
+        self.send_event(il, crate::event::EventKind::ValueChanged);
+    }
+
+    fn itemlist_selected(&self, il: ObjRef) -> usize {
+        self.kind(il)
+            .and_then(|k| k.as_itemlist())
+            .map(|s| s.selected)
+            .unwrap_or(0)
+    }
+
+    fn itemlist_len(&self, il: ObjRef) -> usize {
+        self.kind(il)
+            .and_then(|k| k.as_itemlist())
+            .map(|s| self.children(s.content).len())
+            .unwrap_or(0)
+    }
+}
+
+/// 滚动 content（translate.y）使选中 item 在视口内可见（瞬时，无动画）
+fn ensure_visible(ui: &mut Ui, il: ObjRef) {
+    // item 位置由 Flex 布局产出：先冲刷待处理布局，保证下面读到的是最新 rect
+    if ui.layout_dirty {
+        ui.layout_pass();
+        ui.layout_dirty = false;
+    }
+    let Some((content, selected)) = ui
+        .kind(il)
+        .and_then(|k| k.as_itemlist())
+        .map(|s| (s.content, s.selected))
+    else {
+        return;
+    };
+    let Some(item) = ui.children(content).get(selected).copied() else {
+        return;
+    };
+    let vp_h = ui.rect(il).h;
+    // 视口无布局，content 高度不会被撑开：取子项最大底边作为内容总高
+    let content_h = ui
+        .children(content)
+        .iter()
+        .map(|&k| ui.rect(k).bottom())
+        .max()
+        .unwrap_or(0);
+    let ir = ui.rect(item); // 相对 content 的本地 rect
+    let off = ui.translate(content).y;
+    let mut new_off = if content_h <= vp_h {
+        0 // 内容不足一屏：不滚动
+    } else if ir.h >= vp_h {
+        -ir.y // item 高于视口：顶对齐
+    } else {
+        let top = ir.y + off;
+        let bottom = top + ir.h;
+        if top < 0 {
+            off - top // 上滚：顶对齐
+        } else if bottom > vp_h {
+            off - (bottom - vp_h) // 下滚：底对齐
+        } else {
+            off
+        }
+    };
+    new_off = new_off.min(0); // 不允许向下露出内容顶部空白
+    if new_off != off {
+        ui.set_translate(content, 0, new_off);
+    }
 }
