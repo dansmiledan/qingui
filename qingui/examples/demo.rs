@@ -146,8 +146,8 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         }));
     }));
     // image widget 示例：静态图（蓝底白斜纹）+ gif 帧动画（红/绿/蓝循环）
-    let _logo = ImageBuilder::new(&images::LOGO).build(ui, page_about);
-    let _anim = ImageBuilder::new(&images::ANIM).build(ui, page_about);
+    let _logo = ImageBuilder::new(&images::HAIZEI).build(ui, page_about);
+    let _anim = ImageBuilder::new(&images::MIAO).build(ui, page_about);
 
     // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
     let page_animate = ObjBuilder::new().build(ui, panel);
