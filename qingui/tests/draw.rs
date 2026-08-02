@@ -166,3 +166,52 @@ fn draw_arc_wraparound_sweep() {
     assert_eq!(at(13, 10), Color::RED); // 正右（0° 方向）：弧内
     assert_eq!(at(7, 10), Color::BLACK); // 正左（180° 方向）：弧外
 }
+
+
+#[test]
+fn rgb565_roundtrip() {
+    use qingui::Color;
+    // 纯色端点
+    assert_eq!(Color::from_rgb565(0xF800), Color::rgb(255, 0, 0));
+    assert_eq!(Color::from_rgb565(0x07E0), Color::rgb(0, 255, 0));
+    assert_eq!(Color::from_rgb565(0x001F), Color::rgb(0, 0, 255));
+    assert_eq!(Color::from_rgb565(0xFFFF), Color::rgb(255, 255, 255));
+    assert_eq!(Color::from_rgb565(0x0000), Color::rgb(0, 0, 0));
+    // 全量往返不丢位
+    for v in [0x0001u16, 0x1234, 0x7BEF, 0x8C51, 0xFFFE] {
+        assert_eq!(Color::from_rgb565(v).to_rgb565(), v);
+    }
+}
+
+#[test]
+fn blit565_pixels_clip_and_opa() {
+    use qingui::draw::DrawBuf;
+    use qingui::{Color, Rect};
+    // 2x2 图:红 绿 / 蓝 白(565 小端字节序)
+    let data: [u8; 8] = [0x00, 0xF8, 0xE0, 0x07, 0x1F, 0x00, 0xFF, 0xFF];
+    let mut buf = [Color::rgb(0, 0, 0); 16];
+    {
+        let mut d = DrawBuf { pixels: &mut buf, area: Rect::new(0, 0, 4, 4), stride: 4 };
+        d.blit565(1, 1, 2, 2, &data, 255, Rect::new(0, 0, 4, 4));
+    }
+    assert_eq!(buf[1 * 4 + 1], Color::rgb(255, 0, 0));
+    assert_eq!(buf[1 * 4 + 2], Color::rgb(0, 255, 0));
+    assert_eq!(buf[2 * 4 + 1], Color::rgb(0, 0, 255));
+    assert_eq!(buf[2 * 4 + 2], Color::rgb(255, 255, 255));
+    // clip 裁剪:只允许左列
+    let mut buf2 = [Color::rgb(0, 0, 0); 16];
+    {
+        let mut d = DrawBuf { pixels: &mut buf2, area: Rect::new(0, 0, 4, 4), stride: 4 };
+        d.blit565(1, 1, 2, 2, &data, 255, Rect::new(0, 0, 2, 4));
+    }
+    assert_eq!(buf2[1 * 4 + 1], Color::rgb(255, 0, 0));
+    assert_eq!(buf2[1 * 4 + 2], Color::rgb(0, 0, 0)); // 被裁掉
+    // opa=0 不写;data 不足不画不 panic
+    let mut buf3 = [Color::rgb(1, 2, 3); 4];
+    {
+        let mut d = DrawBuf { pixels: &mut buf3, area: Rect::new(0, 0, 2, 2), stride: 2 };
+        d.blit565(0, 0, 2, 2, &data, 0, Rect::new(0, 0, 2, 2));
+        d.blit565(0, 0, 4, 4, &data, 255, Rect::new(0, 0, 2, 2)); // 长度不足
+    }
+    assert_eq!(buf3, [Color::rgb(1, 2, 3); 4]);
+}

@@ -114,6 +114,26 @@ impl DrawBuf<'_> {
         }
     }
 
+    /// 1:1 blit RGB565(小端)位图;data 不足 w*h*2 时静默不画。无分配。
+    pub fn blit565(&mut self, x: i32, y: i32, w: i32, h: i32, data: &[u8], opa: u8, clip: Rect) {
+        if w <= 0 || h <= 0 || data.len() < (w as usize) * (h as usize) * 2 {
+            return;
+        }
+        let dst = Rect::new(x, y, w, h);
+        let Some(r) = dst.intersect(&clip).and_then(|r| r.intersect(&self.area)) else {
+            return;
+        };
+        for py in r.y..r.bottom() {
+            for px in r.x..r.right() {
+                let sx = (px - x) as usize;
+                let sy = (py - y) as usize;
+                let i = (sy * w as usize + sx) * 2;
+                let v = data[i] as u16 | ((data[i + 1] as u16) << 8);
+                self.put(px, py, crate::geometry::Color::from_rgb565(v), opa);
+            }
+        }
+    }
+
     /// 圆角实心矩形：角用 4x4 超采样抗锯齿
     pub fn fill_rounded(&mut self, r: Rect, radius: i32, c: Color, opa: u8, clip: Rect) {
         let radius = radius.min(r.w / 2).min(r.h / 2).max(0);

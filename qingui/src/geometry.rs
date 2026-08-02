@@ -95,4 +95,11 @@ impl Color {
         let m = |s: u8, o: u8| ((s as u32 * inv + o as u32 * a + 127) / 255) as u8;
         Color::rgb(m(self.r, over.r), m(self.g, over.g), m(self.b, over.b))
     }
+    /// RGB565(5-6-5)→ RGB888(位复制扩展,全量往返不丢位)
+    pub fn from_rgb565(v: u16) -> Color {
+        let r = ((v >> 11) & 0x1F) as u8;
+        let g = ((v >> 5) & 0x3F) as u8;
+        let b = (v & 0x1F) as u8;
+        Color::rgb((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
+    }
 }
