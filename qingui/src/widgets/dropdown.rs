@@ -184,3 +184,10 @@ impl DropdownBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for DropdownState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.items, self.selected, ctx, d, clip) }
+    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+    fn value(&self) -> i32 { self.selected as i32 }
+    fn set_value(&mut self, v: i32) -> bool { super::select_clamp(self.items.len(), &mut self.selected, v) }
+}

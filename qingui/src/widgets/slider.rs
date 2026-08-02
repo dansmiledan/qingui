@@ -129,3 +129,13 @@ impl SliderBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for SliderState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.min, self.max, self.value, ctx, d, clip) }
+    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+    fn value(&self) -> i32 { self.value }
+    fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
+    fn set_range(&mut self, min: i32, max: i32) { self.min = min; self.max = max; self.value = self.value.clamp(min, max); }
+    // Slider 旋钮 ±4px 横向 ±2px 纵向
+    fn overflow(&self) -> i32 { 4 }
+}

@@ -106,3 +106,7 @@ pub(crate) fn text(ui: &Ui, obj: ObjRef) -> String {
     }
     String::new()
 }
+
+impl super::WidgetBehavior for LabelState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, ctx, d, clip) }
+}

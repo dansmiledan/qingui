@@ -24,7 +24,7 @@ pub struct Ui {
 impl Ui {
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
         let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), WidgetKind::Obj));
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), WidgetKind::Obj(crate::widgets::obj::ObjState)));
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
@@ -56,7 +56,7 @@ impl Ui {
 
     /// 挂载用户自定义 widget（实现 widgets::custom::Widget）
     pub fn create_custom(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::custom::Widget>) -> ObjRef {
-        self.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Custom(widget))
+        self.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Custom(crate::widgets::custom::CustomState(widget)))
     }
 
     /// 只读查询自定义 widget 状态（类型不匹配或对象非 Custom 返回 None）
@@ -1207,7 +1207,7 @@ impl Ui {
         let vis_h = self.rect(obj).h;
         let now = self.time_ms;
         let mut kind = match self.arena.get_mut(obj) {
-            Some(n) => core::mem::replace(&mut n.kind, WidgetKind::Obj),
+            Some(n) => core::mem::replace(&mut n.kind, WidgetKind::Obj(crate::widgets::obj::ObjState)),
             None => return false,
         };
         // Custom：用户状态在拆出的 Box 里，on_key 可安全接收 &mut Ui
@@ -1285,7 +1285,7 @@ impl Ui {
             let s = self.arena.get(il)?.kind.as_itemlist()?;
             (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
         };
-        let item = self.insert_node(content, Rect::default(), WidgetKind::Obj);
+        let item = self.insert_node(content, Rect::default(), WidgetKind::Obj(crate::widgets::obj::ObjState));
         let mut st = crate::widgets::itemlist::item_base_style();
         st.sizing_w = Some(crate::layout::Sizing::GROW);
         self.set_style(item, st);

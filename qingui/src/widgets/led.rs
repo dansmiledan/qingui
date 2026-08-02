@@ -97,3 +97,14 @@ impl LedBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for LedState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.color, self.bright, ctx, d, clip) }
+    fn value(&self) -> i32 { self.bright as i32 }
+    fn set_value(&mut self, v: i32) -> bool {
+        let nv = v.clamp(0, 255) as u8;
+        let c = nv != self.bright;
+        self.bright = nv;
+        c
+    }
+}

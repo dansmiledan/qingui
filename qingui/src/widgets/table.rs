@@ -126,3 +126,7 @@ impl TableBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for TableState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.cols, self.rows, &self.cells, ctx, d, clip) }
+}

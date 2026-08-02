@@ -35,7 +35,7 @@ impl CanvasBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((32, 32));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj);
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
         let mut s = self.style.unwrap_or_default();
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0); // 默认透明背景：画布只承载自定义绘制

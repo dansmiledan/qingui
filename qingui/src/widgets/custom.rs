@@ -27,3 +27,11 @@ pub trait Widget {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
+
+/// Custom 变体的状态包装：把 trait object 委托收进 WidgetBehavior，宏即可一视同仁
+pub struct CustomState(pub alloc::boxed::Box<dyn Widget>);
+
+impl super::WidgetBehavior for CustomState {
+    fn draw(&self, ctx: &super::WidgetCtx, d: &mut DrawBuf, clip: Rect) { self.0.draw(ctx, d, clip) }
+    fn tick(&mut self, now: u64) -> super::TickOut { self.0.tick(now) }
+}

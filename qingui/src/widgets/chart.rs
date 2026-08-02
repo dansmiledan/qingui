@@ -149,3 +149,7 @@ impl ChartBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for ChartState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self, ctx, d, clip) }
+}

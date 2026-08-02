@@ -145,3 +145,15 @@ impl CheckboxBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for CheckboxState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, self.checked, ctx, d, clip) }
+    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+    fn value(&self) -> i32 { self.checked as i32 }
+    fn set_value(&mut self, v: i32) -> bool {
+        let nv = v != 0;
+        let c = nv != self.checked;
+        self.checked = nv;
+        c
+    }
+}

@@ -24,29 +24,6 @@ pub mod spinner;
 pub mod switch;
 pub mod table;
 
-pub enum WidgetKind {
-    Obj,
-    ItemList(itemlist::ItemListState),
-    Label(label::LabelState),
-    Button(button::ButtonState),
-    Slider(slider::SliderState),
-    Switch(switch::SwitchState),
-    Bar(bar::BarState),
-    List(list::ListState),
-    Arc(arc::ArcState),
-    Checkbox(checkbox::CheckboxState),
-    Chart(chart::ChartState),
-    Spinner,
-    Msgbox(msgbox::MsgboxState),
-    Led(led::LedState),
-    Table(table::TableState),
-    Spinbox(spinbox::SpinboxState),
-    Roller(roller::RollerState),
-    Dropdown(dropdown::DropdownState),
-    /// 用户自定义 widget（逃生舱；不可 Clone，故 WidgetKind 不再 derive Clone）
-    Custom(alloc::boxed::Box<dyn custom::Widget>),
-}
-
 /// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
 /// 各控件 draw 只画自己的内容。
 pub struct WidgetCtx<'a> {
@@ -95,241 +72,116 @@ pub(crate) enum KeyOutcome {
     NavSelect(i32),
 }
 
+/// 控件行为接口:draw 必须实现(新 widget 忘了画会编译错),
+/// 其余行为大多数控件没有,给默认空实现。
+pub(crate) trait WidgetBehavior {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect);
+    fn tick(&mut self, _now: u64) -> TickOut { TickOut::IDLE }
+    fn on_key(&mut self, _key: Key, _ctx: KeyCtx) -> KeyOutcome { KeyOutcome::Pass }
+    fn value(&self) -> i32 { 0 }
+    fn set_value(&mut self, _v: i32) -> bool { false }
+    fn set_range(&mut self, _min: i32, _max: i32) {}
+    fn overflow(&self) -> i32 { 0 }
+}
+
+/// set_value 共用:clamp 到 [min,max],返回是否有变化
+pub(crate) fn clamp_val(min: i32, max: i32, value: &mut i32, v: i32) -> bool {
+    let nv = v.clamp(min, max);
+    let changed = nv != *value;
+    *value = nv;
+    changed
+}
+
+/// 选择型控件共用:clamp 到 [0,len),返回是否有变化
+pub(crate) fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
+    if len == 0 { return false; }
+    let nv = (v.max(0) as usize).min(len - 1);
+    let changed = nv != *selected;
+    *selected = nv;
+    changed
+}
+
+/// 声明式注册 widget:生成 enum、行为分发、as_xxx 访问器、downcast。
+/// 每加一个 widget 只需在此处加一行。
+macro_rules! define_widgets {
+    ($($variant:ident($state:ty, $as:ident, $as_mut:ident)),+ $(,)?) => {
+        pub enum WidgetKind {
+            $( $variant($state), )+
+        }
+
+        impl WidgetKind {
+            pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(s, ctx, d, clip), )+ }
+            }
+            pub(crate) fn overflow(&self) -> i32 {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::overflow(s), )+ }
+            }
+            pub(crate) fn value(&self) -> i32 {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::value(s), )+ }
+            }
+            pub(crate) fn set_value(&mut self, v: i32) -> bool {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_value(s, v), )+ }
+            }
+            pub(crate) fn set_range(&mut self, min: i32, max: i32) {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_range(s, min, max), )+ }
+            }
+            pub(crate) fn tick(&mut self, now: u64) -> TickOut {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::tick(s, now), )+ }
+            }
+            pub(crate) fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(s, key, ctx), )+ }
+            }
+            $(
+                pub fn $as(&self) -> Option<&$state> {
+                    match self { WidgetKind::$variant(s) => Some(s), _ => None }
+                }
+                pub fn $as_mut(&mut self) -> Option<&mut $state> {
+                    match self { WidgetKind::$variant(s) => Some(s), _ => None }
+                }
+            )+
+            /// 按类型下发 &mut 状态(Ui::update 用);TypeId 比对 + Any downcast
+            #[allow(dead_code)] // 后续 Task 的 Ui::update 接入后移除
+            pub(crate) fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
+                $(
+                    if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
+                        if let WidgetKind::$variant(s) = self {
+                            return (s as &mut dyn core::any::Any).downcast_mut::<T>();
+                        }
+                    }
+                )+
+                None
+            }
+        }
+    };
+}
+
+define_widgets! {
+    Obj(obj::ObjState, as_obj, as_obj_mut),
+    ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut),
+    Label(label::LabelState, as_label, as_label_mut),
+    Button(button::ButtonState, as_button, as_button_mut),
+    Slider(slider::SliderState, as_slider, as_slider_mut),
+    Switch(switch::SwitchState, as_switch, as_switch_mut),
+    Bar(bar::BarState, as_bar, as_bar_mut),
+    List(list::ListState, as_list, as_list_mut),
+    Arc(arc::ArcState, as_arc, as_arc_mut),
+    Checkbox(checkbox::CheckboxState, as_checkbox, as_checkbox_mut),
+    Chart(chart::ChartState, as_chart, as_chart_mut),
+    Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut),
+    Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut),
+    Led(led::LedState, as_led, as_led_mut),
+    Table(table::TableState, as_table, as_table_mut),
+    Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut),
+    Roller(roller::RollerState, as_roller, as_roller_mut),
+    Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut),
+    Custom(custom::CustomState, as_custom_state, as_custom_state_mut),
+}
+
 impl WidgetKind {
-    pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
-        match self {
-            WidgetKind::Obj => {}
-            WidgetKind::Label(s) => label::draw(&s.text, ctx, d, clip),
-            WidgetKind::Button(s) => button::draw(&s.text, ctx, d, clip),
-            WidgetKind::Slider(s) => slider::draw(s.min, s.max, s.value, ctx, d, clip),
-            WidgetKind::Switch(s) => switch::draw(s.on, ctx, d, clip),
-            WidgetKind::Bar(s) => bar::draw(s.min, s.max, s.value, ctx, d, clip),
-            WidgetKind::List(s) => list::draw(&s.items, s.selected, s.scroll, &s.fx, ctx, d, clip),
-            WidgetKind::Arc(s) => arc::draw(s.min, s.max, s.value, ctx, d, clip),
-            WidgetKind::Checkbox(s) => checkbox::draw(&s.text, s.checked, ctx, d, clip),
-            WidgetKind::Chart(s) => chart::draw(s, ctx, d, clip),
-            WidgetKind::Spinner => spinner::draw(ctx, d, clip),
-            // Msgbox 是普通容器（子对象正常绘制）
-            WidgetKind::Msgbox(_) => {}
-            // ItemList 同为容器：内容由子节点绘制
-            WidgetKind::ItemList(_) => {}
-            WidgetKind::Led(s) => led::draw(s.color, s.bright, ctx, d, clip),
-            WidgetKind::Table(s) => table::draw(s.cols, s.rows, &s.cells, ctx, d, clip),
-            WidgetKind::Spinbox(s) => spinbox::draw(s.min, s.max, s.value, s.digits, s.cursor, ctx, d, clip),
-            WidgetKind::Roller(s) => roller::draw(&s.items, s.selected, s.sel_from, ctx, d, clip),
-            WidgetKind::Dropdown(s) => dropdown::draw(&s.items, s.selected, ctx, d, clip),
-            WidgetKind::Custom(w) => w.draw(ctx, d, clip),
-        }
-    }
-
-    /// 控件绘制超出自身矩形的最大距离（用于标脏外扩，对齐 LVGL ext_draw_size）
-    pub(crate) fn overflow(&self) -> i32 {
-        match self {
-            // Slider 旋钮 ±4px 横向 ±2px 纵向；Arc 旋钮超出边缘 ~3px
-            WidgetKind::Slider(_) | WidgetKind::Arc(_) => 4,
-            _ => 0,
-        }
-    }
-
-    /// 控件的当前值（Switch/Checkbox：on=1/off=0；Roller/Dropdown：选中索引；无值控件返回 0）
-    pub(crate) fn value(&self) -> i32 {
-        match self {
-            WidgetKind::Slider(s) => s.value,
-            WidgetKind::Bar(s) => s.value,
-            WidgetKind::Arc(s) => s.value,
-            WidgetKind::Switch(s) => s.on as i32,
-            WidgetKind::Checkbox(s) => s.checked as i32,
-            WidgetKind::Spinbox(s) => s.value,
-            WidgetKind::Led(s) => s.bright as i32,
-            WidgetKind::Roller(s) => s.selected as i32,
-            WidgetKind::Dropdown(s) => s.selected as i32,
-            WidgetKind::ItemList(s) => s.selected as i32,
-            _ => 0,
-        }
-    }
-
-    /// 设置控件值（clamp 到 range），返回是否有变化
-    pub(crate) fn set_value(&mut self, v: i32) -> bool {
-        fn clamp_val(min: i32, max: i32, value: &mut i32, v: i32) -> bool {
-            let nv = v.clamp(min, max);
-            let changed = nv != *value;
-            *value = nv;
-            changed
-        }
-        fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
-            if len == 0 { return false; }
-            let nv = (v.max(0) as usize).min(len - 1);
-            let changed = nv != *selected;
-            *selected = nv;
-            changed
-        }
-        match self {
-            WidgetKind::Slider(s) => clamp_val(s.min, s.max, &mut s.value, v),
-            WidgetKind::Bar(s) => clamp_val(s.min, s.max, &mut s.value, v),
-            WidgetKind::Arc(s) => clamp_val(s.min, s.max, &mut s.value, v),
-            WidgetKind::Spinbox(s) => clamp_val(s.min, s.max, &mut s.value, v),
-            WidgetKind::Checkbox(s) => {
-                let nv = v != 0;
-                let c = nv != s.checked;
-                s.checked = nv;
-                c
-            }
-            WidgetKind::Led(s) => {
-                let nv = v.clamp(0, 255) as u8;
-                let c = nv != s.bright;
-                s.bright = nv;
-                c
-            }
-            WidgetKind::Roller(s) => select_clamp(s.items.len(), &mut s.selected, v),
-            WidgetKind::Dropdown(s) => select_clamp(s.items.len(), &mut s.selected, v),
-            _ => false,
-        }
-    }
-
-    /// 设置控件 range（值随之 clamp）
-    pub(crate) fn set_range(&mut self, min: i32, max: i32) {
-        match self {
-            WidgetKind::Slider(s) => {
-                s.min = min;
-                s.max = max;
-                s.value = s.value.clamp(min, max);
-            }
-            WidgetKind::Bar(s) => {
-                s.min = min;
-                s.max = max;
-                s.value = s.value.clamp(min, max);
-            }
-            _ => {}
-        }
-    }
-
-    /// 每帧效果推进（fx/自转）。默认无逐帧行为。
-    pub(crate) fn tick(&mut self, now: u64) -> TickOut {
-        match self {
-            WidgetKind::List(s) => s.tick(now),
-            WidgetKind::Roller(s) => s.tick(now),
-            // Spinner 永远自转
-            WidgetKind::Spinner => TickOut::ACTIVE,
-            WidgetKind::Custom(w) => w.tick(now),
-            _ => TickOut::IDLE,
-        }
-    }
-
-    /// 按键处理（无 &mut Ui：只改自身状态，副作用由 Ui 按 KeyOutcome 执行）
-    pub(crate) fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
-        match self {
-            WidgetKind::Slider(s) => s.on_key(key, ctx),
-            WidgetKind::Spinbox(s) => s.on_key(key, ctx),
-            WidgetKind::Switch(s) => s.on_key(key, ctx),
-            WidgetKind::Checkbox(s) => s.on_key(key, ctx),
-            WidgetKind::List(s) => s.on_key(key, ctx),
-            WidgetKind::Roller(s) => s.on_key(key, ctx),
-            WidgetKind::Dropdown(s) => s.on_key(key, ctx),
-            WidgetKind::ItemList(s) => s.on_key(key, ctx),
-            _ => KeyOutcome::Pass,
-        }
-    }
-
-    pub fn as_list(&self) -> Option<&list::ListState> {
-        match self { WidgetKind::List(s) => Some(s), _ => None }
-    }
-    pub fn as_list_mut(&mut self) -> Option<&mut list::ListState> {
-        match self { WidgetKind::List(s) => Some(s), _ => None }
-    }
-    pub fn as_itemlist(&self) -> Option<&itemlist::ItemListState> {
-        match self { WidgetKind::ItemList(s) => Some(s), _ => None }
-    }
-    pub fn as_itemlist_mut(&mut self) -> Option<&mut itemlist::ItemListState> {
-        match self { WidgetKind::ItemList(s) => Some(s), _ => None }
-    }
-    pub fn as_roller(&self) -> Option<&roller::RollerState> {
-        match self { WidgetKind::Roller(s) => Some(s), _ => None }
-    }
-    pub fn as_roller_mut(&mut self) -> Option<&mut roller::RollerState> {
-        match self { WidgetKind::Roller(s) => Some(s), _ => None }
-    }
-    pub fn as_dropdown(&self) -> Option<&dropdown::DropdownState> {
-        match self { WidgetKind::Dropdown(s) => Some(s), _ => None }
-    }
-    pub fn as_dropdown_mut(&mut self) -> Option<&mut dropdown::DropdownState> {
-        match self { WidgetKind::Dropdown(s) => Some(s), _ => None }
-    }
-    pub fn as_table(&self) -> Option<&table::TableState> {
-        match self { WidgetKind::Table(s) => Some(s), _ => None }
-    }
-    pub fn as_table_mut(&mut self) -> Option<&mut table::TableState> {
-        match self { WidgetKind::Table(s) => Some(s), _ => None }
-    }
-    pub fn as_checkbox(&self) -> Option<&checkbox::CheckboxState> {
-        match self { WidgetKind::Checkbox(s) => Some(s), _ => None }
-    }
-    pub fn as_checkbox_mut(&mut self) -> Option<&mut checkbox::CheckboxState> {
-        match self { WidgetKind::Checkbox(s) => Some(s), _ => None }
-    }
-    pub fn as_chart(&self) -> Option<&chart::ChartState> {
-        match self { WidgetKind::Chart(s) => Some(s), _ => None }
-    }
-    pub fn as_chart_mut(&mut self) -> Option<&mut chart::ChartState> {
-        match self { WidgetKind::Chart(s) => Some(s), _ => None }
-    }
-    pub fn as_switch(&self) -> Option<&switch::SwitchState> {
-        match self { WidgetKind::Switch(s) => Some(s), _ => None }
-    }
-    pub fn as_switch_mut(&mut self) -> Option<&mut switch::SwitchState> {
-        match self { WidgetKind::Switch(s) => Some(s), _ => None }
-    }
-    pub fn as_msgbox(&self) -> Option<&msgbox::MsgboxState> {
-        match self { WidgetKind::Msgbox(s) => Some(s), _ => None }
-    }
-    pub fn as_msgbox_mut(&mut self) -> Option<&mut msgbox::MsgboxState> {
-        match self { WidgetKind::Msgbox(s) => Some(s), _ => None }
-    }
-    pub fn as_spinbox(&self) -> Option<&spinbox::SpinboxState> {
-        match self { WidgetKind::Spinbox(s) => Some(s), _ => None }
-    }
-    pub fn as_spinbox_mut(&mut self) -> Option<&mut spinbox::SpinboxState> {
-        match self { WidgetKind::Spinbox(s) => Some(s), _ => None }
-    }
-    pub fn as_label(&self) -> Option<&label::LabelState> {
-        match self { WidgetKind::Label(s) => Some(s), _ => None }
-    }
-    pub fn as_label_mut(&mut self) -> Option<&mut label::LabelState> {
-        match self { WidgetKind::Label(s) => Some(s), _ => None }
-    }
-    pub fn as_button(&self) -> Option<&button::ButtonState> {
-        match self { WidgetKind::Button(s) => Some(s), _ => None }
-    }
-    pub fn as_button_mut(&mut self) -> Option<&mut button::ButtonState> {
-        match self { WidgetKind::Button(s) => Some(s), _ => None }
-    }
-    pub fn as_led(&self) -> Option<&led::LedState> {
-        match self { WidgetKind::Led(s) => Some(s), _ => None }
-    }
-    pub fn as_led_mut(&mut self) -> Option<&mut led::LedState> {
-        match self { WidgetKind::Led(s) => Some(s), _ => None }
-    }
-    pub fn as_slider(&self) -> Option<&slider::SliderState> {
-        match self { WidgetKind::Slider(s) => Some(s), _ => None }
-    }
-    pub fn as_slider_mut(&mut self) -> Option<&mut slider::SliderState> {
-        match self { WidgetKind::Slider(s) => Some(s), _ => None }
-    }
-    pub fn as_bar(&self) -> Option<&bar::BarState> {
-        match self { WidgetKind::Bar(s) => Some(s), _ => None }
-    }
-    pub fn as_bar_mut(&mut self) -> Option<&mut bar::BarState> {
-        match self { WidgetKind::Bar(s) => Some(s), _ => None }
-    }
-    pub fn as_arc(&self) -> Option<&arc::ArcState> {
-        match self { WidgetKind::Arc(s) => Some(s), _ => None }
-    }
-    pub fn as_arc_mut(&mut self) -> Option<&mut arc::ArcState> {
-        match self { WidgetKind::Arc(s) => Some(s), _ => None }
-    }
     pub(crate) fn as_custom(&self) -> Option<&dyn custom::Widget> {
-        match self { WidgetKind::Custom(w) => Some(w.as_ref()), _ => None }
+        match self { WidgetKind::Custom(s) => Some(s.0.as_ref()), _ => None }
     }
     pub(crate) fn as_custom_mut(&mut self) -> Option<&mut dyn custom::Widget> {
-        match self { WidgetKind::Custom(w) => Some(w.as_mut()), _ => None }
+        match self { WidgetKind::Custom(s) => Some(s.0.as_mut()), _ => None }
     }
 }

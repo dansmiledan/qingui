@@ -110,3 +110,11 @@ impl ArcBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for ArcState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.min, self.max, self.value, ctx, d, clip) }
+    fn value(&self) -> i32 { self.value }
+    fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
+    // Arc 旋钮超出边缘 ~3px
+    fn overflow(&self) -> i32 { 4 }
+}

@@ -59,7 +59,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
     // 按钮行
-    let row = ui.insert_node(root, Rect::default(), WidgetKind::Obj);
+    let row = ui.insert_node(root, Rect::default(), WidgetKind::Obj(super::obj::ObjState));
     let mut rs = crate::style::Style::default();
     rs.bg_opa = Some(0);
     rs.layout = Some(Layout::Flex(Flex {
@@ -93,4 +93,9 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     }
     ui.set_modal(root);
     root
+}
+
+impl super::WidgetBehavior for MsgboxState {
+    // Msgbox 是普通容器（子对象正常绘制）
+    fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut crate::draw::DrawBuf, _clip: Rect) {}
 }

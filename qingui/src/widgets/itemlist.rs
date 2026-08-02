@@ -81,10 +81,10 @@ impl ItemListBuilder {
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((120, 100));
         // 视口节点先以 Obj 占位（content 引用需要自指后的句柄）
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj);
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
         ui.set_clip_children(r, true);
         // content：Flex column 容器，宽 GROW，透明背景
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), WidgetKind::Obj);
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), WidgetKind::Obj(super::obj::ObjState));
         ui.set_style(content, transparent());
         ui.set_sizing(content, Some(Sizing::GROW), None);
         ui.set_layout(content, column_layout());
@@ -126,4 +126,11 @@ fn default_sel_style() -> Style {
     s.bg_color = Some(Color::rgb(50, 70, 120));
     s.bg_opa = Some(255);
     s
+}
+
+impl super::WidgetBehavior for ItemListState {
+    // ItemList 同为容器：内容由子节点绘制
+    fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut crate::draw::DrawBuf, _clip: Rect) {}
+    fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome { self.on_key(key, ctx) }
+    fn value(&self) -> i32 { self.selected as i32 }
 }

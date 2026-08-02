@@ -105,3 +105,7 @@ impl ButtonBuilder {
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
     ButtonBuilder::new(text).build(ui, parent)
 }
+
+impl super::WidgetBehavior for ButtonState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, ctx, d, clip) }
+}

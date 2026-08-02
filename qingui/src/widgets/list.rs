@@ -336,3 +336,9 @@ impl ListBuilder {
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
     ListBuilder::new(items).build(ui, parent)
 }
+
+impl super::WidgetBehavior for ListState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.items, self.selected, self.scroll, &self.fx, ctx, d, clip) }
+    fn tick(&mut self, now: u64) -> super::TickOut { self.tick(now) }
+    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+}

@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
+use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -39,7 +40,7 @@ impl ObjBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((0, 0));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj);
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(ObjState));
         if let Some(s) = self.style {
             ui.set_style(r, s);
         }
@@ -57,4 +58,11 @@ impl ObjBuilder {
         }
         r
     }
+}
+
+/// 占位状态：Obj 无数据，仅为让宏对所有变体一视同仁
+pub struct ObjState;
+
+impl super::WidgetBehavior for ObjState {
+    fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut DrawBuf, _clip: Rect) {}
 }

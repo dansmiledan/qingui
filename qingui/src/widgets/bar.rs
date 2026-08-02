@@ -98,3 +98,10 @@ impl BarBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for BarState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.min, self.max, self.value, ctx, d, clip) }
+    fn value(&self) -> i32 { self.value }
+    fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
+    fn set_range(&mut self, min: i32, max: i32) { self.min = min; self.max = max; self.value = self.value.clamp(min, max); }
+}

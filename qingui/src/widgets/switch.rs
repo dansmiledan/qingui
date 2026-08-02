@@ -100,3 +100,9 @@ impl SwitchBuilder {
         r
     }
 }
+
+impl super::WidgetBehavior for SwitchState {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.on, ctx, d, clip) }
+    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+    fn value(&self) -> i32 { self.on as i32 }
+}

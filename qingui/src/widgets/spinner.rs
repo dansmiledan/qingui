@@ -63,7 +63,7 @@ impl SpinnerBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((32, 32));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Spinner);
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Spinner(SpinnerState));
         let mut s = self.style.unwrap_or_default();
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);
@@ -80,4 +80,13 @@ impl SpinnerBuilder {
         }
         r
     }
+}
+
+/// 占位状态：Spinner 无数据，仅为让宏对所有变体一视同仁
+pub struct SpinnerState;
+
+impl super::WidgetBehavior for SpinnerState {
+    fn draw(&self, ctx: &super::WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(ctx, d, clip) }
+    // Spinner 永远自转
+    fn tick(&mut self, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
 }
