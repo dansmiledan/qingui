@@ -71,6 +71,14 @@ fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i
     n
 }
 
+/// Rect → e-g Rectangle（x/y 起点 + 尺寸；负尺寸防御为 0）
+fn eg_rect(r: Rect) -> embedded_graphics::primitives::Rectangle {
+    embedded_graphics::primitives::Rectangle::new(
+        embedded_graphics::geometry::Point::new(r.x, r.y),
+        embedded_graphics::geometry::Size::new(r.w.max(0) as u32, r.h.max(0) as u32),
+    )
+}
+
 /// 一块屏幕区域的像素缓冲。坐标一律为屏幕绝对坐标，写入时减去 area 原点。
 pub struct DrawBuf<'a> {
     pub pixels: &'a mut [Color],
@@ -83,7 +91,7 @@ impl DrawBuf<'_> {
         self.pixels.fill(c);
     }
 
-    fn put(&mut self, x: i32, y: i32, c: Color, opa: u8) {
+    pub(crate) fn put(&mut self, x: i32, y: i32, c: Color, opa: u8) {
         if !self.area.contains(crate::geometry::Point { x, y }) {
             return;
         }
@@ -203,9 +211,9 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 逐行绘制文本，支持 '\n'。glyph bit0 = 最左像素。
-    pub fn draw_text(&mut self, pos: crate::geometry::Point, s: &str, c: Color, clip: Rect) {
-        self.draw_text_opa(pos, s, c, 255, clip);
+    /// 经 e-g Text 渲染器绘制文本；On 像素走 put(fg/opa)，Off 不写（背景透明）。
+    pub fn draw_text(&mut self, pos: crate::geometry::Point, font: &'static embedded_graphics::mono_font::MonoFont, s: &str, c: Color, clip: Rect) {
+        self.draw_text_opa(pos, font, s, c, 255, clip);
     }
 
     /// 圆盘（填充圆），4x4 超采样抗锯齿
@@ -282,24 +290,46 @@ impl DrawBuf<'_> {
     }
 
     /// draw_text 的带透明度版本
-    pub fn draw_text_opa(&mut self, pos: crate::geometry::Point, s: &str, c: Color, opa: u8, clip: Rect) {
-        let mut y = pos.y;
-        for line in s.split('\n') {
-            let mut x = pos.x;
-            for ch in line.chars() {
-                let g = crate::font::glyph(ch);
-                for row in 0..8i32 {
-                    let bits = g[row as usize];
-                    for col in 0..8i32 {
-                        if bits & (1 << col) != 0 {
-                            self.put_clipped(x + col, y + row, c, opa, clip);
-                        }
+    pub fn draw_text_opa(&mut self, pos: crate::geometry::Point, font: &'static embedded_graphics::mono_font::MonoFont, s: &str, c: Color, opa: u8, clip: Rect) {
+        use embedded_graphics::draw_target::DrawTarget;
+        use embedded_graphics::Drawable;
+        struct EgTarget<'a, 'b> {
+            d: &'a mut DrawBuf<'b>,
+            c: Color,
+            opa: u8,
+        }
+        impl DrawTarget for EgTarget<'_, '_> {
+            type Color = embedded_graphics::pixelcolor::BinaryColor;
+            type Error = core::convert::Infallible;
+            fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+            where
+                I: IntoIterator<Item = embedded_graphics::Pixel<Self::Color>>,
+            {
+                for embedded_graphics::Pixel(p, col) in pixels {
+                    if col == embedded_graphics::pixelcolor::BinaryColor::On {
+                        self.d.put(p.x, p.y, self.c, self.opa);
                     }
                 }
-                x += crate::font::GLYPH_W;
+                Ok(())
             }
-            y += crate::font::LINE_H;
         }
+        // 必须手实现 Dimensions 而非 OriginDimensions：后者原点恒为 (0,0)，
+        // 而 clipped() 会把 clip 与 bounding_box 相交，非零 area 原点会错误裁掉文本
+        impl embedded_graphics::geometry::Dimensions for EgTarget<'_, '_> {
+            fn bounding_box(&self) -> embedded_graphics::primitives::Rectangle {
+                eg_rect(self.d.area)
+            }
+        }
+        let style = embedded_graphics::mono_font::MonoTextStyle::new(font, embedded_graphics::pixelcolor::BinaryColor::On);
+        let mut t = EgTarget { d: self, c, opa };
+        let mut t = embedded_graphics::draw_target::DrawTargetExt::clipped(&mut t, &eg_rect(clip));
+        let _ = embedded_graphics::text::Text::with_baseline(
+            s,
+            embedded_graphics::geometry::Point::new(pos.x, pos.y),
+            style,
+            embedded_graphics::text::Baseline::Top,
+        )
+        .draw(&mut t);
     }
 
     /// 直线（Bresenham + 半径 stamp 实现线宽）

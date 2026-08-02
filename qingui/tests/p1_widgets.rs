@@ -67,10 +67,8 @@ fn table_cells() {
     ui.table_set_cell(t, 0, 0, "A1");
     ui.table_set_cell(t, 1, 1, "B2");
     ui.render();
-    // 'A' 第一行 0x0C → 文本区有白色像素
-    let glyph = qingui::font::glyph('A');
-    assert_eq!(glyph[0], 0x0C);
-    assert_eq!(px(&rec, 14 + 2, 14), Color::WHITE); // 'A' row0 bit2
+    // FONT_6X10 'A' 字模第 1 行 001000 → 文本起点 (14,14) 右 2 下 1 处点亮
+    assert_eq!(px(&rec, 14 + 2, 14 + 1), Color::WHITE);
     // 网格线
     assert_eq!(px(&rec, 10, 20), Color::rgb(70, 70, 90));
     // 底边网格线（半开区间修正后应存在）
@@ -121,10 +119,12 @@ fn spinbox_cursor_highlight() {
     ui.set_value(sb, 5);
     ui.set_state(sb, qingui::node::State::EDITED, true); // 编辑态才显示光标高亮
     ui.render();
-    // 个位（右端第 3 位）高亮：取高亮块内字形之外的像素 (40,15)
-    assert_eq!(px(&rec, 40, 15), Color::rgb(80, 140, 255));
-    // 百位无高亮：'0' 字形像素为文本白色（非高亮底色）
-    assert_eq!(px(&rec, 19, 15), Color::WHITE);
+    // 布局（FONT_6X10：advance 6、行高 10）：spinbox 默认 30x18，(10,10) 起；
+    // 数字 '0','0','5' 分别在 x=16/22/28，字形顶行 y=14；个位高亮块 (27,11,8,16)
+    // 个位（右端第 3 位）高亮：取高亮块内字形之上的像素 (28,12)
+    assert_eq!(px(&rec, 28, 12), Color::rgb(80, 140, 255));
+    // 百位无高亮：'0' 字形第 1 行 ..#... → (18,15) 为文本白色（非高亮底色）
+    assert_eq!(px(&rec, 18, 15), Color::WHITE);
 }
 
 #[test]

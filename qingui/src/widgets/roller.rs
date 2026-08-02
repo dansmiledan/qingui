@@ -72,9 +72,10 @@ pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64
         if ry + 8 < lclip.y || ry - 4 > lclip.bottom() {
             continue;
         }
-        let (tw, _) = crate::font::text_size(item);
+        let (tw, _) = crate::font::text_size(ctx.resolved.font, item);
         d.draw_text_opa(
             Point { x: abs.x + (abs.w - tw) / 2, y: ry },
+            ctx.resolved.font,
             item,
             ctx.resolved.text_color,
             ap,

@@ -47,24 +47,21 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: 
     let lclip = abs.intersect(&clip).unwrap_or(clip);
     let text = alloc::format!("{:0width$}", value, width = digits as usize);
     let ap = ctx.ap(255);
-    let x0 = abs.x + (abs.w - digits as i32 * 8) / 2;
-    let y = abs.y + (abs.h - 8) / 2;
+    let font = ctx.resolved.font;
+    let adv = crate::font::advance(font);
+    let lh = crate::font::line_height(font);
+    let x0 = abs.x + (abs.w - digits as i32 * adv) / 2;
+    let y = abs.y + (abs.h - lh) / 2;
     for (i, ch) in text.chars().enumerate() {
-        let x = x0 + i as i32 * 8;
+        let x = x0 + i as i32 * adv;
         if i as u8 == cursor && ctx.edited {
             // 光标位：反色高亮
-            d.fill_rounded(Rect::new(x - 1, abs.y + 1, 10, abs.h - 2), 2, Color::rgb(80, 140, 255), ap, lclip);
-            let g = crate::font::glyph(ch);
-            for row in 0..8i32 {
-                for col in 0..8i32 {
-                    if g[row as usize] & (1 << col) != 0 {
-                        d.fill_rect(Rect::new(x + col, y + row, 1, 1), Color::BLACK, ap, lclip);
-                    }
-                }
-            }
+            d.fill_rounded(Rect::new(x - 1, abs.y + 1, adv + 2, abs.h - 2), 2, Color::rgb(80, 140, 255), ap, lclip);
+            let mut buf = [0u8; 4];
+            d.draw_text_opa(Point { x, y }, font, ch.encode_utf8(&mut buf), Color::BLACK, ap, lclip);
         } else {
             let mut buf = [0u8; 4];
-            d.draw_text_opa(Point { x, y }, ch.encode_utf8(&mut buf), ctx.resolved.text_color, ap, lclip);
+            d.draw_text_opa(Point { x, y }, font, ch.encode_utf8(&mut buf), ctx.resolved.text_color, ap, lclip);
         }
     }
 }
@@ -82,7 +79,7 @@ pub(crate) fn step_digit(min: i32, max: i32, value: &mut i32, digits: u8, cursor
     *value = (*value + dir * step).clamp(min, max);
 }
 
-/// Spinbox 构建器：默认 digits*8+12 x 18，bg(40,40,52) r4 + focused 白边
+/// Spinbox 构建器：默认 digits*advance+12 x (行高+8)，bg(40,40,52) r4 + focused 白边
 pub struct SpinboxBuilder {
     min: i32,
     max: i32,
@@ -146,7 +143,7 @@ impl SpinboxBuilder {
     }
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((self.digits as i32 * 8 + 12, 18));
+        let (w, h) = self.size.unwrap_or((self.digits as i32 * crate::font::advance(crate::font::DEFAULT_FONT) + 12, crate::font::line_height(crate::font::DEFAULT_FONT) + 8));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),

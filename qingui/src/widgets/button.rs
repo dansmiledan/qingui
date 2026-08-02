@@ -16,12 +16,12 @@ pub struct ButtonState {
 }
 
 pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
-    let (tw, th) = crate::font::text_size(text);
+    let (tw, th) = crate::font::text_size(ctx.resolved.font, text);
     let p = Point {
         x: ctx.abs.x + (ctx.abs.w - tw) / 2,
         y: ctx.abs.y + (ctx.abs.h - th) / 2,
     };
-    d.draw_text_opa(p, text, ctx.resolved.text_color, ctx.ap(255), clip);
+    d.draw_text_opa(p, ctx.resolved.font, text, ctx.resolved.text_color, ctx.ap(255), clip);
 }
 
 /// Button 构建器：默认文本尺寸 + padding，theme_button/pressed/focused
@@ -79,7 +79,7 @@ impl ButtonBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or_else(|| {
-            let (tw, th) = crate::font::text_size(&self.text);
+            let (tw, th) = crate::font::text_size(crate::font::DEFAULT_FONT, &self.text);
             (tw + 24, th + 12)
         });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Button(ButtonState { text: self.text }));

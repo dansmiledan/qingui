@@ -54,9 +54,9 @@ fn button_builder_pressed_focused_styles() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = ButtonBuilder::new("OK").build(&mut ui, scr);
-    // 默认尺寸 = 文本尺寸 + (24, 12)；"OK" 为 2 个 8x8 字模
+    // 默认尺寸 = 文本尺寸 + (24, 12)；"OK" 为 2 个 FONT_6X10 字模（6x10）
     let r = ui.rect(b);
-    assert_eq!((r.w, r.h), (2 * 8 + 24, 8 + 12));
+    assert_eq!((r.w, r.h), (2 * 6 + 24, 10 + 12));
     // theme_button
     let st = ui.resolved_style(b);
     assert_eq!(st.bg_color, Color::rgb(60, 90, 160));

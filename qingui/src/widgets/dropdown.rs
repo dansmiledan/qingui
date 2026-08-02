@@ -76,7 +76,8 @@ pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut D
     let ap = ctx.ap(255);
     let text = items.get(selected).map(|s| s.as_str()).unwrap_or("");
     d.draw_text_opa(
-        Point { x: abs.x + 6, y: abs.y + (abs.h - 8) / 2 },
+        Point { x: abs.x + 6, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
+        ctx.resolved.font,
         text,
         ctx.resolved.text_color,
         ap,

@@ -150,7 +150,7 @@ pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, 
         if !row.intersects(&lclip) {
             continue;
         }
-        d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, item, ctx.resolved.text_color, opa, lclip);
+        d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, opa, lclip);
     }
     // 删除中的 ghost 渐隐
     if let Some(g) = &fx.ghost {
@@ -160,6 +160,7 @@ pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, 
         if row.intersects(&lclip) {
             d.draw_text_opa(
                 Point { x: abs.x + 4, y: ry + 4 },
+                ctx.resolved.font,
                 &g.text,
                 ctx.resolved.text_color,
                 ctx.ap((255.0 * (1.0 - t)) as u8),

@@ -19,6 +19,7 @@ pub struct LabelState {
 pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     d.draw_text_opa(
         Point { x: ctx.abs.x, y: ctx.abs.y },
+        ctx.resolved.font,
         text,
         ctx.resolved.text_color,
         ctx.ap(255),
@@ -64,7 +65,7 @@ impl LabelBuilder {
     }
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = crate::font::text_size(&self.text);
+        let (w, h) = crate::font::text_size(crate::font::DEFAULT_FONT, &self.text);
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label(LabelState { text: self.text }));
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_label));
         if let Some((sw, sh)) = self.sizing {
@@ -86,7 +87,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
 
 pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     ui.invalidate_obj(obj);
-    let (w, h) = crate::font::text_size(text);
+    let (w, h) = crate::font::text_size(crate::font::DEFAULT_FONT, text);
     if let Some(n) = ui.arena.get_mut(obj) {
         if let WidgetKind::Label(s) = &mut n.kind {
             s.text = text.into();

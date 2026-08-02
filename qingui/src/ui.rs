@@ -21,6 +21,7 @@ pub struct Ui {
     focused_idx: Option<usize>,
     pub(crate) layout_dirty: bool,
     modal: Option<ObjRef>,
+    default_font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
 impl Ui {
@@ -30,7 +31,19 @@ impl Ui {
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None }
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None, default_font: crate::font::DEFAULT_FONT }
+    }
+
+    /// 设置全局默认字体（未在 style 中指定 font 的控件用它），全屏标脏
+    pub fn set_default_font(&mut self, font: &'static embedded_graphics::mono_font::MonoFont<'static>) {
+        self.default_font = font;
+        self.invalidate_area(Rect::new(0, 0, self.width, self.height));
+        self.layout_dirty = true;
+    }
+
+    /// 当前全局默认字体
+    pub fn default_font(&self) -> &'static embedded_graphics::mono_font::MonoFont<'static> {
+        self.default_font
     }
 
     /// 设置叠加绘制钩子（None 清除）。在控件自带内容之上追加绘制
@@ -330,7 +343,7 @@ impl Ui {
         } else {
             None
         };
-        crate::style::resolve(&n.style, overlay)
+        crate::style::resolve(&n.style, overlay, self.default_font)
     }
 
     pub fn set_flush(&mut self, f: alloc::boxed::Box<dyn crate::display::Flush>) {

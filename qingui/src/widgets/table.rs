@@ -40,6 +40,7 @@ pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], ctx: &WidgetCtx, d: &mu
                 if !text.is_empty() {
                     d.draw_text_opa(
                         Point { x: abs.x + c as i32 * CELL_W + 4, y: abs.y + r as i32 * CELL_H + 4 },
+                        ctx.resolved.font,
                         text,
                         ctx.resolved.text_color,
                         ap,

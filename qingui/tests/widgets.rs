@@ -132,15 +132,14 @@ fn button_renders_text_centered() {
     ui.set_pos(b, 10, 10);
     ui.render();
     let r = ui.rect(b);
-    // 文字 "OK" 宽 16px，居中：起始 x = 10 + (w-16)/2；'O' 第一行有像素点亮
-    assert!(r.w > 16);
-    let text_x = 10 + (r.w - 16) / 2;
-    let g = qingui::font::glyph('O');
-    assert!(g.iter().any(|&row| row != 0));
+    // 文字 "OK" 宽 12px（FONT_6X10 字宽 6），居中：起始 x = 10 + (w-12)/2
+    assert!(r.w > 12);
+    assert_eq!(qingui::font::text_size(&embedded_graphics::mono_font::ascii::FONT_6X10, "OK"), (12, 10));
+    let text_x = 10 + (r.w - 12) / 2;
     // 文字颜色（白）应出现在文本区域内某处
     let mut found_white = false;
     for y in 10..10 + r.h {
-        for x in text_x..text_x + 16 {
+        for x in text_x..text_x + 12 {
             if px(&rec, x, y) == Color::WHITE {
                 found_white = true;
             }

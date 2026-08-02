@@ -18,14 +18,23 @@ impl Flush for SharedFlush {
 
 #[test]
 fn text_size_multiline() {
-    let (w, h) = qingui::font::text_size("AB\nABC");
-    assert_eq!(w, 3 * 8);
-    assert_eq!(h, 2 * 8);
+    // FONT_6X10：字宽 6（spacing 0）、行高 10
+    let (w, h) = qingui::font::text_size(&embedded_graphics::mono_font::ascii::FONT_6X10, "AB\nABC");
+    assert_eq!(w, 3 * 6);
+    assert_eq!(h, 2 * 10);
 }
 
 #[test]
 fn non_ascii_falls_back_to_question_mark() {
-    assert_eq!(qingui::font::glyph('中'), qingui::font::glyph('?'));
+    // e-g GlyphMapping：未收录字符回落 '?' 字模（与旧 font8x8 语义一致，改为像素级断言）
+    use embedded_graphics::mono_font::ascii::FONT_6X10;
+    let render = |s: &str| -> [Color; 60] {
+        let mut buf = [Color::BLACK; 60];
+        let mut d = qingui::draw::DrawBuf { pixels: &mut buf, area: Rect::new(0, 0, 6, 10), stride: 6 };
+        d.draw_text(qingui::Point { x: 0, y: 0 }, &FONT_6X10, s, Color::WHITE, Rect::new(0, 0, 6, 10));
+        buf
+    };
+    assert_eq!(render("中"), render("?"));
 }
 
 #[test]
@@ -42,15 +51,14 @@ fn label_renders_glyph_pixels() {
     ui.render();
     let chunks = &rec.borrow().chunks;
     let px = &chunks[chunks.len() - 1].1;
-    // 'A' 的 8x8 字模：第一行 0x0C → 第 2、3 个像素点亮（bit 从低位起）
-    let glyph = qingui::font::glyph('A');
-    assert_eq!(glyph[0], 0x0C);
-    assert_eq!(px[2], Color::WHITE); // (x=2, y=0)
-    assert_eq!(px[3], Color::WHITE);
-    assert_eq!(px[0], Color::BLACK);
+    // FONT_6X10 'A' 字模：第 1 行 001000 → (2,1) 点亮；第 2 行 010100 → (1,2)/(3,2) 点亮
+    assert_eq!(px[1 * 64 + 2], Color::WHITE);
+    assert_eq!(px[2 * 64 + 1], Color::WHITE);
+    assert_eq!(px[2 * 64 + 3], Color::WHITE);
+    assert_eq!(px[0], Color::BLACK); // (0,0) 字形盒内左上角无像素（背景透明）
     assert_eq!(ui.text(l), "A");
-    assert_eq!(ui.rect(l).w, 8);
-    assert_eq!(ui.rect(l).h, 8);
+    assert_eq!(ui.rect(l).w, 6);
+    assert_eq!(ui.rect(l).h, 10);
 }
 
 #[test]
@@ -61,9 +69,9 @@ fn set_text_invalidates_and_resizes() {
     ui.set_pos(l, 10, 10);
     ui.take_dirty();
     ui.set_text(l, "ABCD");
-    assert_eq!(ui.rect(l).w, 32);
+    assert_eq!(ui.rect(l).w, 24);
     let dirty = ui.take_dirty();
-    // 旧区域 (10,10,8,8) 与新区域 (10,10,32,8) 共边合并
+    // 旧区域 (10,10,6,10) 与新区域 (10,10,24,10) 重叠合并
     assert_eq!(dirty.len(), 1);
-    assert!(dirty[0].contains(qingui::Point { x: 41, y: 10 }));
+    assert!(dirty[0].contains(qingui::Point { x: 33, y: 10 }));
 }

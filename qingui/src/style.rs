@@ -36,6 +36,8 @@ pub struct Style {
     pub aspect_ratio: Option<u32>,
     /// 布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡
     pub transition: Option<(u32, crate::anim::Easing)>,
+    /// 文本字体（None = 用 Ui 默认字体）
+    pub font: Option<&'static embedded_graphics::mono_font::MonoFont<'static>>,
 }
 
 impl Style {
@@ -114,6 +116,7 @@ impl Style {
         if other.sizing_h.is_some() { self.sizing_h = other.sizing_h; }
         if other.aspect_ratio.is_some() { self.aspect_ratio = other.aspect_ratio; }
         if other.transition.is_some() { self.transition = other.transition; }
+        if other.font.is_some() { self.font = other.font; }
         self
     }
 }
@@ -135,6 +138,7 @@ pub struct ResolvedStyle {
     pub sizing_h: Option<crate::layout::Sizing>,
     pub aspect_ratio: Option<u32>,
     pub transition: Option<(u32, crate::anim::Easing)>,
+    pub font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
 impl Default for ResolvedStyle {
@@ -155,12 +159,13 @@ impl Default for ResolvedStyle {
             sizing_h: None,
             aspect_ratio: None,
             transition: None,
+            font: crate::font::DEFAULT_FONT,
         }
     }
 }
 
-/// 逐字段回落：overlay -> base -> ResolvedStyle::default()
-pub fn resolve(base: &Style, overlay: Option<&Style>) -> ResolvedStyle {
+/// 逐字段回落：overlay -> base -> default（未命中时用 ResolvedStyle::default() 的其余字段）
+pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded_graphics::mono_font::MonoFont<'static>) -> ResolvedStyle {
     let d = ResolvedStyle::default();
     let pick = |o: Option<&Style>, f: fn(&Style) -> Option<Color>| -> Option<Color> {
         o.and_then(f).or_else(|| f(base))
@@ -190,6 +195,7 @@ pub fn resolve(base: &Style, overlay: Option<&Style>) -> ResolvedStyle {
         sizing_h: overlay.and_then(|s| s.sizing_h).or(base.sizing_h),
         aspect_ratio: overlay.and_then(|s| s.aspect_ratio).or(base.aspect_ratio),
         transition: overlay.and_then(|s| s.transition).or(base.transition),
+        font: overlay.and_then(|s| s.font).or(base.font).unwrap_or(default),
     }
 }
 

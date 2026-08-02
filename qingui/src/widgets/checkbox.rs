@@ -41,7 +41,8 @@ pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, 
         d.draw_line(p2, p3, 2, Color::rgb(80, 140, 255), ap(255), clip);
     }
     d.draw_text_opa(
-        Point { x: abs.x + BOX + 6, y: abs.y + (abs.h - 8) / 2 },
+        Point { x: abs.x + BOX + 6, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
+        ctx.resolved.font,
         text,
         ctx.resolved.text_color,
         ap(255),
@@ -111,7 +112,7 @@ impl CheckboxBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or_else(|| {
-            let (tw, _) = crate::font::text_size(&self.text);
+            let (tw, _) = crate::font::text_size(crate::font::DEFAULT_FONT, &self.text);
             (BOX + 6 + tw, 16)
         });
         let r = ui.insert_node(

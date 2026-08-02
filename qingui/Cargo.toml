@@ -21,7 +21,7 @@ path = "examples/gallery.rs"
 
 [dependencies]
 bitflags = { version = "2.13.1", default-features = false }
-font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }
+embedded-graphics = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 minifb = "0.28"
