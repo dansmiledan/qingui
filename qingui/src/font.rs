@@ -17,6 +17,13 @@ pub fn line_height(font: &'static MonoFont) -> i32 {
     font.character_size.height as i32
 }
 
+/// 内容尺寸测量字体：base style.font → Ui 默认。
+/// 与 resolved_style 三级解析一致（overlay 在构建/设置期未知，只考虑 base style.font），
+/// 保证 widget 内容尺寸与实际绘制字体匹配。
+pub(crate) fn measure_font(style: Option<&crate::style::Style>, ui: &crate::ui::Ui) -> &'static MonoFont<'static> {
+    style.and_then(|s| s.font).unwrap_or_else(|| ui.default_font())
+}
+
 /// 文本尺寸（支持 '\n'；逐行经 e-g measure_string 测宽，行高按 font 行高，
 /// 语义与 Text 渲染器的换行严格一致）。空串为 (0, line_height)。
 pub fn text_size(font: &'static MonoFont, s: &str) -> (i32, i32) {

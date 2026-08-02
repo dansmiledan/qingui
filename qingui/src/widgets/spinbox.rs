@@ -143,7 +143,8 @@ impl SpinboxBuilder {
     }
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((self.digits as i32 * crate::font::advance(crate::font::DEFAULT_FONT) + 12, crate::font::line_height(crate::font::DEFAULT_FONT) + 8));
+        let font = crate::font::measure_font(self.style.as_ref(), ui);
+        let (w, h) = self.size.unwrap_or((self.digits as i32 * crate::font::advance(font) + 12, crate::font::line_height(font) + 8));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),

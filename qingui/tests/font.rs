@@ -23,7 +23,7 @@ fn draw_text_origin_is_top_left() {
     }
     let on = |x: usize, y: usize| buf[y * 8 + x] == Color::WHITE;
     assert!(buf.iter().any(|&p| p == Color::WHITE)); // 画出了东西
-    // 字形盒外（右侧 spacing 区与行高以下）无像素
+    // 字形盒右侧 spacing 区无像素（缓冲区仅 8 行，行高以下区域未覆盖不断言）
     for x in 6..8 {
         for y in 0..8 {
             assert!(!on(x, y), "spacing 区不应有像素");
@@ -48,4 +48,29 @@ fn default_font_and_override() {
     st.font = Some(&FONT_6X10);
     ui.set_style(l, st);
     assert_eq!(metrics(ui.resolved_style(l).font), metrics(&FONT_6X10));
+}
+
+#[test]
+fn content_size_follows_default_and_style_font() {
+    use qingui::widgets::label::UiTextExt;
+    // 全局默认字体影响内容尺寸（build 前设置）
+    let mut ui = Ui::new(64, 64, 16);
+    ui.set_default_font(&FONT_10X20);
+    let s = ui.screen();
+    let l = qingui::widgets::label::LabelBuilder::new("hi").build(&mut ui, s);
+    assert_eq!(ui.rect(l).h, 20); // FONT_10X20 行高 20，而非 FONT_6X10 的 10
+    // set_text 重测同样跟随全局默认
+    ui.set_text(l, "hi!");
+    assert_eq!(ui.rect(l).h, 20);
+    // style.font 覆盖优先于全局默认（build 时测量）
+    let mut st = qingui::style::Style::default();
+    st.font = Some(&FONT_6X10);
+    let l2 = qingui::widgets::label::LabelBuilder::new("hi").style(st).build(&mut ui, s);
+    assert_eq!(ui.rect(l2).h, 10);
+    // set_text 时节点 base style.font 同样优先
+    ui.set_text(l2, "hi!");
+    assert_eq!(ui.rect(l2).h, 10);
+    // button 默认尺寸同样跟随默认字体（文本高 20 + 12）
+    let b = qingui::widgets::button::ButtonBuilder::new("OK").build(&mut ui, s);
+    assert_eq!(ui.rect(b).h, 20 + 12);
 }

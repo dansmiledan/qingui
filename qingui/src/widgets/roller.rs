@@ -67,9 +67,11 @@ pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64
     // 中心选中行高亮（滚轮在行下滑动）
     d.fill_rounded(Rect::new(abs.x, cy - ROW_H / 2, abs.w, ROW_H), 3, Color::rgb(50, 70, 120), ap, lclip);
     let sf = sel_f(selected, sel_from, ctx.now);
+    let lh = crate::font::line_height(ctx.resolved.font);
     for (i, item) in items.iter().enumerate() {
-        let ry = cy + ((i as f32 - sf) * ROW_H as f32) as i32 - 4;
-        if ry + 8 < lclip.y || ry - 4 > lclip.bottom() {
+        // 文本在行高 ROW_H 内垂直居中
+        let ry = cy + ((i as f32 - sf) * ROW_H as f32) as i32 - lh / 2;
+        if ry + lh < lclip.y || ry > lclip.bottom() {
             continue;
         }
         let (tw, _) = crate::font::text_size(ctx.resolved.font, item);

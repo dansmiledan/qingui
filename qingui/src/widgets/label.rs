@@ -65,7 +65,8 @@ impl LabelBuilder {
     }
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = crate::font::text_size(crate::font::DEFAULT_FONT, &self.text);
+        let font = crate::font::measure_font(self.style.as_ref(), ui);
+        let (w, h) = crate::font::text_size(font, &self.text);
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label(LabelState { text: self.text }));
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_label));
         if let Some((sw, sh)) = self.sizing {
@@ -87,7 +88,8 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
 
 pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     ui.invalidate_obj(obj);
-    let (w, h) = crate::font::text_size(crate::font::DEFAULT_FONT, text);
+    let font = crate::font::measure_font(ui.arena.get(obj).map(|n| &n.style), ui);
+    let (w, h) = crate::font::text_size(font, text);
     if let Some(n) = ui.arena.get_mut(obj) {
         if let WidgetKind::Label(s) = &mut n.kind {
             s.text = text.into();

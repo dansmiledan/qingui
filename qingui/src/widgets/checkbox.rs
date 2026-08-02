@@ -112,7 +112,8 @@ impl CheckboxBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or_else(|| {
-            let (tw, _) = crate::font::text_size(crate::font::DEFAULT_FONT, &self.text);
+            let font = crate::font::measure_font(self.style.as_ref(), ui);
+            let (tw, _) = crate::font::text_size(font, &self.text);
             (BOX + 6 + tw, 16)
         });
         let r = ui.insert_node(

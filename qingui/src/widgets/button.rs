@@ -79,7 +79,8 @@ impl ButtonBuilder {
 
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or_else(|| {
-            let (tw, th) = crate::font::text_size(crate::font::DEFAULT_FONT, &self.text);
+            let font = crate::font::measure_font(self.style.as_ref(), ui);
+            let (tw, th) = crate::font::text_size(font, &self.text);
             (tw + 24, th + 12)
         });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Button(ButtonState { text: self.text }));
