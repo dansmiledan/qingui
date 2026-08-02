@@ -6,8 +6,10 @@ use qingui::style::{Layout, Style};
 use qingui::widgets::arc::ArcBuilder;
 use qingui::widgets::bar::BarBuilder;
 use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::checkbox::CheckboxBuilder;
 use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
@@ -19,10 +21,28 @@ use qingui::widgets::spinbox::SpinboxBuilder;
 use qingui::widgets::spinner::SpinnerBuilder;
 use qingui::widgets::switch::SwitchBuilder;
 use qingui::widgets::table::TableBuilder;
-use qingui::{Color, EventKind, Ui};
+use qingui::{Color, EventKind, ObjRef, Ui};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 fn main() {
-    sim::run(build);
+    // build 与 tick 共享两个 chart 的引用（流式数据源）
+    let charts: Rc<RefCell<Vec<ObjRef>>> = Rc::new(RefCell::new(Vec::new()));
+    let charts_tick = charts.clone();
+    let mut frame = 0u32;
+    sim::run_with_tick(move |ui| build(ui, &charts), move |ui| {
+        // 60fps 下每 6 帧 push 一次（~100ms）：两条相位差 π/2 的正弦
+        frame += 1;
+        if frame % 6 != 0 {
+            return;
+        }
+        let t = (frame / 6) as f32 * 0.15;
+        let cs = charts_tick.borrow();
+        if cs.len() == 2 {
+            ui.chart_push(cs[0], 0, (50.0 + t.sin() * 45.0) as i32);
+            ui.chart_push(cs[1], 0, (50.0 + t.cos() * 45.0) as i32);
+        }
+    });
 }
 
 fn column() -> Layout {
@@ -39,7 +59,7 @@ fn transparent() -> Style {
     s
 }
 
-pub fn build(ui: &mut Ui) {
+pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let screen = ui.screen();
 
     // 屏幕级 Grid：标题行（内容高）+ 主行（Fr）；左列固定宽菜单，右列自适应面板
@@ -59,7 +79,7 @@ pub fn build(ui: &mut Ui) {
     let title = LabelBuilder::new("qingui demo").build(ui, screen);
     ui.set_grid_cell(title, (0, 2), (0, 1));
 
-    let menu = ListBuilder::new(&["Settings", "About", "Animate", "LongList", "P1 Demo"])
+    let menu = ListBuilder::new(&["Settings", "About", "Animate", "LongList", "P1 Demo", "ItemList"])
         .build(ui, screen);
     ui.set_grid_cell(menu, (0, 1), (1, 1));
     ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -238,13 +258,60 @@ pub fn build(ui: &mut Ui) {
         .cell(1, 2, "ms")
         .build(ui, page_p1);
 
+    // ---- ItemList 页：上下两个流式 chart + 三控件 item 的 ItemList ----
+    let page_itemlist = ObjBuilder::new().build(ui, panel);
+    ui.set_style(page_itemlist, transparent());
+    ui.set_sizing(page_itemlist, Some(Sizing::GROW), Some(Sizing::GROW));
+    ui.set_layout(page_itemlist, column());
+
+    // 上下两个折线图：不同颜色，数据由 main 的 tick 周期 push
+    let chart1 = ChartBuilder::new()
+        .range(0, 100)
+        .series(Color::rgb(80, 140, 255), 48)
+        .build(ui, page_itemlist);
+    ui.set_sizing(chart1, Some(Sizing::GROW), None);
+    ui.set_size(chart1, 160, 56);
+    let chart2 = ChartBuilder::new()
+        .range(0, 100)
+        .series(Color::rgb(255, 160, 60), 48)
+        .build(ui, page_itemlist);
+    ui.set_sizing(chart2, Some(Sizing::GROW), None);
+    ui.set_size(chart2, 160, 56);
+    charts.borrow_mut().extend([chart1, chart2]);
+
+    // 复杂 ItemList：每 item = LED + Label + Checkbox
+    let il = ItemListBuilder::new().build(ui, page_itemlist);
+    ui.set_sizing(il, Some(Sizing::GROW), Some(Sizing::GROW));
+    let item_controls: Rc<RefCell<Vec<(ObjRef, ObjRef)>>> = Rc::new(RefCell::new(Vec::new()));
+    for i in 0..8 {
+        let item = ui.itemlist_add_item(il).unwrap();
+        ui.set_layout(item, Layout::Flex(Flex {
+            dir: FlexDir::Row, wrap: false,
+            main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
+        }));
+        let led = LedBuilder::new(Color::rgb(60, 180, 90)).size(10, 10).build(ui, item);
+        let _lbl = LabelBuilder::new(&format!("Sensor {:02}", i + 1)).build(ui, item);
+        let cb = CheckboxBuilder::new("").build(ui, item);
+        item_controls.borrow_mut().push((led, cb));
+    }
+    // Enter 触发 itemlist 的 Clicked：翻转选中 item 的 checkbox，LED 亮灭跟随
+    let ics = item_controls.clone();
+    ui.add_event_cb(il, EventKind::Clicked, Box::new(move |ui, il, _| {
+        let idx = ui.itemlist_selected(il);
+        let (led, cb) = ics.borrow()[idx];
+        let v = 1 - ui.value(cb);
+        ui.set_value(cb, v);
+        ui.set_value(led, v * 255);
+    }));
+
     ui.set_hidden(page_about, true);
     ui.set_hidden(page_animate, true);
     ui.set_hidden(page_longlist, true);
     ui.set_hidden(page_p1, true);
+    ui.set_hidden(page_itemlist, true);
 
     // 布局过渡：菜单/面板/页面的位置尺寸变化自动动画
-    for &o in &[menu, panel, page_settings, page_about, page_animate, page_longlist, page_p1] {
+    for &o in &[menu, panel, page_settings, page_about, page_animate, page_longlist, page_p1, page_itemlist] {
         ui.set_transition(o, Some((250, Easing::EaseInOutQuad)));
     }
 
@@ -256,10 +323,11 @@ pub fn build(ui: &mut Ui) {
         ui.set_hidden(page_animate, idx != 2);
         ui.set_hidden(page_longlist, idx != 3);
         ui.set_hidden(page_p1, idx != 4);
+        ui.set_hidden(page_itemlist, idx != 5);
         ui.anim_start(Anim::new(panel, AnimProp::TranslateX, 204, 0, 200).easing(Easing::EaseOutQuad));
     }));
 
-    // 焦点组：菜单 → slider → switch → checkbox → Wide → 超长列表 → Add/Del → P1 控件组
+    // 焦点组：菜单 → slider → switch → checkbox → Wide → 超长列表 → Add/Del → P1 控件组 → ItemList
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);
@@ -271,4 +339,5 @@ pub fn build(ui: &mut Ui) {
     ui.group_add(roller);
     ui.group_add(dropdown);
     ui.group_add(spinbox);
+    ui.group_add(il);
 }
