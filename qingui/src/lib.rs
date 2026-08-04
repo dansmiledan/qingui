@@ -8,6 +8,7 @@ pub mod display;
 pub mod draw;
 pub mod event;
 pub mod font;
+pub mod focus;
 pub mod geometry;
 pub mod input;
 pub mod layout;

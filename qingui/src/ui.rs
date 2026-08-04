@@ -958,29 +958,13 @@ impl Ui {
         }
     }
     pub fn group_focus_next(&mut self) {
-        if self.group.is_empty() {
-            return;
-        }
-        let cur = self.focused_idx.unwrap_or(0);
-        for step in 1..=self.group.len() {
-            let idx = (cur + step) % self.group.len();
-            if self.focusable(self.group[idx]) {
-                self.focus_to(idx);
-                return;
-            }
+        if let Some(i) = crate::focus::step(&self.group, self.focused_idx, 1, |o| self.focusable(o)) {
+            self.focus_to(i);
         }
     }
     pub fn group_focus_prev(&mut self) {
-        if self.group.is_empty() {
-            return;
-        }
-        let cur = self.focused_idx.unwrap_or(0);
-        for step in 1..=self.group.len() {
-            let idx = (cur + self.group.len() - step) % self.group.len();
-            if self.focusable(self.group[idx]) {
-                self.focus_to(idx);
-                return;
-            }
+        if let Some(i) = crate::focus::step(&self.group, self.focused_idx, -1, |o| self.focusable(o)) {
+            self.focus_to(i);
         }
     }
     /// 可被聚焦：未有效隐藏，且在 modal 子树内（modal 未设置时全局）
