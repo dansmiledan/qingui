@@ -431,4 +431,17 @@ mod tests {
         let child_sizes = [(0u8, 1u8, 25i32)];
         assert_eq!(solve_tracks(&tracks, &child_sizes, 0, 100), vec![25, 75]);
     }
+
+    #[test]
+    fn distribute_space_around() {
+        // free=100, count=2, gap=4 → g=50 → (g/2, gap+g) = (25, 54)
+        assert_eq!(distribute(100, 200, Align::SpaceAround, 2, 4), (25, 54));
+    }
+
+    #[test]
+    fn solve_tracks_last_fr_eats_rounding() {
+        // 100 不能被 3 整除：plain formula 每条约 33，最后一条吃掉取整误差 → 34
+        let tracks = [Track::Fr(1), Track::Fr(1), Track::Fr(1)];
+        assert_eq!(solve_tracks(&tracks, &[], 0, 100), vec![33, 33, 34]);
+    }
 }

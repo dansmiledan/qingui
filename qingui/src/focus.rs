@@ -16,7 +16,7 @@ pub(crate) fn step(
     let base = focused.unwrap_or(0);
     let len = group.len();
     for k in 1..=len {
-        let idx = (base as i32 + dir * k as i32).rem_euclid(len as i32) as usize;
+        let idx = ((base as i64 + dir as i64 * k as i64).rem_euclid(len as i64)) as usize;
         if valid(group[idx]) {
             return Some(idx);
         }

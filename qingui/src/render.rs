@@ -188,12 +188,10 @@ fn node_state(arena: &Arena<Node>, obj: ObjRef) -> State {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::Node;
     use crate::widgets::obj::ObjState;
     use crate::widgets::WidgetKind;
     use alloc::boxed::Box;
     use alloc::rc::Rc;
-    use alloc::vec::Vec;
     use core::cell::RefCell;
 
     const FONT: &'static MonoFont<'static> = crate::font::DEFAULT_FONT;
@@ -293,5 +291,24 @@ mod tests {
         let c = arena.insert(Node::new(Some(p), Rect::new(3, 4, 10, 10), WidgetKind::Obj(ObjState)));
         arena.get_mut(p).unwrap().children.push(c);
         assert_eq!(abs_rect(&arena, c), Rect::new(18, 24, 10, 10)); // 10+5+3, 20+0+4
+    }
+
+    #[test]
+    fn resolved_style_state_precedence() {
+        // 三态互斥取一：pressed > focused > selected
+        let mut arena = Arena::new();
+        let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), WidgetKind::Obj(ObjState)));
+        let n = arena.get_mut(r).unwrap();
+        n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED | crate::node::State::PRESSED;
+        n.style_selected.bg_color = Some(Color::rgb(1, 0, 0));
+        n.style_focused.bg_color = Some(Color::rgb(2, 0, 0));
+        n.style_pressed.bg_color = Some(Color::rgb(3, 0, 0));
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(3, 0, 0)); // PRESSED 优先
+
+        arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::SELECTED;
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(2, 0, 0)); // 无 PRESSED → FOCUSED
+
+        arena.get_mut(r).unwrap().state = crate::node::State::SELECTED;
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(1, 0, 0)); // 只剩 SELECTED
     }
 }
