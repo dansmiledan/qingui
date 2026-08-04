@@ -1125,10 +1125,6 @@ impl Ui {
                 self.invalidate_obj(obj);
                 true
             }
-            KeyOutcome::OpenDropdown => {
-                crate::widgets::dropdown::open(self, obj);
-                true
-            }
             KeyOutcome::Deferred(f, p) => {
                 f(self, obj, p);
                 true

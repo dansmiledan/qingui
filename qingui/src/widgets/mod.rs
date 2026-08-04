@@ -71,7 +71,6 @@ pub(crate) enum KeyOutcome {
     ValueChanged,  // 已消费，标脏并发 ValueChanged 事件
     EnterEdit,     // 进入 EDITED 态
     ExitEdit,      // 退出 EDITED 态并标脏
-    OpenDropdown,  // 打开下拉浮层
     /// 特异副作用延迟执行：widget 文件提供的静态执行函数 + i32 载荷。
     /// Ui 在把 kind 放回 arena 后调用 f(self, obj, p)（干净窗口，无占位），视为已消费。
     Deferred(fn(&mut Ui, ObjRef, i32), i32),

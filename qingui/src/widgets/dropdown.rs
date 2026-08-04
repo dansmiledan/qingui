@@ -20,12 +20,12 @@ pub struct DropdownState {
 
 impl DropdownState {
     pub(crate) fn on_key(&mut self, key: Key, _ctx: super::KeyCtx) -> super::KeyOutcome {
-        if key == Key::Enter { super::KeyOutcome::OpenDropdown } else { super::KeyOutcome::Pass }
+        if key == Key::Enter { super::KeyOutcome::Deferred(open, 0) } else { super::KeyOutcome::Pass }
     }
 }
 
 /// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）
-pub(crate) fn open(ui: &mut Ui, obj: ObjRef) {
+pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
     let Some((items, sel, w)) = ui.arena.get(obj).map(|n| match &n.kind {
         WidgetKind::Dropdown(s) => (s.items.clone(), s.selected, n.rect.w),
         _ => (Vec::new(), 0, 0),
