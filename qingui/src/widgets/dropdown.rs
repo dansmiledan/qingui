@@ -24,7 +24,8 @@ impl DropdownState {
     }
 }
 
-/// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）
+/// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）。
+/// payload 未使用，仅用于匹配 Deferred 的 fn(&mut Ui, ObjRef, i32) 签名。
 pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
     let Some((items, sel, w)) = ui.arena.get(obj).map(|n| match &n.kind {
         WidgetKind::Dropdown(s) => (s.items.clone(), s.selected, n.rect.w),

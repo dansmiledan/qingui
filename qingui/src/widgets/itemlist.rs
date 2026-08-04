@@ -28,7 +28,7 @@ impl ItemListState {
     }
 }
 
-/// NavSelect 的执行函数：Ui 把 kind 放回后调用（obj 的 kind 已还原，可安全经 ui 访问自身）。
+/// 列表导航执行函数：Ui 在 kind 放回后调用（obj 的 kind 已还原，可安全经 ui 访问自身）。
 /// 语义与旧 apply_key_outcome 的 NavSelect 分支完全一致：空列表也消费。
 pub(crate) fn nav_select_exec(ui: &mut Ui, il: ObjRef, d: i32) {
     let n = ui.itemlist_len(il);

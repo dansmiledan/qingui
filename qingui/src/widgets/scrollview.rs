@@ -30,7 +30,7 @@ impl ScrollViewState {
     }
 }
 
-/// ScrollBy 的执行函数：Ui 在 kind 放回后调用。
+/// 滚动执行函数：Ui 在 kind 放回后调用。
 pub(crate) fn scroll_by_exec(ui: &mut Ui, sv: ObjRef, delta: i32) {
     ui.scrollview_scroll_by(sv, delta);
 }

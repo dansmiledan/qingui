@@ -64,7 +64,7 @@ pub(crate) struct KeyCtx {
     pub now: u64,
 }
 
-/// 按键处理结果：Ui 据此执行通用副作用（标脏/事件/EDITED 态/开下拉）
+/// 按键处理结果：Ui 据此执行通用副作用（标脏/事件/EDITED 态）；特异副作用经 Deferred 交给 widget 文件执行
 pub(crate) enum KeyOutcome {
     Pass,          // 未消费 → 走默认（移焦/Clicked）
     Consumed,      // 已消费，标脏
