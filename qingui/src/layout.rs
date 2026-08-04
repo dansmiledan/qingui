@@ -374,3 +374,61 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
         ui.layout_move(k, x, y);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::vec;
+
+    #[test]
+    fn axis_basis_variants() {
+        assert_eq!(axis_basis(None, 5, 100), 5);
+        assert_eq!(axis_basis(Some(Sizing::Fixed(10)), 5, 100), 10);
+        assert_eq!(axis_basis(Some(Sizing::Fit { min: 3, max: 8 }), 10, 100), 8);
+        assert_eq!(axis_basis(Some(Sizing::Fit { min: 3, max: 8 }), 1, 100), 3);
+        assert_eq!(axis_basis(Some(Sizing::Grow { min: 4, max: 100 }), 5, 100), 4);
+        assert_eq!(axis_basis(Some(Sizing::Percent(50)), 0, 200), 100);
+    }
+
+    #[test]
+    fn axis_in_cell_grow_fills() {
+        assert_eq!(axis_in_cell(Some(Sizing::Grow { min: 0, max: 100 }), 5, 50), 50);
+        assert_eq!(axis_in_cell(Some(Sizing::Grow { min: 80, max: 100 }), 5, 50), 80);
+    }
+
+    #[test]
+    fn distribute_alignments() {
+        assert_eq!(distribute(100, 200, Align::Start, 2, 4), (0, 4));
+        assert_eq!(distribute(100, 200, Align::Center, 2, 4), (50, 4));
+        assert_eq!(distribute(100, 200, Align::End, 2, 4), (100, 4));
+        assert_eq!(distribute(100, 200, Align::SpaceBetween, 2, 4), (0, 104));
+        assert_eq!(distribute(100, 200, Align::SpaceEvenly, 2, 4), (33, 37));
+    }
+
+    #[test]
+    fn align_offset_cases() {
+        assert_eq!(align_offset(10, 100, Align::Start), 0);
+        assert_eq!(align_offset(10, 100, Align::Center), 45);
+        assert_eq!(align_offset(10, 100, Align::End), 90);
+        assert_eq!(align_offset(10, 100, Align::SpaceBetween), 0);
+    }
+
+    #[test]
+    fn track_offset_accumulates() {
+        assert_eq!(track_offset(&[10, 20, 30], 2, 4), 38);
+        assert_eq!(track_offset(&[10], 0, 4), 0);
+    }
+
+    #[test]
+    fn solve_tracks_fr_consumes_remaining() {
+        let tracks = [Track::Px(10), Track::Fr(1), Track::Fr(2)];
+        assert_eq!(solve_tracks(&tracks, &[], 0, 100), vec![10, 30, 60]);
+    }
+
+    #[test]
+    fn solve_tracks_content_sizes() {
+        let tracks = [Track::Content, Track::Fr(1)];
+        let child_sizes = [(0u8, 1u8, 25i32)];
+        assert_eq!(solve_tracks(&tracks, &child_sizes, 0, 100), vec![25, 75]);
+    }
+}
