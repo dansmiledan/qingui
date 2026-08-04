@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
 use crate::node::{Flag, Node, State, WidgetKind};
-use crate::widgets::itemlist::UiItemListExt;
 use crate::widgets::scrollview::UiScrollViewExt;
 
 pub struct Ui {
@@ -1131,14 +1130,8 @@ impl Ui {
                 crate::widgets::dropdown::open(self, obj);
                 true
             }
-            KeyOutcome::NavSelect(d) => {
-                // 列表型控件移动选中（空列表也消费按键，对齐文本 List）
-                let n = self.itemlist_len(obj);
-                if n > 0 {
-                    let cur = self.itemlist_selected(obj);
-                    let next = (cur as i32 + d).rem_euclid(n as i32) as usize;
-                    self.itemlist_select(obj, next);
-                }
+            KeyOutcome::Deferred(f, p) => {
+                f(self, obj, p);
                 true
             }
             KeyOutcome::ScrollBy(d) => {

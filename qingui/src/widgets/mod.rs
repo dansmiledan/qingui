@@ -2,6 +2,8 @@ use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::input::Key;
 use crate::style::ResolvedStyle;
+use crate::arena::ObjRef;
+use crate::ui::Ui;
 
 pub mod arc;
 pub mod bar;
@@ -70,8 +72,9 @@ pub(crate) enum KeyOutcome {
     EnterEdit,     // 进入 EDITED 态
     ExitEdit,      // 退出 EDITED 态并标脏
     OpenDropdown,  // 打开下拉浮层
-    /// 列表型控件移动选中（步进 ±1），由 Ui 执行（需要子节点/滚动/事件）
-    NavSelect(i32),
+    /// 特异副作用延迟执行：widget 文件提供的静态执行函数 + i32 载荷。
+    /// Ui 在把 kind 放回 arena 后调用 f(self, obj, p)（干净窗口，无占位），视为已消费。
+    Deferred(fn(&mut Ui, ObjRef, i32), i32),
     /// 滚动容器滚动(步进 ±px),由 Ui 执行(clamp + translate)
     ScrollBy(i32),
 }
