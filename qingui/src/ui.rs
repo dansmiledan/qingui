@@ -644,50 +644,18 @@ impl Ui {
                 self.anims.remove(i); // 目标已删除：清理动画
                 continue;
             }
-            enum Out {
-                Delay,
-                Keep(i32),
-                Done(i32, Option<alloc::boxed::Box<dyn FnMut(&mut Ui)>>),
-            }
-            let out = {
-                let r = &mut self.anims[i];
-                let a = &mut r.anim;
-                let elapsed = now.saturating_sub(r.start_time);
-                if elapsed < a.delay_ms as u64 {
-                    Out::Delay
-                } else {
-                    let t_ms = elapsed - a.delay_ms as u64;
-                    let dur = a.duration_ms.max(1) as u64;
-                    let total: i32 = if a.repeat < 0 { i32::MAX } else { a.repeat.max(1) };
-                    if t_ms >= dur * total as u64 {
-                        let last = total - 1;
-                        let rev = a.playback && last % 2 == 1;
-                        let v = if rev { a.start } else { a.end };
-                        Out::Done(v, a.on_done.take())
-                    } else {
-                        let round = (t_ms / dur) as i32;
-                        let in_round = t_ms % dur;
-                        let rev = a.playback && round % 2 == 1;
-                        let mut t = in_round as f32 / dur as f32;
-                        if rev {
-                            t = 1.0 - t;
-                        }
-                        let k = a.easing.eval(t);
-                        Out::Keep(a.start + ((a.end - a.start) as f32 * k) as i32)
-                    }
-                }
-            };
-            match out {
-                Out::Delay => i += 1,
-                Out::Keep(v) => {
+            let ev = { let r = &self.anims[i]; crate::anim::eval(&r.anim, r.start_time, now) };
+            match ev {
+                crate::anim::AnimEval::Delay => i += 1,
+                crate::anim::AnimEval::Keep(v) => {
                     let prop = self.anims[i].anim.prop;
                     self.apply_anim_value(target, prop, v);
                     i += 1;
                 }
-                Out::Done(v, cb) => {
-                    let r = self.anims.remove(i);
+                crate::anim::AnimEval::Done(v) => {
+                    let mut r = self.anims.remove(i);
                     self.apply_anim_value(r.anim.target, r.anim.prop, v);
-                    if let Some(mut cb) = cb {
+                    if let Some(mut cb) = r.anim.on_done.take() {
                         cb(self);
                     }
                 }
