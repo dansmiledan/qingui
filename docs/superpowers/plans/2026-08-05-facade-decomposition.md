@@ -584,8 +584,10 @@ mod tests {
     use crate::node::Node;
     use crate::widgets::obj::ObjState;
     use crate::widgets::WidgetKind;
+    use alloc::boxed::Box;
     use alloc::cell::RefCell;
     use alloc::rc::Rc;
+    use alloc::vec::Vec;
 
     const FONT: &'static MonoFont<'static> = crate::font::DEFAULT_FONT;
 
