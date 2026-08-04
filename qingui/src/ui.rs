@@ -178,19 +178,7 @@ impl Ui {
     }
 
     pub fn abs_rect(&self, obj: ObjRef) -> Rect {
-        let mut r = self.rect(obj);
-        // 沿父链累加：祖先的本地坐标与 translate 都作用于子树（translate 是子树级视觉偏移）
-        let mut cur = self.arena.get(obj).and_then(|n| n.parent);
-        while let Some(p) = cur {
-            let n = self.arena.get(p).unwrap();
-            r = r.translate(n.rect.x + n.translate.x, n.rect.y + n.translate.y);
-            cur = n.parent;
-        }
-        // 自身视觉平移
-        if let Some(n) = self.arena.get(obj) {
-            r = r.translate(n.translate.x, n.translate.y);
-        }
-        r
+        crate::render::abs_rect(&self.arena, obj)
     }
 
     /// 设置视觉平移偏移（对齐 LVGL translate_x/y）：子树整体偏移，只影响渲染，不参与布局
@@ -328,20 +316,7 @@ impl Ui {
         self.arena.get(obj).map(|n| n.state).unwrap_or_default()
     }
     pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
-        let Some(n) = self.arena.get(obj) else {
-            return crate::style::ResolvedStyle::default();
-        };
-        // pressed > focused > selected（互斥取一）
-        let overlay = if n.state.contains(State::PRESSED) {
-            Some(&n.style_pressed)
-        } else if n.state.contains(State::FOCUSED) {
-            Some(&n.style_focused)
-        } else if n.state.contains(State::SELECTED) {
-            Some(&n.style_selected)
-        } else {
-            None
-        };
-        crate::style::resolve(&n.style, overlay, self.default_font)
+        crate::render::resolved_style(&self.arena, obj, self.default_font)
     }
 
     pub fn set_flush(&mut self, f: alloc::boxed::Box<dyn crate::display::Flush>) {
@@ -705,106 +680,15 @@ impl Ui {
     }
 
     pub fn render(&mut self) {
-        let dirty = self.dirty.take();
-        for area in dirty {
-            self.render_area(area);
-        }
-    }
-
-    fn render_area(&mut self, area: Rect) {
-        // chunk 宽度 = 脏矩形自身宽度（对齐 LVGL：缓冲行数按区域宽度折算）
-        let max_rows = (self.buf.len() as i32 / area.w.max(1)).max(1);
-        let mut y = area.y;
-        while y < area.bottom() {
-            let h = max_rows.min(area.bottom() - y);
-            let chunk = Rect::new(area.x, y, area.w, h);
-            self.render_chunk(chunk);
-            y += h;
-        }
-    }
-
-    fn render_chunk(&mut self, chunk: Rect) {
-        let len = (chunk.w * chunk.h) as usize;
-        // 1) 背景：screen 的 resolved bg
-        let screen_style = self.resolved_style(self.screen);
-        {
-            let mut d = crate::draw::DrawBuf {
-                pixels: &mut self.buf[..len],
-                area: chunk,
-                stride: chunk.w,
-            };
-            d.clear(screen_style.bg_color);
-        }
-        // 2) 先序遍历对象树绘制（screen 本身不画，背景已在上面处理）
-        let roots = self.children_z_sorted(self.screen);
-        for r in roots {
-            self.draw_node(r, chunk, chunk, len);
-        }
-        // 3) flush
-        if let Some(f) = self.flush.as_mut() {
-            f.flush(chunk, &self.buf[..len]);
-        }
-    }
-
-    /// frame 为像素缓冲对应的屏幕区域（DrawBuf 坐标系/步长），clip 为绘制裁剪矩形；
-    /// 二者在顶层相同，CLIP_CHILDREN 父节点会使子树的 clip 收缩而 frame 不变
-    fn draw_node(&mut self, obj: ObjRef, frame: Rect, clip: Rect, len: usize) {
-        let Some((abs, flags, node_opa, resolved)) = self.node_draw_info(obj) else {
-            return;
-        };
-        if flags.contains(Flag::HIDDEN) {
-            return;
-        }
-        if abs.intersect(&clip).is_some() {
-            let edited = self.state(obj).contains(State::EDITED);
-            let now = self.time_ms;
-            // 节点 opa 作为乘数作用于本对象的所有绘制
-            let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
-            let mut d = crate::draw::DrawBuf {
-                pixels: &mut self.buf[..len],
-                area: frame,
-                stride: frame.w,
-            };
-            let Some(n) = self.arena.get_mut(obj) else { return };
-            if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
-                d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
-            }
-            let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa, now };
-            n.kind.draw(&ctx, &mut d, clip);
-            // 叠加绘制钩子（原 Canvas 机制的通用化）
-            if let Some(hook) = n.draw_hook.as_mut() {
-                hook(&mut d, abs, clip, now);
-            }
-            // 边框最后画（对齐 LVGL：border 在内容之上），避免被控件内容覆盖
-            if resolved.border_width > 0 {
-                d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
-            }
-        }
-        // 视口裁剪：子树 clip 收缩到本对象矩形内；不相交则整棵子树跳过
-        let child_clip = if flags.contains(Flag::CLIP_CHILDREN) {
-            match clip.intersect(&abs) {
-                Some(c) => c,
-                None => return,
-            }
-        } else {
-            clip
-        };
-        for c in self.children_z_sorted(obj) {
-            self.draw_node(c, frame, child_clip, len);
-        }
-    }
-
-    /// 子对象按 z_index 稳定排序（小者先画，大者在上）
-    fn children_z_sorted(&self, obj: ObjRef) -> Vec<ObjRef> {
-        let mut kids = self.children(obj);
-        kids.sort_by_key(|&c| self.arena.get(c).map(|n| n.z_index).unwrap_or(0));
-        kids
-    }
-
-    fn node_draw_info(&self, obj: ObjRef) -> Option<(Rect, Flag, u8, crate::style::ResolvedStyle)> {
-        self.arena.get(obj).map(|n| {
-            (self.abs_rect(obj), n.flags, n.opa, self.resolved_style(obj))
-        })
+        crate::render::render(
+            self.screen,
+            &mut self.arena,
+            &mut self.buf,
+            &mut self.dirty,
+            &mut self.flush,
+            self.default_font,
+            self.time_ms,
+        );
     }
 
     pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: WidgetKind) -> ObjRef {

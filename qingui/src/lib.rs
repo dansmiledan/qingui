@@ -11,6 +11,7 @@ pub mod font;
 pub mod focus;
 pub mod geometry;
 pub mod input;
+pub mod render;
 pub mod layout;
 pub mod node;
 pub mod style;
