@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
 use crate::node::{Flag, Node, State, WidgetKind};
-use crate::widgets::scrollview::UiScrollViewExt;
 
 pub struct Ui {
     pub(crate) arena: Arena<Node>,
@@ -1132,10 +1131,6 @@ impl Ui {
             }
             KeyOutcome::Deferred(f, p) => {
                 f(self, obj, p);
-                true
-            }
-            KeyOutcome::ScrollBy(d) => {
-                self.scrollview_scroll_by(obj, d);
                 true
             }
         }

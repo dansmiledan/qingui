@@ -23,11 +23,16 @@ pub struct ScrollViewState {
 impl ScrollViewState {
     pub(crate) fn on_key(&mut self, key: Key, _ctx: KeyCtx) -> KeyOutcome {
         match key {
-            Key::Up => KeyOutcome::ScrollBy(-STEP),
-            Key::Down => KeyOutcome::ScrollBy(STEP),
+            Key::Up => KeyOutcome::Deferred(scroll_by_exec, -STEP),
+            Key::Down => KeyOutcome::Deferred(scroll_by_exec, STEP),
             _ => KeyOutcome::Pass,
         }
     }
+}
+
+/// ScrollBy 的执行函数：Ui 在 kind 放回后调用。
+pub(crate) fn scroll_by_exec(ui: &mut Ui, sv: ObjRef, delta: i32) {
+    ui.scrollview_scroll_by(sv, delta);
 }
 
 impl WidgetBehavior for ScrollViewState {

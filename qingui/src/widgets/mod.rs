@@ -75,8 +75,6 @@ pub(crate) enum KeyOutcome {
     /// 特异副作用延迟执行：widget 文件提供的静态执行函数 + i32 载荷。
     /// Ui 在把 kind 放回 arena 后调用 f(self, obj, p)（干净窗口，无占位），视为已消费。
     Deferred(fn(&mut Ui, ObjRef, i32), i32),
-    /// 滚动容器滚动(步进 ±px),由 Ui 执行(clamp + translate)
-    ScrollBy(i32),
 }
 
 /// 控件行为接口:draw 必须实现(新 widget 忘了画会编译错),
