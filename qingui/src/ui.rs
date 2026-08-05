@@ -311,7 +311,7 @@ impl Ui {
     /// Replaces the pressed-state overlay style of `obj`.
     pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style_pressed = style;
+            n.style_pressed = Some(alloc::boxed::Box::new(style));
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
@@ -319,7 +319,7 @@ impl Ui {
     /// Replaces the focused-state overlay style of `obj`.
     pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style_focused = style;
+            n.style_focused = Some(alloc::boxed::Box::new(style));
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
@@ -327,7 +327,7 @@ impl Ui {
     /// Replaces the selected-state overlay style of `obj`.
     pub fn set_style_selected(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style_selected = style;
+            n.style_selected = Some(alloc::boxed::Box::new(style));
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;

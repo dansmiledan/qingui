@@ -173,11 +173,11 @@ pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static Mo
         return ResolvedStyle::default();
     };
     let overlay = if n.state.contains(State::PRESSED) {
-        Some(&n.style_pressed)
+        n.style_pressed.as_deref()
     } else if n.state.contains(State::FOCUSED) {
-        Some(&n.style_focused)
+        n.style_focused.as_deref()
     } else if n.state.contains(State::SELECTED) {
-        Some(&n.style_selected)
+        n.style_selected.as_deref()
     } else {
         None
     };
@@ -307,9 +307,9 @@ mod tests {
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), WidgetKind::Obj(ObjState)));
         let n = arena.get_mut(r).unwrap();
         n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED | crate::node::State::PRESSED;
-        n.style_selected.bg_color = Some(Color::rgb(1, 0, 0));
-        n.style_focused.bg_color = Some(Color::rgb(2, 0, 0));
-        n.style_pressed.bg_color = Some(Color::rgb(3, 0, 0));
+        n.style_selected = Some(Box::new(style(Color::rgb(1, 0, 0))));
+        n.style_focused = Some(Box::new(style(Color::rgb(2, 0, 0))));
+        n.style_pressed = Some(Box::new(style(Color::rgb(3, 0, 0))));
         assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(3, 0, 0)); // PRESSED takes priority
 
         arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::SELECTED;

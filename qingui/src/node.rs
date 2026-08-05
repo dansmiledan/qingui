@@ -54,11 +54,11 @@ pub struct Node {
     /// Base style.
     pub style: crate::style::Style,
     /// Style overlay while pressed.
-    pub style_pressed: crate::style::Style,
+    pub style_pressed: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Style overlay while focused.
-    pub style_focused: crate::style::Style,
+    pub style_focused: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Style overlay while selected.
-    pub style_selected: crate::style::Style,
+    pub style_selected: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Node opacity multiplier (0..=255) applied to everything it draws.
     pub opa: u8,
     /// Registered event callbacks, in order.
@@ -93,9 +93,9 @@ impl Node {
             flags: Flag::empty(),
             kind,
             style: crate::style::Style::default(),
-            style_pressed: crate::style::Style::default(),
-            style_focused: crate::style::Style::default(),
-            style_selected: crate::style::Style::default(),
+            style_pressed: None,
+            style_focused: None,
+            style_selected: None,
             opa: 255,
             events: Vec::new(),
             draw_hook: None,
