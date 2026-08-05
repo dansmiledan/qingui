@@ -2,6 +2,8 @@
 
 轻量嵌入式 GUI 库（Rust, `no_std` + `alloc`），灵感来自 LVGL 的子集：Arena 对象树、PFB（局部帧缓冲）渲染、脏矩形、动画、按键焦点组。
 
+![gallery 动画展示](assets/qingui_gallery.gif)
+
 ## 特性
 
 - **PFB 渲染**：调用方提供任意大小的像素缓冲（如 1/10 屏），RAM 占用与屏幕分辨率解耦，分块渲染 + `Flush` trait 推送
@@ -58,8 +60,6 @@ cargo run --example gallery
 
 - **demo**：控件总览——方向键/Tab 移动焦点，Enter 选择/进入编辑，Esc 退出编辑，Q 退出。绿色边框为脏矩形调试可视化。
 - **gallery**：全部控件以 flex(wrap) 铺开，每 1s 末位前移（动画换位），交互控件自动演示（开关切换、进度随机、滚轮旋转、数值递增…）。
-
-![gallery 动画展示](assets/qingui_gallery.gif)
 
 ## 内存评估（memory benchmark）
 
