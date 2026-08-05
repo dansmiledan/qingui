@@ -71,8 +71,34 @@ fn report_static_sizes() {
     println!("4 x Style     {:>6} B", 4 * size_of::<Style>());
     println!("Node          {:>6} B", size_of::<Node>());
     println!("WidgetKind    {:>6} B", size_of::<WidgetKind>());
-    println!("  largest state (ItemListState) = {} B", size_of::<itemlist::ItemListState>());
-    println!("  discriminator overhead = {} B (WidgetKind - largest state)", size_of::<WidgetKind>() - size_of::<itemlist::ItemListState>());
+    let max_state = [
+        size_of::<arc::ArcState>(),
+        size_of::<bar::BarState>(),
+        size_of::<button::ButtonState>(),
+        size_of::<chart::ChartState>(),
+        size_of::<checkbox::CheckboxState>(),
+        size_of::<custom::CustomState>(),
+        size_of::<dropdown::DropdownState>(),
+        size_of::<image::ImageState>(),
+        size_of::<itemlist::ItemListState>(),
+        size_of::<label::LabelState>(),
+        size_of::<led::LedState>(),
+        size_of::<list::ListState>(),
+        size_of::<msgbox::MsgboxState>(),
+        size_of::<obj::ObjState>(),
+        size_of::<roller::RollerState>(),
+        size_of::<scrollview::ScrollViewState>(),
+        size_of::<slider::SliderState>(),
+        size_of::<spinbox::SpinboxState>(),
+        size_of::<spinner::SpinnerState>(),
+        size_of::<switch::SwitchState>(),
+        size_of::<table::TableState>(),
+    ]
+    .into_iter()
+    .max()
+    .unwrap();
+    println!("  largest widget state   = {max_state} B");
+    println!("  discriminator overhead = {} B (WidgetKind - largest state)", size_of::<WidgetKind>() - max_state);
     println!("  NOTE: every node carries WidgetKind ({} B) for kind regardless of its state", size_of::<WidgetKind>());
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
@@ -127,7 +153,8 @@ fn build_scene(tier: Tier) -> qingui::Ui {
     // is counted, which is representative of real use). Same pattern as dropdown.rs.
     let texts: Vec<String> = (0..n_items).map(|i| format!("item{i}")).collect();
     let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-    // Keep handles alive so the built tree (and its allocations) stays resident.
+    // Bind the ObjRef handles and label strings to silence unused-variable warnings;
+    // the tree itself stays resident in the Ui arena held by the caller.
     let _list = ListBuilder::new(&refs).build(&mut ui, scr);
     for i in 0..n_items {
         ButtonBuilder::new(&format!("btn{i}")).build(&mut ui, scr);
@@ -161,9 +188,9 @@ fn node_count(ui: &qingui::Ui) -> usize {
 fn bench_scene(label: &str, tier: Tier) {
     reset();
     let ui = build_scene(tier);
-    let nodes = node_count(&ui);
     let peak = peak();
     let live = current();
+    let nodes = node_count(&ui);
     drop(ui);
     println!("{label:<8} {nodes:>5} nodes  peak {peak:>9} B  live {live:>9} B");
     let (peak_limit, live_limit) = match tier {
