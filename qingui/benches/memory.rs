@@ -1,9 +1,12 @@
 //! Memory benchmark: static type sizes + peak heap of representative scenes.
 //!
 //! NOTE: this runs on the host (64-bit, usize = 8B). The embedded thumbv7
-//! target is 32-bit (usize = 4B), so absolute numbers differ. This bench gives
-//! the RELATIVE cost shape and a regression gate; absolute embedded sizes come
-//! from `cargo size --target thumbv7em-none-eabihf`.
+//! target is 32-bit (usize = 4B). On thumbv7 the usize-dependent parts
+//! (Vec/String/Box/pointers) roughly halve, but i32/u32-fixed parts (Rect,
+//! ObjRef, and Style's Option<i32> fields) do not — expect ~20-30% lower,
+//! not a full halving. Absolute embedded sizes come from
+//! `cargo size --target thumbv7em-none-eabihf`. This bench gives the
+//! RELATIVE cost shape and a regression gate.
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -39,17 +42,19 @@ fn reset() {
     PEAK.store(0, Ordering::Relaxed);
 }
 
-// Thresholds calibrated 2026-08-05: measured baseline x 2 (see spec
-// docs/superpowers/specs/2026-08-05-memory-bench-design.md).
-const LIMIT_WIDGETKIND: usize = 368;
+// Thresholds recalibrated 2026-08-05 after the memory optimization: new baseline x 2.
+// See spec docs/superpowers/specs/2026-08-05-memory-bench-design.md.
+const LIMIT_WIDGETKIND: usize = 80;
 const LIMIT_STYLE: usize = 336;
-const LIMIT_NODE: usize = 2000;
-const LIMIT_PEAK_SMALL: usize = 95_754;
-const LIMIT_LIVE_SMALL: usize = 79_338;
-const LIMIT_PEAK_MEDIUM: usize = 244_272;
-const LIMIT_LIVE_MEDIUM: usize = 178_160;
-const LIMIT_PEAK_LARGE: usize = 835_552;
-const LIMIT_LIVE_LARGE: usize = 571_616;
+const LIMIT_NODE: usize = 752;
+const LIMIT_PEAK_MINIMAL: usize = 11_742;
+const LIMIT_LIVE_MINIMAL: usize = 11_502;
+const LIMIT_PEAK_SMALL: usize = 70_138;
+const LIMIT_LIVE_SMALL: usize = 66_090;
+const LIMIT_PEAK_MEDIUM: usize = 141_600;
+const LIMIT_LIVE_MEDIUM: usize = 121_472;
+const LIMIT_PEAK_LARGE: usize = 419_152;
+const LIMIT_LIVE_LARGE: usize = 318_992;
 
 fn report_static_sizes() {
     use core::mem::size_of;
@@ -98,7 +103,7 @@ fn report_static_sizes() {
     .max()
     .unwrap();
     println!("  largest widget state   = {max_state} B");
-    println!("  discriminator overhead = {} B (WidgetKind - largest state)", size_of::<WidgetKind>() - max_state);
+    println!("  discriminator overhead = {} B (WidgetKind - largest state)", size_of::<WidgetKind>().saturating_sub(max_state));
     println!("  NOTE: every node carries WidgetKind ({} B) for kind regardless of its state", size_of::<WidgetKind>());
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
@@ -131,18 +136,28 @@ fn report_static_sizes() {
 }
 
 #[derive(Clone, Copy)]
-enum Tier { Small, Medium, Large }
+enum Tier { Minimal, Small, Medium, Large }
 
 fn build_scene(tier: Tier) -> qingui::Ui {
     use qingui::prelude::*;
     use qingui::widgets::button::ButtonBuilder;
     use qingui::widgets::chart::ChartBuilder;
     use qingui::widgets::itemlist::ItemListBuilder;
+    use qingui::widgets::label::LabelBuilder;
     use qingui::widgets::list::ListBuilder;
     use qingui::widgets::slider::SliderBuilder;
     use qingui::{Color, Ui};
 
     let (n_items, n_chart_pts) = match tier {
+        Tier::Minimal => {
+            let mut ui = Ui::new(160, 120, 8);
+            let scr = ui.screen();
+            LabelBuilder::new("hello").build(&mut ui, scr);
+            ButtonBuilder::new("OK").build(&mut ui, scr);
+            ui.tick_inc(16);
+            ui.timer_handler();
+            return ui;
+        }
         Tier::Small => (5, 16),
         Tier::Medium => (20, 64),
         Tier::Large => (60, 256),
@@ -194,6 +209,7 @@ fn bench_scene(label: &str, tier: Tier) {
     drop(ui);
     println!("{label:<8} {nodes:>5} nodes  peak {peak:>9} B  live {live:>9} B");
     let (peak_limit, live_limit) = match tier {
+        Tier::Minimal => (LIMIT_PEAK_MINIMAL, LIMIT_LIVE_MINIMAL),
         Tier::Small => (LIMIT_PEAK_SMALL, LIMIT_LIVE_SMALL),
         Tier::Medium => (LIMIT_PEAK_MEDIUM, LIMIT_LIVE_MEDIUM),
         Tier::Large => (LIMIT_PEAK_LARGE, LIMIT_LIVE_LARGE),
@@ -204,6 +220,7 @@ fn bench_scene(label: &str, tier: Tier) {
 
 fn main() {
     report_static_sizes();
+    bench_scene("minimal", Tier::Minimal);
     bench_scene("small", Tier::Small);
     bench_scene("medium", Tier::Medium);
     bench_scene("large", Tier::Large);
