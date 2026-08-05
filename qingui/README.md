@@ -59,6 +59,8 @@ cargo run --example gallery
 - **demo**：控件总览——方向键/Tab 移动焦点，Enter 选择/进入编辑，Esc 退出编辑，Q 退出。绿色边框为脏矩形调试可视化。
 - **gallery**：全部控件以 flex(wrap) 铺开，每 1s 末位前移（动画换位），交互控件自动演示（开关切换、进度随机、滚轮旋转、数值递增…）。
 
+![gallery 动画展示](assets/qingui_gallery.gif)
+
 ## 内存评估（memory benchmark）
 
 零依赖 `cargo bench`，评估内存使用（静态类型尺寸 + 运行时峰值堆）：
