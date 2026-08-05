@@ -47,15 +47,29 @@ loop {
 }
 ```
 
-## 桌面模拟器 demo
+## 示例（examples）
 
-仓库内含 minifb 模拟器（不发布到 crates.io）：
+仓库内含 minifb 桌面模拟器（不发布到 crates.io）：
 
 ```
 cargo run --example demo
+cargo run --example gallery
 ```
 
-方向键/Tab 移动焦点，Enter 选择/进入编辑，Esc 退出编辑，Q 退出。绿色边框为脏矩形调试可视化。
+- **demo**：控件总览——方向键/Tab 移动焦点，Enter 选择/进入编辑，Esc 退出编辑，Q 退出。绿色边框为脏矩形调试可视化。
+- **gallery**：全部控件以 flex(wrap) 铺开，每 1s 末位前移（动画换位），交互控件自动演示（开关切换、进度随机、滚轮旋转、数值递增…）。
+
+## 内存评估（memory benchmark）
+
+零依赖 `cargo bench`，评估内存使用（静态类型尺寸 + 运行时峰值堆）：
+
+```
+cargo bench -p qingui --bench memory
+```
+
+报告内容：`size_of` 表（`Node`/`WidgetKind`/各控件状态/`Style`/`Ui`，含"最大变体税"——每个节点都按最大控件状态背负 `WidgetKind` 的大小）+ 三档场景（small/medium/large）的峰值/常驻堆 + 阈值断言防回归。
+
+注意：bench 在 host（64 位）上运行，数值与 32 位 MCU 目标不同，但相对成本形状一致；嵌入式固件实际大小用 `cargo size --target thumbv7em-none-eabihf` 测量。
 
 ## License
 
