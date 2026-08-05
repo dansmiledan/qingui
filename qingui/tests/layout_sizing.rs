@@ -52,7 +52,7 @@ fn flex_grow_respects_max() {
     let a = ObjBuilder::new().build(&mut ui, c);
     ui.set_sizing(a, Some(Sizing::Grow { min: 0, max: 100 }), None);
     ui.timer_handler();
-    assert_eq!(ui.rect(a).w, 100); // 剩余 200 但 clamp 到 max
+    assert_eq!(ui.rect(a).w, 100); // 200 remaining but clamped to max
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn flex_grow_cross_axis_fills_line() {
     let b = ObjBuilder::new().build(&mut ui, c);
     ui.set_sizing(b, None, Some(Sizing::GROW));
     ui.timer_handler();
-    assert_eq!(ui.rect(b).h, 40); // 交叉轴撑满行高
+    assert_eq!(ui.rect(b).h, 40); // cross axis fills the line height
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn grid_child_grow_fills_cell() {
     ui.set_grid_cell(a, (1, 1), (0, 1));
     ui.set_sizing(a, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.timer_handler();
-    // Fr 列 = 300-100-10 = 190，行 = 100
+    // Fr column = 300-100-10 = 190, row = 100
     assert_eq!(ui.rect(a).w, 190);
     assert_eq!(ui.rect(a).h, 100);
     assert_eq!(ui.rect(a).x, 110);
@@ -125,7 +125,7 @@ fn grid_aspect_ratio_fits_cell() {
     let a = ObjBuilder::new().build(&mut ui, c);
     ui.set_grid_cell(a, (0, 1), (0, 1));
     ui.set_sizing(a, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_aspect(a, Some(1000)); // 1:1：120x80 单元格内嵌 → 80x80
+    ui.set_aspect(a, Some(1000)); // 1:1: nested in the 120x80 cell → 80x80
     ui.timer_handler();
     assert_eq!(ui.rect(a).w, 80);
     assert_eq!(ui.rect(a).h, 80);

@@ -6,9 +6,9 @@ use qingui::{Color, Ui};
 fn merge_some_overrides_none_keeps() {
     let base = Style::new().bg(Color::RED).radius(4);
     let merged = base.merge(Style::new().bg(Color::BLUE));
-    assert_eq!(merged.bg_color, Some(Color::BLUE)); // other 的 Some 覆盖
-    assert_eq!(merged.radius, Some(4)); // other 的 None 保留 base
-    assert_eq!(merged.bg_opa, None); // 双方都 None 保持 None
+    assert_eq!(merged.bg_color, Some(Color::BLUE)); // other's Some overrides
+    assert_eq!(merged.radius, Some(4)); // other's None keeps base
+    assert_eq!(merged.bg_opa, None); // both None stays None
 }
 
 #[test]
@@ -16,10 +16,10 @@ fn merge_layout_and_sizing_fields() {
     use qingui::layout::Sizing;
     let base = Style::new().sizing(Sizing::GROW, Sizing::FIT);
     let merged = base.clone().merge(Style::new().bg(Color::RED));
-    assert_eq!(merged.sizing_w, Some(Sizing::GROW)); // sizing 保留
+    assert_eq!(merged.sizing_w, Some(Sizing::GROW)); // sizing kept
     assert_eq!(merged.bg_color, Some(Color::RED));
     let m2 = base.merge(Style::new().sizing(Sizing::FIT, Sizing::FIT));
-    assert_eq!(m2.sizing_w, Some(Sizing::FIT)); // sizing 也可被覆盖
+    assert_eq!(m2.sizing_w, Some(Sizing::FIT)); // sizing can also be overridden
 }
 
 #[test]
@@ -32,14 +32,14 @@ fn theme_base_provides_common_defaults() {
 
 #[test]
 fn composed_theme_button_matches_expected() {
-    // theme_button 由 theme_base 组合而来，字段值必须与组合语义一致
+    // theme_button is composed from theme_base; its field values must match the composition semantics
     let b = theme_button();
     assert_eq!(b.bg_color, Some(Color::rgb(60, 90, 160)));
     assert_eq!(b.radius, Some(6));
     assert_eq!(b.border_color, Some(Color::rgb(90, 120, 200)));
     assert_eq!(b.border_width, Some(1));
-    assert_eq!(b.text_color, Some(Color::WHITE)); // 来自 theme_base
-    assert_eq!(b.bg_opa, Some(255)); // 来自 theme_base
+    assert_eq!(b.text_color, Some(Color::WHITE)); // from theme_base
+    assert_eq!(b.bg_opa, Some(255)); // from theme_base
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn base_style_field_fallback() {
     ui.set_style(o, s);
     let r = ui.resolved_style(o);
     assert_eq!(r.bg_color, Color::RED);
-    assert_eq!(r.bg_opa, 255); // 未设置字段落回默认
+    assert_eq!(r.bg_opa, 255); // unset fields fall back to the default
 }
 
 #[test]
@@ -82,6 +82,6 @@ fn state_override_wins_then_falls_back() {
 
     ui.set_state(b, qingui::node::State::PRESSED, true);
     assert_eq!(ui.resolved_style(b).bg_color, Color::GREEN);
-    // pressed 未覆盖的字段仍回落到 base
+    // fields not overridden by pressed still fall back to base
     assert_eq!(ui.resolved_style(b).radius, base.radius.unwrap());
 }

@@ -50,11 +50,11 @@ fn slider_value_and_indicator() {
     ui.set_value(s, 50);
     ui.render();
     assert_eq!(ui.value(s), 50);
-    // 轨道 y 中心 = 10+6，指示条到 50% ≈ x=10+50
+    // Track y center = 10+6, the indicator reaches 50% ≈ x=10+50
     assert_eq!(px(&rec, 20, 16), Color::rgb(80, 140, 255));
-    // 指示条末端之后是轨道色（非指示色）
+    // Past the end of the indicator is the track color (not the indicator color)
     assert_ne!(px(&rec, 100, 16), Color::rgb(80, 140, 255));
-    // 旋钮在 ~x=10+50-4.. 处是白色
+    // The knob is white around ~x=10+50-4..
     assert_eq!(px(&rec, 58, 16), Color::WHITE);
 }
 
@@ -76,9 +76,9 @@ fn switch_toggle_visual() {
     let sw = SwitchBuilder::new().build(&mut ui, scr);
     ui.set_pos(sw, 10, 10);
     ui.render();
-    // off：轨道灰，旋钮在左（采样圆内部点，避开抗锯齿边缘）
-    assert_eq!(px(&rec, 16, 20), Color::WHITE); // 旋钮左
-    assert_eq!(px(&rec, 44, 20), Color::rgb(90, 90, 90)); // 右端轨道
+    // off: track gray, knob on the left (sampling interior points of the circle to avoid anti-aliased edges)
+    assert_eq!(px(&rec, 16, 20), Color::WHITE); // knob left
+    assert_eq!(px(&rec, 44, 20), Color::rgb(90, 90, 90)); // right-end track
 }
 
 #[test]
@@ -98,15 +98,15 @@ fn bar_small_value_keeps_left_semicircle() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
     let b = BarBuilder::new(0, 100).build(&mut ui, scr);
-    ui.set_pos(b, 10, 10); // 默认尺寸 100x8，radius=4
-    ui.set_value(b, 5); // 指示宽 iw=5
+    ui.set_pos(b, 10, 10); // default size 100x8, radius=4
+    ui.set_value(b, 5); // indicator width iw=5
     ui.render();
     let ind = Color::rgb(80, 140, 255);
-    // 左端按轨道形状(radius=4)裁剪：(11,11) 在半圆外 → 非指示色
+    // The left end is clipped to the track shape (radius=4): (11,11) is outside the semicircle → not the indicator color
     assert_ne!(px(&rec, 11, 11), ind);
-    // (11,14) 在半圆内 → 指示色
+    // (11,14) is inside the semicircle → indicator color
     assert_eq!(px(&rec, 11, 14), ind);
-    // 指示右边界之外 → 非指示色
+    // Beyond the indicator's right boundary → not the indicator color
     assert_ne!(px(&rec, 20, 14), ind);
 }
 
@@ -118,9 +118,9 @@ fn list_selected_row_highlighted() {
     ui.set_pos(l, 10, 10);
     ui.list_select(l, 1);
     assert_eq!(ui.list_selected(l), 1);
-    ui.tick_inc(300); // 让高亮滑动动画播完
+    ui.tick_inc(300); // let the highlight-slide animation finish
     ui.timer_handler();
-    // 第 2 行（beta）底色 = 高亮色。行高 16，行 1 中心 y = 10+16+8=34，文本左侧 x=12
+    // Row 2 (beta) background = highlight color. Row height 16, row 1 center y = 10+16+8=34, text left at x=12
     assert_eq!(px(&rec, 12, 34), Color::rgb(50, 70, 120));
 }
 
@@ -132,11 +132,11 @@ fn button_renders_text_centered() {
     ui.set_pos(b, 10, 10);
     ui.render();
     let r = ui.rect(b);
-    // 文字 "OK" 宽 12px（FONT_6X10 字宽 6），居中：起始 x = 10 + (w-12)/2
+    // The text "OK" is 12px wide (FONT_6X10 glyph width 6), centered: start x = 10 + (w-12)/2
     assert!(r.w > 12);
     assert_eq!(qingui::font::text_size(&embedded_graphics::mono_font::ascii::FONT_6X10, "OK"), (12, 10));
     let text_x = 10 + (r.w - 12) / 2;
-    // 文字颜色（白）应出现在文本区域内某处
+    // The text color (white) should appear somewhere in the text area
     let mut found_white = false;
     for y in 10..10 + r.h {
         for x in text_x..text_x + 12 {

@@ -1,4 +1,4 @@
-// 回归：布局过渡后不应有渲染残影（容器移动需标脏子树）
+// Regression: no rendering ghosting after layout transitions (moving a container must mark its subtree dirty)
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::Layout;
@@ -83,13 +83,13 @@ fn fb(rec: &Rc<RefCell<RecFlush>>) -> Vec<Color> {
 
 #[test]
 fn repro_wide_transition_text_ghost() {
-    // 参考：直接按宽版（108）构建，无动画
+    // Reference: built directly in wide mode (108), no animation
     let (mut ui_ref, rec_ref, _, _) = build(true, false);
     ui_ref.tick_inc(1);
     ui_ref.timer_handler();
     let reference = fb(&rec_ref);
 
-    // 复现：窄版(180)起步 + 过渡，切到宽版(108)，等待动画结束
+    // Repro: start narrow (180) with transitions, switch to wide (108), wait for the animation to finish
     let (mut ui, rec, _, _) = build(false, true);
     ui.tick_inc(1);
     ui.timer_handler();
@@ -107,7 +107,7 @@ fn repro_wide_transition_text_ghost() {
     assert!(!ui.anim_running(), "过渡应已结束");
     let got = fb(&rec);
 
-    // 找第一个不一致的像素
+    // Find the first mismatching pixel
     let mut bad = None;
     for y in 0..240 {
         for x in 0..320 {

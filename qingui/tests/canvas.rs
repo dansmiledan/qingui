@@ -53,18 +53,18 @@ fn canvas_callback_draws_custom_content() {
     ui.set_pos(cv, 10, 10);
     ui.render();
 
-    // 自定义矩形
+    // Custom rect
     assert_eq!(px(&rec, 12, 12), Color::RED);
-    // 自定义圆弧（右下 45° 方向）
+    // Custom arc (bottom-right 45° direction)
     assert_eq!(px(&rec, 33, 33), Color::GREEN);
-    // 画布默认透明背景
+    // Canvas has a transparent background by default
     assert_eq!(px(&rec, 10, 10), Color::BLACK);
 }
 
 #[test]
 fn canvas_clipped_by_chunk() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 16); // 小缓冲 → 多 chunk
+    let mut ui = Ui::new(64, 48, 16); // small buffer → multiple chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     let cv = CanvasBuilder::new(Box::new(|d, abs, clip, _now| {
@@ -74,7 +74,7 @@ fn canvas_clipped_by_chunk() {
     .build(&mut ui, scr);
     let _ = cv;
     ui.render();
-    // 全屏 3 个 chunk，每个 chunk 内全白（clip 生效，不越界）
+    // Full screen is 3 chunks, each chunk fully white (clip in effect, no out-of-bounds)
     let chunks = &rec.borrow().chunks;
     assert_eq!(chunks.len(), 3);
     for (area, buf) in chunks {

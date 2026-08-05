@@ -20,8 +20,8 @@ fn delete_invalidates_handle_and_reparents_nothing() {
     ui.set_pos(b, 10, 10);
     ui.delete(a);
     assert!(!ui.is_valid(a));
-    assert!(!ui.is_valid(b)); // 删除父对象级联删除子树
-    // 悬垂句柄操作安全 no-op
+    assert!(!ui.is_valid(b)); // deleting the parent cascades to the subtree
+    // Dangling-handle operations are safe no-ops
     ui.set_pos(a, 5, 5);
     assert_eq!(ui.children(screen).len(), 0);
 }
@@ -32,7 +32,7 @@ fn generation_recycled_slot_is_safe() {
     let screen = ui.screen();
     let a = ObjBuilder::new().build(&mut ui, screen);
     ui.delete(a);
-    let b = ObjBuilder::new().build(&mut ui, screen); // 复用 slot
+    let b = ObjBuilder::new().build(&mut ui, screen); // reuses the slot
     assert_eq!(a.index, b.index);
     assert_ne!(a, b);
     assert!(!ui.is_valid(a));

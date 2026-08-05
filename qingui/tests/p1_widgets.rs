@@ -50,7 +50,7 @@ fn led_brightness() {
     let led = LedBuilder::new(Color::RED).build(&mut ui, scr);
     ui.set_pos(led, 10, 10);
     ui.render();
-    assert_eq!(px(&rec, 18, 18), Color::RED); // 全亮中心
+    assert_eq!(px(&rec, 18, 18), Color::RED); // fully-lit center
     ui.set_value(led, 128);
     ui.render();
     let dim = px(&rec, 18, 18);
@@ -67,13 +67,13 @@ fn table_cells() {
     ui.table_set_cell(t, 0, 0, "A1");
     ui.table_set_cell(t, 1, 1, "B2");
     ui.render();
-    // FONT_6X10 'A' 字模第 1 行 001000 → 文本起点 (14,14) 右 2 下 1 处点亮
+    // FONT_6X10 'A' glyph row 1 is 001000 → lit at text origin (14,14) + 2 right, 1 down
     assert_eq!(px(&rec, 14 + 2, 14 + 1), Color::WHITE);
-    // 网格线
+    // Grid lines
     assert_eq!(px(&rec, 10, 20), Color::rgb(70, 70, 90));
-    // 底边网格线（半开区间修正后应存在）
+    // Bottom grid line (should exist after the half-open interval fix)
     assert_eq!(px(&rec, 30, 41), Color::rgb(70, 70, 90));
-    // 空单元格无文本
+    // Empty cell has no text
     assert_eq!(px(&rec, 74, 14), Color::BLACK);
 }
 
@@ -88,12 +88,12 @@ fn spinbox_digit_edit() {
     ui.add_event_cb(sb, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(sb);
     ui.group_add(other);
-    // 未进编辑态：方向键是焦点导航，值不变
+    // Not in edit mode: arrow keys are focus navigation, value unchanged
     ui.keypad_input(Key::Up);
     assert_eq!(ui.value(sb), 0);
     assert_eq!(ui.focused(), Some(other));
     ui.keypad_input(Key::Prev);
-    // Enter 进编辑态：Up → +1；Left 到十位 Up → +10；Left 到百位 Down → clamp min
+    // Enter enters edit mode: Up → +1; Left to tens, Up → +10; Left to hundreds, Down → clamped to min
     ui.keypad_input(Key::Enter);
     ui.keypad_input(Key::Up);
     assert_eq!(ui.value(sb), 1);
@@ -104,7 +104,7 @@ fn spinbox_digit_edit() {
     ui.keypad_input(Key::Down);
     assert_eq!(ui.value(sb), 0);
     assert_eq!(log.borrow().len(), 3);
-    // Esc 退出编辑态，方向键可以移出焦点
+    // Esc exits edit mode, arrow keys can move focus out again
     ui.keypad_input(Key::Esc);
     ui.keypad_input(Key::Right);
     assert_eq!(ui.focused(), Some(other));
@@ -117,13 +117,13 @@ fn spinbox_cursor_highlight() {
     let sb = SpinboxBuilder::new(0, 999, 3).build(&mut ui, scr);
     ui.set_pos(sb, 10, 10);
     ui.set_value(sb, 5);
-    ui.set_state(sb, qingui::node::State::EDITED, true); // 编辑态才显示光标高亮
+    ui.set_state(sb, qingui::node::State::EDITED, true); // the cursor highlight only shows in edit mode
     ui.render();
-    // 布局（FONT_6X10：advance 6、行高 10）：spinbox 默认 30x18，(10,10) 起；
-    // 数字 '0','0','5' 分别在 x=16/22/28，字形顶行 y=14；个位高亮块 (27,11,8,16)
-    // 个位（右端第 3 位）高亮：取高亮块内字形之上的像素 (28,12)
+    // Layout (FONT_6X10: advance 6, line height 10): spinbox default 30x18, starting at (10,10);
+    // digits '0','0','5' are at x=16/22/28, glyph top row y=14; the ones-digit highlight block is (27,11,8,16)
+    // The ones digit (3rd from the right) is highlighted: sample a pixel above the glyph inside the highlight block (28,12)
     assert_eq!(px(&rec, 28, 12), Color::rgb(80, 140, 255));
-    // 百位无高亮：'0' 字形第 1 行 ..#... → (18,15) 为文本白色（非高亮底色）
+    // Hundreds digit has no highlight: '0' glyph row 1 is ..#... → (18,15) is text white (not the highlight color)
     assert_eq!(px(&rec, 18, 15), Color::WHITE);
 }
 
@@ -133,10 +133,10 @@ fn roller_rapid_select_continues_from_visual_pos() {
     let scr = ui.screen();
     let r = RollerBuilder::new(&["One", "Two", "Three", "Four"]).build(&mut ui, scr);
     ui.group_add(r);
-    ui.keypad_input(Key::Down); // 0 → 1（动画开始）
-    ui.tick_inc(50); // 动画中途（约 1/3）
-    ui.keypad_input(Key::Down); // 1 → 2（连按）
-    // 新动画应从插值位置（0 < from < 1）续接，而非从 1 跳变
+    ui.keypad_input(Key::Down); // 0 → 1 (animation starts)
+    ui.tick_inc(50); // mid-animation (about 1/3)
+    ui.keypad_input(Key::Down); // 1 → 2 (rapid press)
+    // The new animation should resume from the interpolated position (0 < from < 1), not jump from 1
     let s = ui.as_roller(r).unwrap();
     let (from, _) = s.sel_from.expect("有滚动动画");
     assert!(from > 0.0 && from < 1.0, "from={}", from);
@@ -153,9 +153,9 @@ fn roller_navigation_and_fx() {
     ui.group_add(r);
     ui.keypad_input(Key::Down);
     assert_eq!(ui.roller_selected(r), 1);
-    assert_eq!(ui.timer_handler(), 0); // 滚动动画活动
+    assert_eq!(ui.timer_handler(), 0); // scroll animation active
     ui.keypad_input(Key::Down);
-    ui.keypad_input(Key::Down); // 到末尾停止
+    ui.keypad_input(Key::Down); // stops at the end
     assert_eq!(ui.roller_selected(r), 2);
     ui.keypad_input(Key::Up);
     assert_eq!(ui.roller_selected(r), 1);
@@ -174,17 +174,17 @@ fn dropdown_open_select_close() {
     let dd = DropdownBuilder::new(&["Red", "Green", "Blue"]).build(&mut ui, scr);
     ui.add_event_cb(dd, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(dd);
-    // Enter 打开浮层列表（模态）
+    // Enter opens the overlay list (modal)
     ui.keypad_input(Key::Enter);
     let overlay = ui.focused().expect("有焦点");
     assert_ne!(overlay, dd);
-    // Down 到 Green，Enter 选中
+    // Down to Green, Enter selects it
     ui.keypad_input(Key::Down);
     ui.keypad_input(Key::Enter);
     assert_eq!(ui.value(dd), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
-    assert_eq!(ui.focused(), Some(dd)); // 焦点还原
-    // 再次打开，Esc 关闭不改值
+    assert_eq!(ui.focused(), Some(dd)); // focus restored
+    // Open again, Esc closes without changing the value
     ui.keypad_input(Key::Enter);
     ui.keypad_input(Key::Down);
     ui.keypad_input(Key::Esc);

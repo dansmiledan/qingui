@@ -15,16 +15,16 @@ fn insert_adds_item_with_fade_and_shift_fx() {
     assert_eq!(ui.list_len(l), 4);
     let s = ui.as_list(l).unwrap();
     assert_eq!(s.items, ["a", "x", "b", "c"]);
-    // 新项淡入
+    // The new item fades in
     assert!(s.fx.item_fx.iter().any(|f| f.index == 1 && f.fade_in));
-    // 下方 item 下滑让位（起始位移为负）
+    // Items below slide down to make room (start offset is negative)
     assert!(s.fx.item_fx.iter().any(|f| f.index == 2 && f.dy < 0));
     assert!(s.fx.item_fx.iter().any(|f| f.index == 3 && f.dy < 0));
 }
 
 #[test]
 fn insert_not_capped_by_widget() {
-    // 控件本身不限制容量（上限是业务策略，由调用方控制）
+    // The widget itself does not cap capacity (the cap is a business policy controlled by the caller)
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListBuilder::new(&["x"; 20]).build(&mut ui, scr);
@@ -42,10 +42,10 @@ fn remove_selected_fades_ghost_and_shifts_up() {
     assert_eq!(ui.list_len(l), 2);
     let s = ui.as_list(l).unwrap();
     assert_eq!(s.items, ["a", "c"]);
-    assert_eq!(s.selected, 1); // 仍指向原位置（现在是 "c"）
-    // ghost 渐隐
+    assert_eq!(s.selected, 1); // still points at the original slot (now "c")
+    // The ghost fades out
     assert!(s.fx.ghost.as_ref().is_some_and(|g| g.text == "b" && g.index == 1));
-    // 下方 item 上移补位（起始位移为正）
+    // Items below shift up to fill the gap (start offset is positive)
     assert!(s.fx.item_fx.iter().any(|f| f.index == 1 && f.dy > 0));
 }
 
@@ -74,10 +74,10 @@ fn active_fx_keeps_timer_busy_then_expires() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
-    ui.list_select(l, 1); // 触发高亮滑动 fx
-    assert_eq!(ui.timer_handler(), 0); // fx 活动：持续唤醒
-    ui.tick_inc(500); // 超过 FX_DUR
-    assert_eq!(ui.timer_handler(), u32::MAX); // fx 过期：空闲
+    ui.list_select(l, 1); // triggers the highlight-slide fx
+    assert_eq!(ui.timer_handler(), 0); // fx active: keeps it awake
+    ui.tick_inc(500); // beyond FX_DUR
+    assert_eq!(ui.timer_handler(), u32::MAX); // fx expired: idle
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn scroll_is_row_aligned() {
         let s = ui.as_list(l).unwrap();
         assert_eq!(s.scroll % 16, 0, "scroll 必须行对齐");
     }
-    // 选中 6：窗口已是行 3..7（scroll=48），6 仍可见，scroll 不变
+    // Select 6: the window is already at rows 3..7 (scroll=48), 6 is still visible, scroll unchanged
     ui.list_select(l, 6);
     let s = ui.as_list(l).unwrap();
     assert_eq!(s.scroll, 48);
@@ -101,13 +101,13 @@ fn remove_pulls_window_up_when_tail_emptied() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListBuilder::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
-    ui.list_select(l, 7); // scroll=48（行 3..7）
+    ui.list_select(l, 7); // scroll=48 (rows 3..7)
     for _ in 0..5 {
-        assert!(ui.list_remove(l)); // 删到剩 3 项
+        assert!(ui.list_remove(l)); // deleted down to 3 items
     }
     assert_eq!(ui.list_len(l), 3);
-    // 窗口自动上滚到顶（不留下尾部空窗）
+    // The window auto-scrolls up to the top (no empty tail window left)
     let s = ui.as_list(l).unwrap();
     assert_eq!(s.scroll, 0);
-    assert!(s.fx.scroll_from.is_some()); // 上滚有平滑动画
+    assert!(s.fx.scroll_from.is_some()); // the scroll-up has a smooth animation
 }

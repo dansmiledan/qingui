@@ -63,25 +63,25 @@ fn custom_widget_draws_and_handles_keys() {
     let g = ui.create_custom(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
     ui.set_pos(g, 5, 5);
     ui.render();
-    assert_eq!(px(&rec, 6, 6), Color::RED); // draw 被调用
+    assert_eq!(px(&rec, 6, 6), Color::RED); // draw was called
 
     assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 0);
     ui.group_add(g);
-    ui.keypad_input(Key::Up); // 焦点对象收到键 → on_key 消费
+    ui.keypad_input(Key::Up); // the focused object receives the key → on_key consumes it
     assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 1);
 
     ui.custom_mut::<Gauge, _>(g, |g| g.v = 42);
     assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 42);
-    assert!(ui.custom::<String>(g).is_none()); // 类型不匹配 → None
+    assert!(ui.custom::<String>(g).is_none()); // type mismatch → None
 }
 
 #[test]
 fn custom_widget_tick_dispatch() {
     let mut ui = Ui::new(160, 120, 120);
     let g = ui.create_custom(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
-    // Gauge::tick 返回 ACTIVE → timer_handler 保持唤醒（返回 0）
+    // Gauge::tick returns ACTIVE → timer_handler stays awake (returns 0)
     assert_eq!(ui.timer_handler(), 0);
-    // WidgetKind::Custom(w) => w.tick(now) 分派被真正调用：每帧一次，计数器递增
+    // The WidgetKind::Custom(w) => w.tick(now) dispatch is really called: once per frame, counter increments
     assert_eq!(ui.custom::<Gauge>(g).unwrap().ticks, 1);
     assert_eq!(ui.timer_handler(), 0);
     assert_eq!(ui.custom::<Gauge>(g).unwrap().ticks, 2);

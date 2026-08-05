@@ -4,7 +4,7 @@ use qingui::{Rect, Ui};
 #[test]
 fn move_obj_marks_old_and_new_area() {
     let mut ui = Ui::new(320, 240, 40);
-    ui.take_dirty(); // 清掉建屏时的全屏脏
+    ui.take_dirty(); // clear the full-screen dirty produced when the screen was created
     let scr = ui.screen();
     let o = ObjBuilder::new().build(&mut ui, scr);
     ui.set_pos(o, 10, 10);
@@ -12,7 +12,7 @@ fn move_obj_marks_old_and_new_area() {
     ui.take_dirty();
     ui.set_pos(o, 50, 50);
     let dirty = ui.take_dirty();
-    // 旧区域与新区域不相交 → 两个独立脏矩形
+    // The old and new areas do not intersect → two independent dirty rects
     assert_eq!(dirty.len(), 2);
     assert!(dirty.iter().any(|r| r.contains(qingui::Point { x: 10, y: 10 })));
     assert!(dirty.iter().any(|r| r.contains(qingui::Point { x: 60, y: 60 })));
@@ -25,7 +25,7 @@ fn disjoint_areas_stay_separate_until_cap() {
     q.add(Rect::new(0, 0, 10, 10));
     q.add(Rect::new(100, 0, 10, 10));
     q.add(Rect::new(200, 0, 10, 10));
-    // 超过 cap，坍缩为全屏
+    // Over the cap, collapses to the full screen
     assert_eq!(q.take(), vec![Rect::new(0, 0, 320, 240)]);
 }
 
@@ -61,15 +61,15 @@ fn hidden_obj_setters_dont_dirty_but_hide_show_do() {
     ui.set_size(panel, 40, 40);
     let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
     ui.take_dirty();
-    // 隐藏动作本身必须标脏（擦除对象原区域）
+    // The hide action itself must mark dirty (erase the object's original area)
     ui.set_hidden(panel, true);
     assert!(!ui.dirty_is_empty());
     ui.take_dirty();
-    // 有效隐藏后，setter 不再产生脏区
-    ui.set_value(bar, 50);   // invalidate_obj 路径
-    ui.set_pos(bar, 5, 5);   // invalidate_subtree 路径
+    // After a real hide, setters no longer produce dirty areas
+    ui.set_value(bar, 50);   // invalidate_obj path
+    ui.set_pos(bar, 5, 5);   // invalidate_subtree path
     assert!(ui.take_dirty().is_empty());
-    // 重新显示必须标脏（重绘）
+    // Showing again must mark dirty (redraw)
     ui.set_hidden(panel, false);
     assert!(!ui.dirty_is_empty());
 }
@@ -82,7 +82,7 @@ fn hidden_target_anim_does_not_dirty() {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    // timer_handler 末尾 render() 会消费脏区，故用 flush 记录实际重绘
+    // timer_handler renders at its end, consuming dirty areas, so flush records the actual redraws
     #[derive(Default)]
     struct RecFlush { n: usize }
     struct SharedFlush(Rc<RefCell<RecFlush>>);
@@ -98,7 +98,7 @@ fn hidden_target_anim_does_not_dirty() {
     let panel = ObjBuilder::new().build(&mut ui, scr);
     ui.set_size(panel, 40, 40);
     let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
-    // 无限值动画（demo animate 页同款）+ 位置动画（set_pos 路径）
+    // Infinite value animation (same as the demo animate page) + position animation (set_pos path)
     ui.anim_start(Anim { target: bar, prop: AnimProp::Value, start: 0, end: 100,
                          duration_ms: 1200, delay_ms: 0, repeat: -1, playback: false,
                          easing: Easing::Linear, on_done: None });
@@ -107,12 +107,12 @@ fn hidden_target_anim_does_not_dirty() {
                          easing: Easing::Linear, on_done: None });
     ui.set_hidden(panel, true);
     ui.tick_inc(16);
-    ui.timer_handler(); // 擦除帧
+    ui.timer_handler(); // erase frame
     rec.borrow_mut().n = 0;
     ui.tick_inc(16);
     ui.timer_handler();
-    assert_eq!(rec.borrow().n, 0); // 隐藏页面上的动画不再触发重绘
-    // 动画本身仍在推进（重新显示时能见到当前值）
+    assert_eq!(rec.borrow().n, 0); // animations on a hidden page no longer trigger redraws
+    // The animation itself still advances (the current value is visible when shown again)
     assert!(ui.anim_running());
     assert!(ui.value(bar) > 0);
 }

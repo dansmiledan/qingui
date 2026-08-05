@@ -38,7 +38,7 @@ fn fr_shares_remaining_space() {
     let b = ObjBuilder::new().build(&mut ui, c);
     ui.set_grid_cell(b, (2, 1), (0, 1));
     ui.timer_handler();
-    // 剩余 200，fr1=66（200/3 取整），fr2=134
+    // Remaining 200, fr1=66 (200/3 truncated), fr2=134
     assert_eq!(ui.rect(a).x, 100);
     let fr1 = ui.rect(b).x - 100;
     assert!((fr1 - 66).abs() <= 1);
@@ -57,7 +57,7 @@ fn content_track_sizes_to_child() {
     let b = ObjBuilder::new().build(&mut ui, c);
     ui.set_grid_cell(b, (1, 1), (0, 1));
     ui.timer_handler();
-    assert_eq!(ui.rect(b).x, 42); // content 轨道 = 最宽子对象 42
+    assert_eq!(ui.rect(b).x, 42); // content track = widest child 42
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn span_places_across_tracks() {
     ui.set_layout(c, grid(vec![Track::Px(50), Track::Px(50)], vec![Track::Px(50)], 10));
     let a = ObjBuilder::new().build(&mut ui, c);
     ui.set_size(a, 10, 10);
-    ui.set_grid_cell(a, (0, 2), (0, 1)); // 跨 2 列
+    ui.set_grid_cell(a, (0, 2), (0, 1)); // spans 2 columns
     let b = ObjBuilder::new().build(&mut ui, c);
     ui.set_grid_cell(b, (1, 1), (0, 1));
     ui.timer_handler();
@@ -89,11 +89,11 @@ fn ignore_layout_child_not_managed() {
     ui.set_grid_cell(a, (0, 1), (0, 1));
     let b = ObjBuilder::new().build(&mut ui, c);
     ui.set_grid_cell(b, (1, 1), (0, 1));
-    // 浮动对象：不参与布局（包括 content 轨道测量与定位）
+    // Floating object: does not participate in layout (including content-track measuring and positioning)
     let f = ObjBuilder::new().build(&mut ui, c);
     ui.set_size(f, 200, 200);
     ui.set_ignore_layout(f, true);
     ui.timer_handler();
-    assert_eq!(ui.rect(b).x, 42); // content 轨道只算 a（不含 f 的 200）
-    assert_eq!(ui.rect(f).x, 0); // f 不被重新定位
+    assert_eq!(ui.rect(b).x, 42); // the content track only counts a (not f's 200)
+    assert_eq!(ui.rect(f).x, 0); // f is not repositioned
 }

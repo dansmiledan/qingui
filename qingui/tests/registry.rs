@@ -13,14 +13,14 @@ fn update_mutates_and_invalidates() {
         st.series.len()
     });
     assert_eq!(r, Some(1));
-    assert!(!ui.dirty_is_empty()); // 执行过 f → 标脏
+    assert!(!ui.dirty_is_empty()); // running f marks it dirty
 }
 
 #[test]
 fn update_wrong_type_is_noop() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    let b = BarBuilder::new(0, 100).build(&mut ui, s); // BarState,不是 ChartState
+    let b = BarBuilder::new(0, 100).build(&mut ui, s); // BarState, not ChartState
     ui.take_dirty();
     let r = ui.update::<ChartState, _>(b, |st| st.series.len());
     assert_eq!(r, None);

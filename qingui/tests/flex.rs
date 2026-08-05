@@ -42,7 +42,7 @@ fn row_space_between() {
     let c = ui.children(scr)[0];
     ui.set_layout(c, flex(FlexDir::Row, Align::SpaceBetween, Align::Start, 0));
     ui.timer_handler();
-    // 容器宽 200，子宽 20×3=60，剩余 140 分两间隙 = 70
+    // Container width 200, children 20×3=60, the remaining 140 split across two gaps = 70
     assert_eq!(ui.rect(kids[0]).x, 0);
     assert_eq!(ui.rect(kids[1]).x, 90);
     assert_eq!(ui.rect(kids[2]).x, 180);
@@ -60,13 +60,13 @@ fn row_center_cross_center() {
     }));
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).x, 90); // (200-20)/2
-    assert_eq!(ui.rect(kids[0]).y, 45); // (100-10)/2，track Center 把行整体居中
+    assert_eq!(ui.rect(kids[0]).y, 45); // (100-10)/2, track Center centers the whole row
 }
 
 #[test]
 fn column_wrap() {
     let mut ui = Ui::new(320, 240, 240);
-    let kids = row_of(&mut ui, 4, 20, 40); // 容器高 100 → 每列 2 个
+    let kids = row_of(&mut ui, 4, 20, 40); // container height 100 → 2 per column
     let scr = ui.screen();
     let c = ui.children(scr)[0];
     let mut f = flex(FlexDir::Column, Align::Start, Align::Start, 0);
@@ -77,8 +77,8 @@ fn column_wrap() {
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).y, 0);
     assert_eq!(ui.rect(kids[1]).y, 40);
-    assert_eq!(ui.rect(kids[2]).y, 0); // 换列
-    assert_eq!(ui.rect(kids[2]).x, 20); // 第二列 x = 列宽 20
+    assert_eq!(ui.rect(kids[2]).y, 0); // wraps to a new column
+    assert_eq!(ui.rect(kids[2]).x, 20); // second column x = column width 20
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn layout_reruns_on_size_change() {
     ui.set_layout(c, flex(FlexDir::Row, Align::End, Align::Start, 0));
     ui.timer_handler();
     assert_eq!(ui.rect(kids[1]).x, 180);
-    ui.set_size(c, 100, 100); // 容器变小 → 布局标脏 → 下一帧重算
+    ui.set_size(c, 100, 100); // container shrinks → layout marked dirty → recomputed next frame
     ui.timer_handler();
     assert_eq!(ui.rect(kids[1]).x, 80);
 }
@@ -104,7 +104,7 @@ fn reorder_children_relayouts() {
     ui.set_layout(c, flex(FlexDir::Row, Align::Start, Align::Start, 0));
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).x, 0);
-    // 把最后一个移到最前 → 重排后位置更新
+    // Moving the last child to the front → positions update after reorder
     ui.move_child_to_index(kids[2], 0);
     ui.timer_handler();
     assert_eq!(ui.rect(kids[2]).x, 0);

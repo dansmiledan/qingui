@@ -21,7 +21,7 @@ impl Flush for SharedFlush {
 
 fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
     let chunks = &rec.borrow().chunks;
-    // 反向查找：后渲染的 chunk 覆盖先渲染的
+    // Search backwards: later-rendered chunks cover earlier ones
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
             return buf[((y - area.y) * area.w + (x - area.x)) as usize];
@@ -47,9 +47,9 @@ fn slider_shows_focus_border() {
     let scr = ui.screen();
     let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
-    ui.group_add(s); // 成为焦点
+    ui.group_add(s); // becomes focused
     ui.render();
-    // 聚焦态：白色边框，轨道顶边中点
+    // Focused state: white border, midpoint of the track's top edge
     assert_eq!(px(&rec, 60, 10), Color::WHITE);
 }
 
@@ -61,17 +61,17 @@ fn moving_container_repaints_children_old_area() {
     ui.set_pos(parent, 10, 10);
     ui.set_size(parent, 20, 20);
     let child = ObjBuilder::new().build(&mut ui, parent);
-    ui.set_pos(child, -10, 0); // 子元素超出父左边界
+    ui.set_pos(child, -10, 0); // child extends beyond the parent's left edge
     ui.set_size(child, 10, 10);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(Color::RED);
     ui.set_style(child, s);
     ui.render();
-    assert_eq!(px(&rec, 5, 15), Color::RED); // 子元素旧位置
-    ui.set_pos(parent, 40, 10); // 移动父容器
+    assert_eq!(px(&rec, 5, 15), Color::RED); // child's old position
+    ui.set_pos(parent, 40, 10); // move the parent container
     ui.render();
-    assert_eq!(px(&rec, 5, 15), Color::BLACK); // 旧区域必须重绘（无残影）
-    assert_eq!(px(&rec, 35, 15), Color::RED); // 新位置
+    assert_eq!(px(&rec, 5, 15), Color::BLACK); // the old area must be repainted (no ghosting)
+    assert_eq!(px(&rec, 35, 15), Color::RED); // new position
 }
 
 #[test]
@@ -80,12 +80,12 @@ fn moving_slider_repaints_knob_overflow() {
     let scr = ui.screen();
     let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
-    ui.set_value(s, 0); // 旋钮在最左，溢出到 x 6..14
+    ui.set_value(s, 0); // knob at the far left, overflowing into x 6..14
     ui.render();
-    assert_eq!(px(&rec, 7, 16), Color::WHITE); // 旋钮溢出区旧位置
-    ui.set_pos(s, 40, 10); // 移动滑块（布局动画同款路径）
+    assert_eq!(px(&rec, 7, 16), Color::WHITE); // the knob overflow area's old position
+    ui.set_pos(s, 40, 10); // move the slider (same path as layout animations)
     ui.render();
-    assert_eq!(px(&rec, 7, 16), Color::BLACK); // 溢出区旧像素必须清除
+    assert_eq!(px(&rec, 7, 16), Color::BLACK); // old overflow pixels must be cleared
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn switch_shows_focus_border() {
     ui.set_pos(sw, 10, 10);
     ui.group_add(sw);
     ui.render();
-    // 聚焦态：白色边框，轨道顶边中点
+    // Focused state: white border, midpoint of the track's top edge
     assert_eq!(px(&rec, 30, 10), Color::WHITE);
 }
 
@@ -107,13 +107,13 @@ fn slider_knob_overflow_area_redrawn_on_move() {
     let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
     ui.render();
-    // 初始 knob 在 x 6..14, y 8..24（轨道上方溢出 2px）
+    // Initially the knob is at x 6..14, y 8..24 (overflows 2px above the track)
     assert_eq!(px(&rec, 10, 8), Color::WHITE);
     ui.set_value(s, 50);
     ui.render();
-    // 旧 knob 溢出区域被重绘为背景（不留残影）
+    // The old knob overflow area is repainted as background (no ghosting)
     assert_eq!(px(&rec, 10, 8), Color::BLACK);
-    // 新 knob 位置（kx = 10+50 = 60，knob x 56..64）
+    // New knob position (kx = 10+50 = 60, knob x 56..64)
     assert_eq!(px(&rec, 60, 8), Color::WHITE);
 }
 
@@ -124,9 +124,9 @@ fn list_highlight_respects_rounded_corner() {
     let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.set_pos(l, 10, 10);
     ui.render();
-    // 首行高亮的左上角（圆角区内）不应是高亮色
+    // The first row highlight's top-left corner (inside the rounded-corner area) should not be the highlight color
     assert_ne!(px(&rec, 10, 12), Color::rgb(50, 70, 120));
-    // 首行内部（边框之下）是高亮色
+    // Inside the first row (below the border) is the highlight color
     assert_eq!(px(&rec, 60, 12), Color::rgb(50, 70, 120));
 }
 
@@ -138,10 +138,10 @@ fn list_ghost_fully_cleared_after_fade() {
     ui.set_pos(l, 10, 10);
     ui.list_select(l, 2);
     ui.render();
-    assert!(ui.list_remove(l)); // 删除 "c"，ghost 渐隐
-    ui.tick_inc(500); // 超过 FX_DUR
+    assert!(ui.list_remove(l)); // delete "c", ghost fades out
+    ui.tick_inc(500); // beyond FX_DUR
     ui.timer_handler();
-    // ghost 所在行（行 2）区域应恢复列表背景色，无文字残留
+    // The ghost's row (row 2) area should be restored to the list background color, with no text residue
     for x in 14..40 {
         assert_eq!(px(&rec, x, 50), Color::rgb(34, 34, 44), "x={}", x);
     }

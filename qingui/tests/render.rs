@@ -10,7 +10,7 @@ struct RecFlush {
     chunks: Vec<(Rect, Vec<Color>)>,
 }
 
-/// Rc 不是 fundamental type，orphan rule 要求包一层本地 newtype
+/// Rc is not a fundamental type, so the orphan rule requires wrapping it in a local newtype
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
     fn flush(&mut self, area: Rect, pixels: &[Color]) {
@@ -21,7 +21,7 @@ impl Flush for SharedFlush {
 #[test]
 fn chunked_render_covers_dirty_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 16); // 缓冲 16 行 → 全屏 48 行 = 3 chunks
+    let mut ui = Ui::new(64, 48, 16); // 16-row buffer → 48-row full screen = 3 chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     ui.set_style(scr, theme_screen());
@@ -40,16 +40,16 @@ fn chunked_render_covers_dirty_area() {
     assert_eq!(chunks[0].0, Rect::new(0, 0, 64, 16));
     assert_eq!(chunks[1].0, Rect::new(0, 16, 64, 16));
     assert_eq!(chunks[2].0, Rect::new(0, 32, 64, 16));
-    // 对象在 chunk0 中：屏幕 (8,8) → 缓冲 (8,8)
+    // The object is in chunk0: screen (8,8) → buffer (8,8)
     assert_eq!(chunks[0].1[8 * 64 + 8], Color::RED);
-    // 对象之外是 screen 背景色
+    // Outside the object is the screen background color
     assert_eq!(chunks[0].1[0], theme_screen().bg_color.unwrap());
 }
 
 #[test]
 fn partial_last_chunk_height() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 50, 16); // 48 + 2 行
+    let mut ui = Ui::new(64, 50, 16); // 48 + 2 rows
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.render();
     let chunks = &rec.borrow().chunks;
@@ -65,7 +65,7 @@ fn no_dirty_no_flush() {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.render();
     assert_eq!(rec.borrow().chunks.len(), 3);
-    ui.render(); // 无脏矩形
+    ui.render(); // no dirty rects
     assert_eq!(rec.borrow().chunks.len(), 3);
 }
 
@@ -85,7 +85,7 @@ fn small_dirty_flushes_only_that_area() {
     ui.set_style(o, s);
     ui.render();
     let chunks = &rec.borrow().chunks;
-    // 累计 3（首帧全屏）+ 1：最后一个 chunk 恰好覆盖对象脏区
+    // 3 cumulative (full screen on the first frame) + 1: the last chunk exactly covers the object's dirty area
     assert_eq!(chunks.len(), 4);
     assert_eq!(chunks[3].0, Rect::new(40, 40, 8, 8));
 }

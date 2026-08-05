@@ -28,7 +28,7 @@ fn first_layout_does_not_animate() {
     let (mut ui, c, k) = setup();
     ui.set_layout(c, flex(Align::End));
     ui.timer_handler();
-    // 首次布局直接到位，不起飞入动画
+    // The first layout lands directly in place, no fly-in animation
     assert_eq!(ui.rect(k).x, 180);
     assert!(!ui.anim_running());
 }
@@ -36,13 +36,13 @@ fn first_layout_does_not_animate() {
 #[test]
 fn layout_change_animates_to_target() {
     let (mut ui, c, k) = setup();
-    ui.timer_handler(); // 首次布局到位（Start → x=0）
+    ui.timer_handler(); // first layout lands in place (Start → x=0)
     assert_eq!(ui.rect(k).x, 0);
-    // 布局变化 → 自动过渡到目标位置
+    // Layout change → automatically transitions to the target position
     ui.set_layout(c, flex(Align::End));
     ui.timer_handler();
     assert!(ui.anim_running());
-    assert!(ui.rect(k).x < 180); // 仍在途中
+    assert!(ui.rect(k).x < 180); // still in transit
     ui.tick_inc(100);
     ui.timer_handler();
     assert_eq!(ui.rect(k).x, 180);
@@ -53,12 +53,12 @@ fn layout_change_animates_to_target() {
 fn layout_resize_animates_width() {
     let (mut ui, c, k) = setup();
     ui.set_sizing(k, Some(Sizing::GROW), None);
-    ui.timer_handler(); // 首次：w=200
+    ui.timer_handler(); // first time: w=200
     assert_eq!(ui.rect(k).w, 200);
-    ui.set_size(c, 100, 100); // 容器变小 → 目标 w=100
+    ui.set_size(c, 100, 100); // container shrinks → target w=100
     ui.timer_handler();
     assert!(ui.anim_running());
-    assert!(ui.rect(k).w > 100); // 仍在途中
+    assert!(ui.rect(k).w > 100); // still in transit
     ui.tick_inc(100);
     ui.timer_handler();
     assert_eq!(ui.rect(k).w, 100);
@@ -68,9 +68,9 @@ fn layout_resize_animates_width() {
 fn transition_converges_with_small_ticks() {
     let (mut ui, c, k) = setup();
     ui.set_sizing(k, Some(Sizing::GROW), None);
-    ui.timer_handler(); // 首次：w=200
+    ui.timer_handler(); // first time: w=200
     ui.set_size(c, 100, 100);
-    // 模拟 60fps 小步进：动画不能被布局重算反复重启，必须收敛
+    // Simulate 60fps small steps: the animation must not be repeatedly restarted by layout recomputation; it must converge
     for _ in 0..20 {
         ui.tick_inc(16);
         ui.timer_handler();
@@ -82,10 +82,10 @@ fn transition_converges_with_small_ticks() {
 #[test]
 fn no_transition_no_animation() {
     let (mut ui, c, k) = setup();
-    ui.set_transition(k, None); // 关闭 transition
+    ui.set_transition(k, None); // disable transition
     ui.timer_handler();
     ui.set_layout(c, flex(Align::End));
     ui.timer_handler();
-    assert_eq!(ui.rect(k).x, 180); // 瞬移
+    assert_eq!(ui.rect(k).x, 180); // teleports
     assert!(!ui.anim_running());
 }

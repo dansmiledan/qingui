@@ -45,7 +45,7 @@ fn floating_center_on_target() {
     ui.set_size(tip, 20, 20);
     ui.set_floating(tip, target, Attach::Center);
     ui.timer_handler();
-    // 居中：(50+(100-20)/2, 50+(60-20)/2) = (90, 70)
+    // Centered: (50+(100-20)/2, 50+(60-20)/2) = (90, 70)
     assert_eq!(ui.abs_rect(tip), Rect::new(90, 70, 20, 20));
 }
 
@@ -60,7 +60,7 @@ fn floating_bottom_of_target() {
     ui.set_size(tip, 20, 20);
     ui.set_floating(tip, target, Attach::Bottom);
     ui.timer_handler();
-    // 目标下边缘居中：(90, 110)
+    // Centered on the target's bottom edge: (90, 110)
     assert_eq!(ui.abs_rect(tip), Rect::new(90, 110, 20, 20));
 }
 
@@ -75,7 +75,7 @@ fn floating_follows_target_move() {
     ui.set_size(tip, 20, 20);
     ui.set_floating(tip, target, Attach::Center);
     ui.timer_handler();
-    ui.set_pos(target, 100, 100); // 目标移动 → 浮层跟随
+    ui.set_pos(target, 100, 100); // target moves → the floating layer follows
     ui.timer_handler();
     assert_eq!(ui.abs_rect(tip), Rect::new(140, 120, 20, 20));
 }
@@ -96,9 +96,9 @@ fn z_index_changes_draw_order() {
     ui.set_pos(b, 10, 10);
     ui.set_size(b, 20, 20);
     ui.render();
-    // 后创建的 b 在上
+    // Later-created b is on top
     assert_eq!(px(&rec, 15, 15), Color::GREEN);
-    // b 降到 -1 → a 在上
+    // b lowered to -1 → a is on top
     ui.set_z_index(b, -1);
     ui.render();
     assert_eq!(px(&rec, 15, 15), Color::RED);

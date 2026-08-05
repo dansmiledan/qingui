@@ -32,10 +32,10 @@ fn build(bg: Color) -> (Rc<RefCell<RecFlush>>, Ui, qingui::ObjRef, qingui::ObjRe
     s.bg_color = Some(bg);
     let scr = ui.screen();
     ui.set_style(scr, s);
-    // 视口 20x20 @ (5,5)
+    // Viewport 20x20 @ (5,5)
     let vp = ObjBuilder::new().size(20, 20).build(&mut ui, scr);
     ui.set_pos(vp, 5, 5);
-    // 白色子块 20x20，放在 vp 内 (10,0)：右半超出视口
+    // White 20x20 child placed at (10,0) inside the vp: the right half extends past the viewport
     let child = ObjBuilder::new()
         .size(20, 20)
         .style(qingui::style::Style::new().bg(Color::WHITE))
@@ -49,8 +49,8 @@ fn clip_children_cuts_descendant_at_parent_edge() {
     let (rec, mut ui, vp, _child) = build(Color::BLACK);
     ui.set_clip_children(vp, true);
     ui.render();
-    assert_eq!(px(&rec, 15, 10), Color::WHITE); // 视口内部分正常绘制
-    assert_eq!(px(&rec, 26, 10), Color::BLACK); // 超出视口部分被裁
+    assert_eq!(px(&rec, 15, 10), Color::WHITE); // the part inside the viewport draws normally
+    assert_eq!(px(&rec, 26, 10), Color::BLACK); // the part beyond the viewport is clipped
 }
 
 #[test]
@@ -58,5 +58,5 @@ fn no_clip_children_draws_beyond_parent() {
     let (rec, mut ui, _vp, _child) = build(Color::BLACK);
     ui.render();
     assert_eq!(px(&rec, 15, 10), Color::WHITE);
-    assert_eq!(px(&rec, 26, 10), Color::WHITE); // 默认不裁剪：子对象可画出父边界
+    assert_eq!(px(&rec, 26, 10), Color::WHITE); // no clipping by default: children may draw outside the parent's bounds
 }

@@ -37,7 +37,7 @@ fn draw_hook_overlays_builtin_widget() {
         d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, 255, clip);
     })));
     ui.render();
-    // 钩子叠加在按钮自带内容之上（左上角 3x3 被覆盖为红色）
+    // The hook overlays the button's own content (the 3x3 top-left corner is covered in red)
     assert_eq!(px(&rec, 10, 10), Color::RED);
     assert_eq!(px(&rec, 11, 11), Color::RED);
 }
@@ -54,10 +54,10 @@ fn tick_hook_drives_wakeup_and_redraw() {
         true
     })));
     ui.tick_inc(16);
-    ui.timer_handler(); // 首帧（含建屏全屏脏）
+    ui.timer_handler(); // first frame (including the full-screen dirty from screen creation)
     assert!(hits.get() >= 1);
-    assert_eq!(ui.timer_handler(), 0); // 活动 hook 保持唤醒
-    // 换成不活动的 hook → 睡眠
+    assert_eq!(ui.timer_handler(), 0); // an active hook keeps it awake
+    // Switching to an inactive hook → sleeps
     ui.set_tick_hook(o, Some(Box::new(|_, _, _| false)));
     assert_eq!(ui.timer_handler(), u32::MAX);
 }

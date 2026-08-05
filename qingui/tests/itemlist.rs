@@ -29,7 +29,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
     panic!("pixel not flushed");
 }
 
-/// 建 60x40 视口 + 4 个 item（各 20 高：Label 8px + 上下 pad）
+/// Builds a 60x40 viewport + 4 items (each 20 high: Label 8px + top/bottom padding)
 fn build4() -> (Ui, ObjRef, Vec<ObjRef>) {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
@@ -41,7 +41,7 @@ fn build4() -> (Ui, ObjRef, Vec<ObjRef>) {
         ui.set_size(it, 60, 20);
         items.push(it);
     }
-    // 布局：ItemList 在 screen 上，默认无 flex → 手动布局
+    // Layout: ItemList sits on the screen, no flex by default → manual layout
     ui.set_pos(il, 0, 0);
     (ui, il, items)
 }
@@ -51,7 +51,7 @@ fn add_items_and_initial_selection() {
     let (ui, il, items) = build4();
     assert_eq!(ui.itemlist_len(il), 4);
     assert_eq!(ui.itemlist_selected(il), 0);
-    assert!(ui.state(items[0]).contains(State::SELECTED)); // 首项自动选中
+    assert!(ui.state(items[0]).contains(State::SELECTED)); // first item auto-selected
     assert!(!ui.state(items[1]).contains(State::SELECTED));
 }
 
@@ -66,28 +66,28 @@ fn select_moves_selected_state_and_fires_value_changed() {
     assert!(!ui.state(items[0]).contains(State::SELECTED));
     assert!(ui.state(items[2]).contains(State::SELECTED));
     assert_eq!(hits.get(), 1);
-    ui.itemlist_select(il, 2); // 无变化：不重发事件
+    ui.itemlist_select(il, 2); // no change: event not re-fired
     assert_eq!(hits.get(), 1);
-    assert_eq!(ui.value(il), 2); // value() 接入
+    assert_eq!(ui.value(il), 2); // value() integration
 }
 
 #[test]
 fn keyboard_nav_wraps_and_consumes() {
     let (mut ui, il, _items) = build4();
     ui.group_add(il);
-    ui.keypad_input(Key::Up); // 循环：0 → 3
+    ui.keypad_input(Key::Up); // wraps: 0 → 3
     assert_eq!(ui.itemlist_selected(il), 3);
-    ui.keypad_input(Key::Down); // 循环：3 → 0
+    ui.keypad_input(Key::Down); // wraps: 3 → 0
     assert_eq!(ui.itemlist_selected(il), 0);
 }
 
 #[test]
 fn ensure_visible_scrolls_content() {
     let (mut ui, il, items) = build4();
-    ui.itemlist_select(il, 3); // item3 在视口（40 高）之外 → 滚动
-    // 滚动后 item3 底对齐视口底：item3 abs y = 40 - 20 = 20
+    ui.itemlist_select(il, 3); // item3 is outside the viewport (40 high) → scroll
+    // After scrolling, item3 aligns to the bottom of the viewport: item3 abs y = 40 - 20 = 20
     assert_eq!(ui.abs_rect(items[3]).y, 20);
-    assert_eq!(ui.abs_rect(items[0]).y, -40); // item0 被滚出视口上方
+    assert_eq!(ui.abs_rect(items[0]).y, -40); // item0 scrolled out above the viewport
 }
 
 #[test]
@@ -100,29 +100,29 @@ fn viewport_clips_scrolled_items() {
     let scr = ui.screen();
     ui.set_style(scr, ss);
     let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
-    ui.set_pos(il, 10, 30); // 视口避开屏幕边缘，滚出区域仍是屏内可断言区
+    ui.set_pos(il, 10, 30); // viewport kept away from the screen edges so scrolled-out areas are still assertable on screen
     for _ in 0..4 {
         let it = ui.itemlist_add_item(il).unwrap();
-        // 每项整块白色背景，便于像素断言
+        // Solid white background per item for easy pixel assertions
         ui.set_style(it, Style::new().bg(Color::WHITE));
         ui.set_size(it, 60, 20);
     }
-    ui.itemlist_select(il, 3); // 滚动 40px：item2 → y 30..50，item3 → y 50..70
+    ui.itemlist_select(il, 3); // scroll 40px: item2 → y 30..50, item3 → y 50..70
     ui.render();
-    assert_eq!(px(&rec, 15, 35), Color::WHITE); // item2 可见
-    assert_eq!(px(&rec, 15, 55), Color::rgb(50, 70, 120)); // item3 选中：叠加默认选中样式
-    assert_eq!(px(&rec, 15, 25), Color::BLACK); // item1（abs y 10..30）滚出视口上方：被裁
-    assert_eq!(px(&rec, 15, 5), Color::BLACK);  // item0（abs y -10..10）滚出视口上方：被裁
+    assert_eq!(px(&rec, 15, 35), Color::WHITE); // item2 visible
+    assert_eq!(px(&rec, 15, 55), Color::rgb(50, 70, 120)); // item3 selected: default selected style overlaid
+    assert_eq!(px(&rec, 15, 25), Color::BLACK); // item1 (abs y 10..30) scrolled out above the viewport: clipped
+    assert_eq!(px(&rec, 15, 5), Color::BLACK);  // item0 (abs y -10..10) scrolled out above the viewport: clipped
 }
 
 #[test]
 fn remove_selected_clamps_and_reselects() {
     let (mut ui, il, items) = build4();
     ui.itemlist_select(il, 3);
-    assert!(ui.itemlist_remove_selected(il)); // 删 item3
+    assert!(ui.itemlist_remove_selected(il)); // delete item3
     assert_eq!(ui.itemlist_len(il), 3);
-    assert_eq!(ui.itemlist_selected(il), 2); // 收敛到末项
-    assert!(ui.state(items[2]).contains(State::SELECTED)); // 新选中项置位
+    assert_eq!(ui.itemlist_selected(il), 2); // converges to the last item
+    assert!(ui.state(items[2]).contains(State::SELECTED)); // the new selection is set
 }
 
 #[test]
@@ -131,13 +131,13 @@ fn empty_list_key_does_not_panic_and_consumes() {
     let scr = ui.screen();
     let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
     ui.group_add(il);
-    ui.keypad_input(Key::Up); // 空列表：不 panic，按键被消费（不移焦）
+    ui.keypad_input(Key::Up); // empty list: no panic, key consumed (focus does not move)
     assert_eq!(ui.focused(), Some(il));
     assert!(!ui.itemlist_remove_selected(il));
 }
 
-/// 用户绕过 remove_selected 直接 delete item：selected 越界漂移后 select/键盘导航不 panic，
-/// itemlist_select 会把越界的 selected clamp 回合法范围并写回
+/// If the user deletes items directly, bypassing remove_selected, the selected index drifts out of range but
+/// select/keyboard navigation must not panic; itemlist_select clamps the out-of-range selected back into a legal range and writes it back
 #[test]
 fn direct_item_delete_does_not_panic_and_clamps_selection() {
     let mut ui = Ui::new(160, 120, 120);
@@ -152,21 +152,21 @@ fn direct_item_delete_does_not_panic_and_clamps_selection() {
     }
     ui.set_pos(il, 0, 0);
     ui.group_add(il);
-    // 直接删除末项（非选中项）：select 与键盘导航不 panic，selected 保持合法
+    // Delete the last item directly (not selected): select and keyboard navigation do not panic, selected stays legal
     ui.delete(items[2]);
     ui.itemlist_select(il, 0);
-    ui.keypad_input(Key::Down); // 键盘导航走同一条 itemlist_select 路径
+    ui.keypad_input(Key::Down); // keyboard navigation goes through the same itemlist_select path
     assert!(ui.itemlist_selected(il) < ui.itemlist_len(il));
     assert_eq!(ui.itemlist_selected(il), 1);
-    // 直接删除当前选中项：selected=1 越界（len=1），select 时 clamp 写回，不 panic
+    // Delete the currently selected item directly: selected=1 out of range (len=1), select clamps it back, no panic
     ui.delete(items[1]);
     ui.itemlist_select(il, 0);
-    assert_eq!(ui.itemlist_selected(il), 0); // 漂移被 clamp 消除
+    assert_eq!(ui.itemlist_selected(il), 0); // the drift is removed by clamping
     assert!(ui.itemlist_selected(il) < ui.itemlist_len(il));
 }
 
-/// 不等高 item：导航命中已可见项不滚动，不可见项按顶/底对齐滚动
-/// 视口 60x40，item 高度 10/30/20（gap 0 → rect y 分别为 0..10 / 10..40 / 40..60，总高 60 > 40）
+/// Uneven-height items: navigation does not scroll for already-visible items; items not visible are aligned to the top/bottom
+/// Viewport 60x40, item heights 10/30/20 (gap 0 → rect y is 0..10 / 10..40 / 40..60 respectively, total height 60 > 40)
 #[test]
 fn uneven_items_scroll_minimally() {
     let mut ui = Ui::new(160, 120, 120);
@@ -179,19 +179,19 @@ fn uneven_items_scroll_minimally() {
         items.push(it);
     }
     ui.set_pos(il, 0, 0);
-    // 选 30 高的 item1（y 10..40）：已在视口内（顶 10 ≥ 0、底 40 ≤ 40），不滚动
+    // Select item1 (height 30, y 10..40): already inside the viewport (top 10 ≥ 0, bottom 40 ≤ 40), no scrolling
     ui.itemlist_select(il, 1);
     assert_eq!(ui.abs_rect(items[1]).y, 10);
-    // 选 item2（y 40..60，完全在视口外）→ 底对齐：item2 底贴视口底 40，即 y = 20
+    // Select item2 (y 40..60, fully outside the viewport) → bottom-align: item2's bottom touches the viewport bottom 40, i.e. y = 20
     ui.itemlist_select(il, 2);
     assert_eq!(ui.abs_rect(items[2]).y, 20);
-    assert_eq!(ui.abs_rect(items[1]).y, -10); // item1 随动滚出视口上方
-    // 再选 item0（y 0..10，已滚出上方）→ 顶对齐回滚到 0
+    assert_eq!(ui.abs_rect(items[1]).y, -10); // item1 scrolls out above the viewport with it
+    // Select item0 again (y 0..10, already scrolled out above) → top-align, scrolls back to 0
     ui.itemlist_select(il, 0);
     assert_eq!(ui.abs_rect(items[0]).y, 0);
 }
 
-/// Enter 对聚焦的 ItemList 触发 Clicked；导航键（Down）被控件消费，不触发
+/// Enter fires Clicked on a focused ItemList; navigation keys (Down) are consumed by the widget and do not fire it
 #[test]
 fn enter_fires_clicked_but_nav_key_does_not() {
     let (mut ui, il, _items) = build4();
@@ -201,6 +201,6 @@ fn enter_fires_clicked_but_nav_key_does_not() {
     ui.add_event_cb(il, EventKind::Clicked, Box::new(move |_, _, _| h.set(h.get() + 1)));
     ui.keypad_input(Key::Enter);
     assert_eq!(hits.get(), 1);
-    ui.keypad_input(Key::Down); // 导航键被 ItemList 消费 → 不触发 Clicked
+    ui.keypad_input(Key::Down); // navigation key consumed by the ItemList → does not fire Clicked
     assert_eq!(hits.get(), 1);
 }

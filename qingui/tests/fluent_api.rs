@@ -31,10 +31,10 @@ fn anim_builder_chain() {
             .playback(true)
             .delay(50),
     );
-    ui.tick_inc(50); // delay 内不动
+    ui.tick_inc(50); // does not move during the delay
     ui.timer_handler();
     assert_eq!(ui.rect(o).x, 0);
-    ui.tick_inc(100); // 第 1 轮结束
+    ui.tick_inc(100); // end of round 1
     ui.timer_handler();
     assert_eq!(ui.rect(o).x, 100);
 }

@@ -43,13 +43,13 @@ fn selected_state_applies_style_selected() {
     let (rec, mut ui, o) = build();
     ui.set_style_selected(o, Style::new().bg(Color::BLUE));
     ui.render();
-    assert_eq!(px(&rec, 1, 1), Color::RED); // 未选中：基础样式
+    assert_eq!(px(&rec, 1, 1), Color::RED); // not selected: base style
     ui.set_state(o, State::SELECTED, true);
     ui.render();
-    assert_eq!(px(&rec, 1, 1), Color::BLUE); // 选中：selected 叠加
+    assert_eq!(px(&rec, 1, 1), Color::BLUE); // selected: the selected overlay
     ui.set_state(o, State::SELECTED, false);
     ui.render();
-    assert_eq!(px(&rec, 1, 1), Color::RED); // 取消选中：还原
+    assert_eq!(px(&rec, 1, 1), Color::RED); // deselected: restored
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn overlay_priority_pressed_over_focused_over_selected() {
     ui.set_state(o, State::FOCUSED, true);
     ui.render();
     assert_eq!(px(&rec, 1, 1), Color::GREEN);
-    // pressed 最高
+    // pressed has the highest priority
     ui.set_state(o, State::PRESSED, true);
     ui.render();
     assert_eq!(px(&rec, 1, 1), Color::WHITE);

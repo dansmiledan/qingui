@@ -23,11 +23,11 @@ fn focus_cycles_with_next_prev() {
     let b = ButtonBuilder::new("B").build(&mut ui, scr);
     ui.group_add(a);
     ui.group_add(b);
-    assert_eq!(ui.focused(), Some(a)); // 首个入组自动聚焦
+    assert_eq!(ui.focused(), Some(a)); // the first object added to the group is auto-focused
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(b));
     ui.keypad_input(Key::Next);
-    assert_eq!(ui.focused(), Some(a)); // 循环
+    assert_eq!(ui.focused(), Some(a)); // wraps around
     ui.keypad_input(Key::Prev);
     assert_eq!(ui.focused(), Some(b));
 }
@@ -69,8 +69,8 @@ fn slider_edit_mode() {
     ui.add_event_cb(s, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.group_add(s);
     ui.keypad_input(Key::Right);
-    assert_eq!(ui.value(s), 0); // 非编辑态：Right 是焦点移动（组内仅一个对象，值不变）
-    ui.keypad_input(Key::Enter); // 进入编辑态
+    assert_eq!(ui.value(s), 0); // not in edit mode: Right is focus navigation (only one object in the group, value unchanged)
+    ui.keypad_input(Key::Enter); // enter edit mode
     assert!(ui.state(s).contains(qingui::node::State::EDITED));
     ui.keypad_input(Key::Right);
     assert_eq!(ui.value(s), 1);
@@ -78,7 +78,7 @@ fn slider_edit_mode() {
     ui.keypad_input(Key::Left);
     assert_eq!(ui.value(s), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged, EventKind::ValueChanged, EventKind::ValueChanged]);
-    ui.keypad_input(Key::Esc); // 退出编辑态
+    ui.keypad_input(Key::Esc); // exit edit mode
     assert!(!ui.state(s).contains(qingui::node::State::EDITED));
 }
 
@@ -92,7 +92,7 @@ fn switch_toggles_on_enter() {
     ui.group_add(sw);
     ui.keypad_input(Key::Enter);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
-    assert_eq!(ui.value(sw), 1); // Switch 的 value：on=1 off=0
+    assert_eq!(ui.value(sw), 1); // Switch value: on=1 off=0
     ui.keypad_input(Key::Enter);
     assert_eq!(ui.value(sw), 0);
 }
@@ -113,15 +113,15 @@ fn focus_skips_hidden_objects() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let page = ObjBuilder::new().build(&mut ui, scr);
-    let a = ButtonBuilder::new("A").build(&mut ui, page); // 随 page 隐藏
+    let a = ButtonBuilder::new("A").build(&mut ui, page); // hidden with page
     let b = ButtonBuilder::new("B").build(&mut ui, scr);
     ui.group_add(a);
     ui.group_add(b);
     ui.set_hidden(page, true);
-    // 当前焦点在 a（隐藏）→ Next 应跳到 b
+    // Current focus is on a (hidden) → Next should jump to b
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(b));
-    // 循环时同样跳过 a
+    // Wrapping also skips a
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(b));
     ui.keypad_input(Key::Prev);
@@ -137,17 +137,17 @@ fn modal_restricts_focus_navigation() {
     let ok = ButtonBuilder::new("OK").build(&mut ui, dlg);
     ui.group_add(a);
     ui.group_add(ok);
-    // 设置 modal 前焦点可在 a/ok 间循环
+    // Before modal is set, focus can cycle between a/ok
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(ok));
     ui.keypad_input(Key::Next);
     assert_eq!(ui.focused(), Some(a));
-    // 设置 modal：焦点锁进 dlg 子树
+    // Set modal: focus locks into the dlg subtree
     ui.set_modal(dlg);
     assert_eq!(ui.focused(), Some(ok));
-    ui.keypad_input(Key::Next); // 只能在 modal 内循环，到不了 a
+    ui.keypad_input(Key::Next); // can only cycle within the modal, cannot reach a
     assert_eq!(ui.focused(), Some(ok));
-    // 清除 modal：恢复全局导航
+    // Clear modal: global navigation is restored
     ui.clear_modal();
     ui.keypad_input(Key::Prev);
     assert_eq!(ui.focused(), Some(a));

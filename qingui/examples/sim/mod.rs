@@ -1,5 +1,5 @@
-//! 共享模拟器运行时：minifb 窗口 + flush 转发 + 按键映射 + 主循环。
-//! 各 example 只需实现 UI 构建函数并调用 `sim::run(build)`。
+//! Shared simulator runtime: minifb window + flush forwarding + key mapping + main loop.
+//! Each example only needs to implement a UI builder function and call `sim::run(build)`.
 
 use minifb::{Key as MKey, Scale, Window, WindowOptions};
 use qingui::display::Flush;
@@ -11,19 +11,19 @@ use std::time::Instant;
 
 pub const WIDTH: usize = 320;
 pub const HEIGHT: usize = 240;
-pub const BUF_ROWS: u32 = 24; // 1/10 屏，验证 PFB 分块
+pub const BUF_ROWS: u32 = 24; // 1/10 of the screen, exercises PFB chunking
 
-/// 脏矩形调试边框只保留最近 N 次 flush（过期的恢复原始内容）
+/// The dirty-rect debug border keeps only the most recent N flushes (stale ones restore their original content)
 pub const DEBUG_KEEP: usize = 10;
 
-/// 一条边框记录：chunk 矩形 + 内容快照 + 序号
+/// A border record: chunk rect + content snapshot + sequence number
 struct BorderRec {
     rect: Rect,
     pixels: Vec<Color>,
     seq: u64,
 }
 
-/// flush 写入共享的全屏 u32 缓冲（0x00RRGGBB）；debug 开启时给 chunk 画绿色 1px 边框
+/// flush writes to a shared full-screen u32 buffer (0x00RRGGBB); when debug is on it draws a green 1px border around each chunk
 struct SimFlush {
     fb: Rc<RefCell<Vec<u32>>>,
     debug: Rc<Cell<bool>>,
@@ -32,7 +32,7 @@ struct SimFlush {
 }
 
 impl SimFlush {
-    /// 过期边框恢复原始内容
+    /// Stale borders restore their original content
     fn expire(&mut self) {
         while let Some(front) = self.history.front() {
             if self.seq.saturating_sub(front.seq) >= DEBUG_KEEP as u64 {
@@ -74,8 +74,8 @@ impl Flush for SimFlush {
             }
         }
         if self.debug.get() {
-            // 同步历史快照：新 flush 覆盖的区域以新内容为准，
-            // 否则过期恢复会把旧内容写回、盖住后画的控件（如 msgbox）
+            // Sync historical snapshots: areas covered by a new flush take the new content as authoritative,
+            // otherwise stale restore would write old content back over later-drawn widgets (e.g. msgbox)
             for rec in self.history.iter_mut() {
                 if let Some(ov) = rec.rect.intersect(&area) {
                     for y in 0..ov.h {
@@ -128,13 +128,13 @@ const KEYS: [MKey; 8] = [
     MKey::Enter, MKey::Escape, MKey::Tab, MKey::Backspace,
 ];
 
-/// 打开模拟器窗口并运行主循环。`build` 在启动时调用一次构建 UI。
-#[allow(dead_code)] // 各 example 按需使用 run 或 run_with_tick
+/// Open the simulator window and run the main loop. `build` is called once at startup to build the UI.
+#[allow(dead_code)] // each example uses run or run_with_tick as needed
 pub fn run(build: impl FnOnce(&mut Ui)) {
     run_with_tick(build, |_| {});
 }
 
-/// 同 `run`，额外提供每帧回调（驱动定时任务，如周期性重排）
+/// Like `run`, but with an extra per-frame callback (drives timed tasks, e.g. periodic reorders)
 #[allow(dead_code)]
 pub fn run_with_tick(build: impl FnOnce(&mut Ui), mut tick: impl FnMut(&mut Ui)) {
     let mut window = Window::new(
@@ -146,9 +146,9 @@ pub fn run_with_tick(build: impl FnOnce(&mut Ui), mut tick: impl FnMut(&mut Ui))
     .expect("open window");
     window.set_target_fps(60);
 
-    // 共享全屏缓冲：SimFlush 写 chunk，主循环整块交给 minifb
+    // Shared full-screen buffer: SimFlush writes chunks, the main loop hands the whole thing to minifb
     let fb = Rc::new(RefCell::new(vec![0u32; WIDTH * HEIGHT]));
-    let debug = Rc::new(Cell::new(true)); // D 键切换脏矩形调试边框
+    let debug = Rc::new(Cell::new(true)); // D key toggles the dirty-rect debug border
     let mut ui = Ui::new(WIDTH as i32, HEIGHT as i32, BUF_ROWS);
     ui.set_flush(Box::new(SimFlush {
         fb: fb.clone(),
@@ -174,7 +174,7 @@ pub fn run_with_tick(build: impl FnOnce(&mut Ui), mut tick: impl FnMut(&mut Ui))
                 }
             }
         }
-        // D：切换脏矩形调试边框（只保留最近 DEBUG_KEEP 次 flush）
+        // D: toggle the dirty-rect debug border (keeps only the most recent DEBUG_KEEP flushes)
         if window.is_key_pressed(MKey::D, minifb::KeyRepeat::No) {
             debug.set(!debug.get());
         }

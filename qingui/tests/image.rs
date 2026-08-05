@@ -4,12 +4,12 @@ use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// 2x2 全红图
+/// 2x2 all-red image
 static RED: ImageData = ImageData {
     frames: &[Frame { w: 2, h: 2, rgb565: &[0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8] }],
     delays_ms: &[0],
 };
-/// 两帧动画:红/蓝,各 100ms
+/// Two-frame animation: red/blue, 100ms each
 static ANIM: ImageData = ImageData {
     frames: &[
         Frame { w: 2, h: 2, rgb565: &[0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8] },
@@ -33,7 +33,7 @@ fn static_image_sleeps() {
     ImageBuilder::new(&RED).build(&mut ui, s);
     ui.tick_inc(16);
     ui.timer_handler();
-    assert_eq!(ui.timer_handler(), u32::MAX); // 单帧无逐帧行为
+    assert_eq!(ui.timer_handler(), u32::MAX); // single frame has no per-frame behavior
 }
 
 #[test]
@@ -50,15 +50,15 @@ fn gif_advances_and_wraps() {
     let s = ui.screen();
     let im = ImageBuilder::new(&ANIM).build(&mut ui, s);
     ui.tick_inc(16);
-    assert_eq!(ui.timer_handler(), 0); // 动画保持唤醒
+    assert_eq!(ui.timer_handler(), 0); // the animation keeps it awake
     rec.borrow_mut().n = 0;
-    ui.tick_inc(50); // 未到 100ms:不切帧不重绘
+    ui.tick_inc(50); // under 100ms: no frame switch, no redraw
     ui.timer_handler();
     assert_eq!(rec.borrow().n, 0);
-    ui.tick_inc(60); // 累计 110ms:切到帧 1 并重绘
+    ui.tick_inc(60); // 110ms accumulated: switch to frame 1 and redraw
     ui.timer_handler();
     assert!(rec.borrow().n > 0);
-    ui.tick_inc(100); // 再 100ms:回卷到帧 0
+    ui.tick_inc(100); // another 100ms: wrap back to frame 0
     ui.timer_handler();
     assert!(rec.borrow().n > 0);
     let _ = im;

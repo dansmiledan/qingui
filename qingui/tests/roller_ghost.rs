@@ -1,4 +1,4 @@
-// 回归：Roller 连按后滚定，渲染应与全新构建一致（无残影/重叠）
+// Regression: after rapid presses the Roller settles, and the render must match a fresh build (no ghosting/overlap)
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::roller::RollerBuilder;
@@ -36,7 +36,7 @@ fn build() -> (Ui, Rc<RefCell<RecFlush>>) {
 
 #[test]
 fn repro_roller_rapid_press_ghost() {
-    // 复现：连按后滚定
+    // Repro: rapid presses then settle
     let (mut ui, rec) = build();
     let scr = ui.screen();
     let r = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui, scr);
@@ -46,9 +46,9 @@ fn repro_roller_rapid_press_ghost() {
     ui.timer_handler();
     for _ in 0..3 {
         ui.keypad_input(Key::Down);
-        ui.tick_inc(50); // 动画中途连按
+        ui.tick_inc(50); // rapid press mid-animation
     }
-    // 滚定
+    // Settle
     for _ in 0..20 {
         ui.tick_inc(16);
         ui.timer_handler();
@@ -56,7 +56,7 @@ fn repro_roller_rapid_press_ghost() {
     assert!(!ui.anim_running());
     let got = rec.borrow().fb.clone();
 
-    // 参考：全新构建，直接选中 3
+    // Reference: fresh build, directly selecting 3
     let (mut ui2, rec2) = build();
     let scr2 = ui2.screen();
     let r2 = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui2, scr2);

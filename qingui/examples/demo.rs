@@ -30,12 +30,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 fn main() {
-    // build 与 tick 共享两个 chart 的引用（流式数据源）
+    // build and tick share references to the two charts (streaming data source)
     let charts: Rc<RefCell<Vec<ObjRef>>> = Rc::new(RefCell::new(Vec::new()));
     let charts_tick = charts.clone();
     let mut frame = 0u32;
     sim::run_with_tick(move |ui| build(ui, &charts), move |ui| {
-        // 60fps 下每 6 帧 push 一次（~100ms）：两条相位差 π/2 的正弦
+        // At 60fps, push every 6 frames (~100ms): two sine waves with a π/2 phase offset
         frame += 1;
         if frame % 6 != 0 {
             return;
@@ -56,7 +56,7 @@ fn column() -> Layout {
     })
 }
 
-/// 透明容器样式（只做布局，不画背景）
+/// Transparent container style (layout only, no background drawn)
 fn transparent() -> Style {
     let mut s = Style::default();
     s.bg_opa = Some(0);
@@ -66,7 +66,7 @@ fn transparent() -> Style {
 pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let screen = ui.screen();
 
-    // 屏幕级 Grid：标题行（内容高）+ 主行（Fr）；左列固定宽菜单，右列自适应面板
+    // Screen-level Grid: title row (content height) + main row (Fr); fixed-width menu on the left, adaptive panel on the right
     let mut ss = qingui::style::theme_screen();
     ss.pad_left = Some(8);
     ss.pad_top = Some(8);
@@ -94,7 +94,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(panel, column());
 
-    // ---- Settings 页：Slider + Switch + preview Bar ----
+    // ---- Settings page: Slider + Switch + preview Bar ----
     let page_settings = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_settings, transparent());
     ui.set_sizing(page_settings, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -115,19 +115,19 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         .size(160, 10)
         .value(30)
         .build(ui, page_settings);
-    // Slider 调值 → 动画驱动 preview Bar（演示动画与控件值联动）
+    // Slider value change → animation drives the preview Bar (demonstrates animation linking to widget values)
     ui.add_event_cb(slider, EventKind::ValueChanged, Box::new(move |ui, s, _| {
         let v = ui.value(s);
         let cur = ui.value(preview);
         ui.anim_start(Anim::new(preview, AnimProp::Value, cur, v, 300));
     }));
 
-    // ---- About 页：Wide 按钮 + ScrollView(About 文本与两张图滚出溢出可视) ----
+    // ---- About page: Wide button + ScrollView (About text and two images scroll past the visible viewport) ----
     let page_about = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_about, transparent());
     ui.set_sizing(page_about, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_about, column());
-    // 布局过渡演示：切换左侧菜单列宽，界面平滑重排
+    // Layout transition demo: toggling the left menu column width smoothly re-lays out the UI
     let wide = std::cell::Cell::new(false);
     let wide_btn = ButtonBuilder::new("Wide").build(ui, page_about);
     ui.add_event_cb(wide_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
@@ -141,12 +141,12 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             row_gap: 8,
         }));
     }));
-    // 滚动内容：文本 + image widget 示例(静态图 + gif 帧动画);
-    // 内容超视口时聚焦 ScrollView 用 Up/Down 滚动
+    // Scrolling content: text + image widget examples (static image + gif frame animation);
+    // When content exceeds the viewport, focus the ScrollView and scroll with Up/Down
     let sv = ScrollViewBuilder::new().build(ui, page_about);
     ui.set_sizing(sv, Some(Sizing::GROW), Some(Sizing::GROW));
     let sv_content = ui.scrollview_content(sv).unwrap();
-    // 多字体展示：默认 FONT_6X10 与覆盖 FONT_10X20 并列对比
+    // Multi-font demo: default FONT_6X10 side by side with an overridden FONT_10X20
     let small = LabelBuilder::new("FONT_6X10 small").build(ui, sv_content);
     let mut big_style = qingui::style::Style::default();
     big_style.font = Some(&embedded_graphics::mono_font::ascii::FONT_10X20);
@@ -161,7 +161,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let _logo = ImageBuilder::new(&images::HAIZEI).build(ui, sv_content);
     let _anim = ImageBuilder::new(&images::MIAO).build(ui, sv_content);
 
-    // ---- Animate 页：无限往返动画的 Bar + 圆弧仪表盘 ----
+    // ---- Animate page: infinitely ping-ponging Bar + arc gauge ----
     let page_animate = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_animate, transparent());
     ui.set_sizing(page_animate, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -175,7 +175,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             .playback(true),
     );
 
-    // Arc 表盘：值动画驱动（无限循环 0..360）
+    // Arc dial: driven by a value animation (infinite loop 0..360)
     let arc = ArcBuilder::new(0, 360).build(ui, page_animate);
     ui.set_sizing(arc, Some(Sizing::GROW), None);
     ui.set_aspect(arc, Some(1000)); // 1:1
@@ -184,7 +184,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let spinner = SpinnerBuilder::new().build(ui, page_animate);
     let _ = spinner;
 
-    // ---- LongList 页：20 项超长列表 + 增删按钮 ----
+    // ---- LongList page: 20-item long list + add/del buttons ----
     let page_longlist = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_longlist, transparent());
     ui.set_sizing(page_longlist, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -208,7 +208,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let add_btn = ButtonBuilder::new("Add").build(ui, btn_row);
     let del_btn = ButtonBuilder::new("Del").build(ui, btn_row);
 
-    // Add：在选中项下方插入（淡入 + 下方项下滑），demo 侧限制最多 20 项
+    // Add: insert below the selected item (fade in + items below slide down), the demo caps at 20 items
     let next_n = std::cell::Cell::new(21i32);
     ui.add_event_cb(add_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
         if ui.list_len(long_list) >= 20 {
@@ -219,12 +219,12 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         ui.list_insert(long_list, idx, &name);
         next_n.set(next_n.get() + 1);
     }));
-    // Del：删除选中项（渐隐 + 下方项上移）
+    // Del: delete the selected item (fade out + items below slide up)
     ui.add_event_cb(del_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
         ui.list_remove(long_list);
     }));
 
-    // LongList 项点击 → Msgbox（模态消息框）
+    // Clicking a LongList item → Msgbox (modal message box)
     ui.add_event_cb(long_list, EventKind::Clicked, Box::new(move |ui, l, _| {
         let idx = ui.list_selected(l);
         let screen = ui.screen();
@@ -235,7 +235,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         )
         .buttons(&["OK"])
         .build(ui, screen);
-        // 关闭后还原焦点
+        // Restore focus after it closes
         ui.add_event_cb(mb, EventKind::ValueChanged, Box::new(move |ui, _t, _| {
             if let Some(p) = prev {
                 ui.group_focus(p);
@@ -243,7 +243,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         }));
     }));
 
-    // ---- P1 Demo 页：Roller / Dropdown / Spinbox / LED / Table ----
+    // ---- P1 Demo page: Roller / Dropdown / Spinbox / LED / Table ----
     let page_p1 = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_p1, transparent());
     ui.set_sizing(page_p1, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -262,7 +262,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     }));
     let led = LedBuilder::new(Color::rgb(60, 180, 90)).build(ui, led_row);
     let _led_lbl = LabelBuilder::new("status").build(ui, led_row);
-    // LED 亮度跟随 spinbox 值（演示控件联动）
+    // LED brightness follows the spinbox value (demonstrates widget linkage)
     ui.add_event_cb(spinbox, EventKind::ValueChanged, Box::new(move |ui, sb, _| {
         let v = ui.value(sb);
         ui.set_value(led, v * 255 / 999);
@@ -276,13 +276,13 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         .cell(1, 2, "ms")
         .build(ui, page_p1);
 
-    // ---- ItemList 页：上下两个流式 chart + 三控件 item 的 ItemList ----
+    // ---- ItemList page: two streaming charts (top/bottom) + an ItemList of 3-control items ----
     let page_itemlist = ObjBuilder::new().build(ui, panel);
     ui.set_style(page_itemlist, transparent());
     ui.set_sizing(page_itemlist, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_itemlist, column());
 
-    // 上下两个折线图：不同颜色，数据由 main 的 tick 周期 push
+    // Two line charts (top/bottom): different colors, data pushed periodically by main's tick
     let chart1 = ChartBuilder::new()
         .range(0, 100)
         .series(Color::rgb(80, 140, 255), 48)
@@ -297,7 +297,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_size(chart2, 160, 56);
     charts.borrow_mut().extend([chart1, chart2]);
 
-    // 复杂 ItemList：每 item = LED + Label + Checkbox
+    // Complex ItemList: each item = LED + Label + Checkbox
     let il = ItemListBuilder::new().build(ui, page_itemlist);
     ui.set_sizing(il, Some(Sizing::GROW), Some(Sizing::GROW));
     let item_controls: Rc<RefCell<Vec<(ObjRef, ObjRef)>>> = Rc::new(RefCell::new(Vec::new()));
@@ -312,7 +312,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         let cb = CheckboxBuilder::new("").build(ui, item);
         item_controls.borrow_mut().push((led, cb));
     }
-    // Enter 触发 itemlist 的 Clicked：翻转选中 item 的 checkbox，LED 亮灭跟随
+    // Enter triggers the itemlist's Clicked: toggles the selected item's checkbox, the LED follows on/off
     let ics = item_controls.clone();
     ui.add_event_cb(il, EventKind::Clicked, Box::new(move |ui, il, _| {
         let idx = ui.itemlist_selected(il);
@@ -328,12 +328,12 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_hidden(page_p1, true);
     ui.set_hidden(page_itemlist, true);
 
-    // 布局过渡：菜单/面板/页面的位置尺寸变化自动动画
+    // Layout transition: position/size changes of the menu/panel/pages are animated automatically
     for &o in &[menu, panel, page_settings, page_about, page_animate, page_longlist, page_p1, page_itemlist] {
         ui.set_transition(o, Some((250, Easing::EaseInOutQuad)));
     }
 
-    // 菜单点击 → 切页 + 面板滑入动画（translate：布局子对象的正确动画通道）
+    // Menu click → page switch + panel slide-in animation (translate: the correct animation channel for layout children)
     ui.add_event_cb(menu, EventKind::Clicked, Box::new(move |ui, m, _| {
         let idx = ui.list_selected(m);
         ui.set_hidden(page_settings, idx != 0);
@@ -345,7 +345,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         ui.anim_start(Anim::new(panel, AnimProp::TranslateX, 204, 0, 200).easing(Easing::EaseOutQuad));
     }));
 
-    // 焦点组：菜单 → slider → switch → checkbox → Wide → ScrollView → 超长列表 → Add/Del → P1 控件组 → ItemList
+    // Focus group: menu → slider → switch → checkbox → Wide → ScrollView → long list → Add/Del → P1 widgets → ItemList
     ui.group_add(menu);
     ui.group_add(slider);
     ui.group_add(sw);

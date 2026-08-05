@@ -15,7 +15,7 @@ fn easing_bounds() {
         assert!((e.eval(1.0) - 1.0).abs() < 1e-6);
     }
     assert!((Easing::Bounce.eval(1.0) - 1.0).abs() < 1e-6);
-    assert!(Easing::Overshoot.eval(0.7) > 1.0); // overshoot 中后段冲过终点
+    assert!(Easing::Overshoot.eval(0.7) > 1.0); // overshoot passes the target in the latter part of the curve
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn linear_anim_progresses_with_tick() {
     ui.timer_handler();
     assert_eq!(ui.rect(o).x, 100);
     assert!(!ui.anim_running());
-    // 结束后 timer_handler 返回 u32::MAX（无待唤醒任务）
+    // After it ends, timer_handler returns u32::MAX (no task waiting to wake up)
     assert_eq!(ui.timer_handler(), u32::MAX);
 }
 
@@ -47,7 +47,7 @@ fn anim_with_delay() {
     ui.anim_start(a);
     ui.tick_inc(100);
     ui.timer_handler();
-    assert_eq!(ui.rect(o).x, 0); // delay 期间不动
+    assert_eq!(ui.rect(o).x, 0); // does not move during the delay
     ui.tick_inc(100);
     ui.timer_handler();
     assert_eq!(ui.rect(o).x, 100);
@@ -63,10 +63,10 @@ fn playback_reverses() {
     a.playback = true;
     ui.anim_start(a);
     ui.tick_inc(100);
-    ui.timer_handler(); // 第 1 轮结束 x=100
+    ui.timer_handler(); // end of round 1: x=100
     assert_eq!(ui.rect(o).x, 100);
     ui.tick_inc(50);
-    ui.timer_handler(); // 第 2 轮反向中点
+    ui.timer_handler(); // midpoint of the reverse round 2
     assert_eq!(ui.rect(o).x, 50);
     ui.tick_inc(50);
     ui.timer_handler();
@@ -108,7 +108,7 @@ fn anim_value_updates_widget_and_dirty() {
     let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
     ui.take_dirty();
     ui.anim_start(anim_to(s, AnimProp::Value, 100, 100));
-    // anim_start 立即应用起始值 → 标脏（动画与脏矩形联动）
+    // anim_start applies the start value immediately → marks dirty (animation linked with dirty rects)
     assert!(!ui.dirty_is_empty());
     ui.tick_inc(100);
     ui.timer_handler();
@@ -130,8 +130,8 @@ fn anim_x_on_flex_child_not_reset_by_layout() {
     let k = ObjBuilder::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.timer_handler();
-    assert_eq!(ui.rect(k).x, 0); // 布局计算位置
-    // 动画写 x：set_pos 不标布局脏 → 布局不重算 → 动画值保持（未被布局重置为 0）
+    assert_eq!(ui.rect(k).x, 0); // layout-computed position
+    // Animation writes x: set_pos does not mark layout dirty → layout does not recompute → the animated value is kept (not reset to 0 by layout)
     ui.anim_start(anim_to(k, AnimProp::X, 50, 100));
     ui.tick_inc(50);
     ui.timer_handler();
@@ -153,13 +153,13 @@ fn translate_offsets_abs_rect_and_survives_layout() {
     }));
     let k = ObjBuilder::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
-    ui.set_translate(c, 5, 7); // 父容器平移 → 子树整体偏移
+    ui.set_translate(c, 5, 7); // parent container translated → whole subtree offsets
     ui.timer_handler();
-    assert_eq!(ui.rect(k), Rect::new(0, 0, 20, 10)); // rect 不变
-    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // 子对象 abs 也叠加父平移
-    ui.set_size(c, 150, 100); // 触发布局重算
+    assert_eq!(ui.rect(k), Rect::new(0, 0, 20, 10)); // rect unchanged
+    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // child's abs also adds the parent translate
+    ui.set_size(c, 150, 100); // triggers a layout recompute
     ui.timer_handler();
-    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // translate 保留
+    assert_eq!(ui.abs_rect(k), Rect::new(5, 7, 20, 10)); // translate preserved
 }
 
 #[test]
@@ -171,5 +171,5 @@ fn anim_translate_x() {
     ui.tick_inc(50);
     ui.timer_handler();
     assert_eq!(ui.abs_rect(o).x, 50);
-    assert_eq!(ui.rect(o).x, 0); // 布局坐标不受影响
+    assert_eq!(ui.rect(o).x, 0); // layout coordinates unaffected
 }
