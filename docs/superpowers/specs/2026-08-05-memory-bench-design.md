@@ -130,7 +130,11 @@ fn build_scene(tier: Tier) -> Ui {
     };
     let mut ui = Ui::new(320, 240, 24);
     let scr = ui.screen();
-    let list = ListBuilder::new(&items_text(n_items)).build(&mut ui, scr); // Vec<String>
+    // ListBuilder::new takes &[&str]; build the label strings first (their allocation
+    // is counted, which is representative of real use). Same pattern as dropdown.rs.
+    let texts: Vec<String> = (0..n_items).map(|i| format!("item{i}")).collect();
+    let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+    let list = ListBuilder::new(&refs).build(&mut ui, scr); // Vec<String>
     for i in 0..n_items { ButtonBuilder::new(&format!("btn{i}")).build(&mut ui, scr); }
     for _ in 0..n_items / 4 { SliderBuilder::new(0, 100).build(&mut ui, scr); }
     let chart = ChartBuilder::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
@@ -173,4 +177,4 @@ fn build_scene(tier: Tier) -> Ui {
 - **host 64 位 ≠ 目标 32 位**：绝对值不同。对策：报告头注释说明本工具价值在相对形状与回归护栏，绝对数以 `cargo size` 为准（设计决策，不落地）。
 - **std 运行时背景分配污染峰值**：`reset-delta` 隔离场景段。
 - **阈值拍脑袋**：第一轮只打印测基线，按 `×2` 校准（定值程序写入第 2/4 节）。
-- **`format!`/`items_text` 在场景内分配**：这符合真实用法（label 文本本就该被计数），不回避。
+- **`format!` 在场景内分配**：这符合真实用法（label 文本本就该被计数），不回避。
