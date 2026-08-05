@@ -39,6 +39,18 @@ fn reset() {
     PEAK.store(0, Ordering::Relaxed);
 }
 
+// Thresholds calibrated 2026-08-05: measured baseline x 2 (see spec
+// docs/superpowers/specs/2026-08-05-memory-bench-design.md).
+const LIMIT_WIDGETKIND: usize = 368;
+const LIMIT_STYLE: usize = 336;
+const LIMIT_NODE: usize = 2000;
+const LIMIT_PEAK_SMALL: usize = 95_754;
+const LIMIT_LIVE_SMALL: usize = 79_338;
+const LIMIT_PEAK_MEDIUM: usize = 244_272;
+const LIMIT_LIVE_MEDIUM: usize = 178_160;
+const LIMIT_PEAK_LARGE: usize = 835_552;
+const LIMIT_LIVE_LARGE: usize = 571_616;
+
 fn report_static_sizes() {
     use core::mem::size_of;
     use qingui::geometry::{Color, Point, Rect};
@@ -87,8 +99,12 @@ fn report_static_sizes() {
     row!("ItemList", itemlist::ItemListState);
     row!("Custom", custom::CustomState);
     println!("Ui            {:>6} B", size_of::<qingui::Ui>());
+    assert!(size_of::<WidgetKind>() < LIMIT_WIDGETKIND, "WidgetKind {} B exceeds limit", size_of::<WidgetKind>());
+    assert!(size_of::<Style>() < LIMIT_STYLE, "Style {} B exceeds limit", size_of::<Style>());
+    assert!(size_of::<Node>() < LIMIT_NODE, "Node {} B exceeds limit", size_of::<Node>());
 }
 
+#[derive(Clone, Copy)]
 enum Tier { Small, Medium, Large }
 
 fn build_scene(tier: Tier) -> qingui::Ui {
@@ -150,6 +166,13 @@ fn bench_scene(label: &str, tier: Tier) {
     let live = current();
     drop(ui);
     println!("{label:<8} {nodes:>5} nodes  peak {peak:>9} B  live {live:>9} B");
+    let (peak_limit, live_limit) = match tier {
+        Tier::Small => (LIMIT_PEAK_SMALL, LIMIT_LIVE_SMALL),
+        Tier::Medium => (LIMIT_PEAK_MEDIUM, LIMIT_LIVE_MEDIUM),
+        Tier::Large => (LIMIT_PEAK_LARGE, LIMIT_LIVE_LARGE),
+    };
+    assert!(peak < peak_limit, "{label}: peak {peak} B exceeds {peak_limit} B");
+    assert!(live < live_limit, "{label}: live {live} B exceeds {live_limit} B");
 }
 
 fn main() {
