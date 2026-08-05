@@ -73,7 +73,7 @@ fn report_static_sizes() {
     println!("Color         {:>6} B", size_of::<Color>());
     println!("Style         {:>6} B", size_of::<Style>());
     println!("ResolvedStyle {:>6} B", size_of::<ResolvedStyle>());
-    println!("4 x Style     {:>6} B", 4 * size_of::<Style>());
+    println!("4 x Style (old inline cost) {:>6} B", 4 * size_of::<Style>());
     println!("Node          {:>6} B", size_of::<Node>());
     println!("WidgetKind    {:>6} B", size_of::<WidgetKind>());
     let max_state = [
@@ -85,13 +85,10 @@ fn report_static_sizes() {
         size_of::<custom::CustomState>(),
         size_of::<dropdown::DropdownState>(),
         size_of::<image::ImageState>(),
-        size_of::<itemlist::ItemListState>(),
         size_of::<label::LabelState>(),
         size_of::<led::LedState>(),
-        size_of::<list::ListState>(),
         size_of::<msgbox::MsgboxState>(),
         size_of::<obj::ObjState>(),
-        size_of::<roller::RollerState>(),
         size_of::<scrollview::ScrollViewState>(),
         size_of::<slider::SliderState>(),
         size_of::<spinbox::SpinboxState>(),
@@ -102,9 +99,9 @@ fn report_static_sizes() {
     .into_iter()
     .max()
     .unwrap();
-    println!("  largest widget state   = {max_state} B");
-    println!("  discriminator overhead = {} B (WidgetKind - largest state)", size_of::<WidgetKind>().saturating_sub(max_state));
-    println!("  NOTE: every node carries WidgetKind ({} B) for kind regardless of its state", size_of::<WidgetKind>());
+    println!("  largest inline state  = {max_state} B");
+    println!("  discriminator overhead = {} B (WidgetKind - largest inline state)", size_of::<WidgetKind>() - max_state);
+    println!("  NOTE: List/ItemList/Roller states are boxed (heap-allocated), so the enum stays small for every node");
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
     }
