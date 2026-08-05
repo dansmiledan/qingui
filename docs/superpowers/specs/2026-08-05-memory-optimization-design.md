@@ -161,7 +161,7 @@ define_widgets! {
 - `qingui/src/widgets/{list,itemlist,roller}.rs`（构造点 + Box::new）
 - `qingui/benches/memory.rs`（Minimal 档 + 32 位说明 + 阈值）
 
-其余 13 个 widget 文件、全部 builder、tests 零改动。
+其余 widget 文件、全部 builder、`tests/` 零改动。
 
 ## 风险与对策
 
