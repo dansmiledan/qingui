@@ -115,6 +115,17 @@ macro_rules! wtype {
     (boxed,  $state:ty) => { alloc::boxed::Box<$state> };
 }
 
+/// Private deref helpers: expand to a `&T`/`&mut T` for both inline (`s: &T`) and
+/// boxed (`s: &Box<T>`) payloads without adding any public trait impls.
+macro_rules! wref {
+    (inline, $s:expr) => { $s };
+    (boxed,  $s:expr) => { &**$s };
+}
+macro_rules! wmut {
+    (inline, $s:expr) => { $s };
+    (boxed,  $s:expr) => { &mut **$s };
+}
+
 /// Declaratively registers a widget: generates the enum, behavior dispatch, `as_xxx` accessors, and downcast.
 /// Adding a widget requires just one line here.
 macro_rules! define_widgets {
@@ -124,48 +135,36 @@ macro_rules! define_widgets {
             $( $variant(wtype!($store, $state)), )+
         }
 
-        $(
-            // Reflexive AsRef/AsMut: lets the uniform `s.as_ref()` / `s.as_mut()` dispatch
-            // below work for both inline `$state` payloads and `Box<$state>` payloads
-            // (std provides `Box<T>: AsRef<T>`/`AsMut<T>` but no reflexive impl for T).
-            impl AsRef<$state> for $state {
-                fn as_ref(&self) -> &$state { self }
-            }
-            impl AsMut<$state> for $state {
-                fn as_mut(&mut self) -> &mut $state { self }
-            }
-        )+
-
         impl WidgetKind {
             pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(s.as_ref(), ctx, d, clip), )+ }
+                    match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(wref!($store, s), ctx, d, clip), )+ }
             }
             pub(crate) fn overflow(&self) -> i32 {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::overflow(s.as_ref()), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::overflow(wref!($store, s)), )+ }
             }
             pub(crate) fn value(&self) -> i32 {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::value(s.as_ref()), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::value(wref!($store, s)), )+ }
             }
             pub(crate) fn set_value(&mut self, v: i32) -> bool {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_value(s.as_mut(), v), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_value(wmut!($store, s), v), )+ }
             }
             pub(crate) fn set_range(&mut self, min: i32, max: i32) {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_range(s.as_mut(), min, max), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_range(wmut!($store, s), min, max), )+ }
             }
             pub(crate) fn tick(&mut self, now: u64) -> TickOut {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::tick(s.as_mut(), now), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::tick(wmut!($store, s), now), )+ }
             }
             pub(crate) fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(s.as_mut(), key, ctx), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(wmut!($store, s), key, ctx), )+ }
             }
             $(
                 /// Returns `Some(&$state)` if this widget is a `$variant`.
                 pub fn $as(&self) -> Option<&$state> {
-                    match self { WidgetKind::$variant(s) => Some(s.as_ref()), _ => None }
+                    match self { WidgetKind::$variant(s) => Some(wref!($store, s)), _ => None }
                 }
                 /// Returns `Some(&mut $state)` if this widget is a `$variant`.
                 pub fn $as_mut(&mut self) -> Option<&mut $state> {
-                    match self { WidgetKind::$variant(s) => Some(s.as_mut()), _ => None }
+                    match self { WidgetKind::$variant(s) => Some(wmut!($store, s)), _ => None }
                 }
             )+
             /// Hands out `&mut` state by type (used by `Ui::update`); TypeId comparison + Any downcast
@@ -173,7 +172,7 @@ macro_rules! define_widgets {
                 $(
                     if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
                         if let WidgetKind::$variant(s) = self {
-                            return (s.as_mut() as &mut dyn core::any::Any).downcast_mut::<T>();
+                            return (wmut!($store, s) as &mut dyn core::any::Any).downcast_mut::<T>();
                         }
                     }
                 )+
