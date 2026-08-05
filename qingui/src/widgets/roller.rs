@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -181,7 +182,7 @@ impl RollerBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Roller(RollerState { items: self.items, selected, sel_from: None }),
+            WidgetKind::Roller(Box::new(RollerState { items: self.items, selected, sel_from: None })),
         );
         let base = self.style.unwrap_or_else(|| {
             let mut s = Style::default();

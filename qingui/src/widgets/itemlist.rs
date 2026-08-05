@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
@@ -110,7 +111,7 @@ impl ItemListBuilder {
         // Replace the placeholder kind with the real one
         let sel_style = self.style_selected.unwrap_or_else(default_sel_style);
         if let Some(n) = ui.arena.get_mut(r) {
-            n.kind = WidgetKind::ItemList(ItemListState { selected: 0, content, sel_style });
+            n.kind = WidgetKind::ItemList(Box::new(ItemListState { selected: 0, content, sel_style }));
         }
         // Viewport style (defaults to theme_list's dark background + border)
         let mut vs = self.style.unwrap_or_else(|| {

@@ -108,45 +108,64 @@ pub(crate) fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
     changed
 }
 
+/// Variant storage: inline = inlined state, boxed = heap-allocated (large states to
+/// avoid the "largest-variant tax").
+macro_rules! wtype {
+    (inline, $state:ty) => { $state };
+    (boxed,  $state:ty) => { alloc::boxed::Box<$state> };
+}
+
 /// Declaratively registers a widget: generates the enum, behavior dispatch, `as_xxx` accessors, and downcast.
 /// Adding a widget requires just one line here.
 macro_rules! define_widgets {
-    ($($variant:ident($state:ty, $as:ident, $as_mut:ident)),+ $(,)?) => {
+    ($($variant:ident($state:ty, $as:ident, $as_mut:ident, $store:ident)),+ $(,)?) => {
         /// Discriminated widget state: one variant per registered widget type.
         pub enum WidgetKind {
-            $( $variant($state), )+
+            $( $variant(wtype!($store, $state)), )+
         }
+
+        $(
+            // Reflexive AsRef/AsMut: lets the uniform `s.as_ref()` / `s.as_mut()` dispatch
+            // below work for both inline `$state` payloads and `Box<$state>` payloads
+            // (std provides `Box<T>: AsRef<T>`/`AsMut<T>` but no reflexive impl for T).
+            impl AsRef<$state> for $state {
+                fn as_ref(&self) -> &$state { self }
+            }
+            impl AsMut<$state> for $state {
+                fn as_mut(&mut self) -> &mut $state { self }
+            }
+        )+
 
         impl WidgetKind {
             pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(s, ctx, d, clip), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(s.as_ref(), ctx, d, clip), )+ }
             }
             pub(crate) fn overflow(&self) -> i32 {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::overflow(s), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::overflow(s.as_ref()), )+ }
             }
             pub(crate) fn value(&self) -> i32 {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::value(s), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::value(s.as_ref()), )+ }
             }
             pub(crate) fn set_value(&mut self, v: i32) -> bool {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_value(s, v), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_value(s.as_mut(), v), )+ }
             }
             pub(crate) fn set_range(&mut self, min: i32, max: i32) {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_range(s, min, max), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_range(s.as_mut(), min, max), )+ }
             }
             pub(crate) fn tick(&mut self, now: u64) -> TickOut {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::tick(s, now), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::tick(s.as_mut(), now), )+ }
             }
             pub(crate) fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(s, key, ctx), )+ }
+                match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(s.as_mut(), key, ctx), )+ }
             }
             $(
                 /// Returns `Some(&$state)` if this widget is a `$variant`.
                 pub fn $as(&self) -> Option<&$state> {
-                    match self { WidgetKind::$variant(s) => Some(s), _ => None }
+                    match self { WidgetKind::$variant(s) => Some(s.as_ref()), _ => None }
                 }
                 /// Returns `Some(&mut $state)` if this widget is a `$variant`.
                 pub fn $as_mut(&mut self) -> Option<&mut $state> {
-                    match self { WidgetKind::$variant(s) => Some(s), _ => None }
+                    match self { WidgetKind::$variant(s) => Some(s.as_mut()), _ => None }
                 }
             )+
             /// Hands out `&mut` state by type (used by `Ui::update`); TypeId comparison + Any downcast
@@ -154,7 +173,7 @@ macro_rules! define_widgets {
                 $(
                     if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
                         if let WidgetKind::$variant(s) = self {
-                            return (s as &mut dyn core::any::Any).downcast_mut::<T>();
+                            return (s.as_mut() as &mut dyn core::any::Any).downcast_mut::<T>();
                         }
                     }
                 )+
@@ -165,27 +184,27 @@ macro_rules! define_widgets {
 }
 
 define_widgets! {
-    Obj(obj::ObjState, as_obj, as_obj_mut),
-    ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut),
-    Label(label::LabelState, as_label, as_label_mut),
-    Button(button::ButtonState, as_button, as_button_mut),
-    Slider(slider::SliderState, as_slider, as_slider_mut),
-    Switch(switch::SwitchState, as_switch, as_switch_mut),
-    Bar(bar::BarState, as_bar, as_bar_mut),
-    List(list::ListState, as_list, as_list_mut),
-    Arc(arc::ArcState, as_arc, as_arc_mut),
-    Checkbox(checkbox::CheckboxState, as_checkbox, as_checkbox_mut),
-    Chart(chart::ChartState, as_chart, as_chart_mut),
-    Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut),
-    Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut),
-    Led(led::LedState, as_led, as_led_mut),
-    Table(table::TableState, as_table, as_table_mut),
-    Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut),
-    Roller(roller::RollerState, as_roller, as_roller_mut),
-    ScrollView(scrollview::ScrollViewState, as_scrollview, as_scrollview_mut),
-    Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut),
-    Image(image::ImageState, as_image, as_image_mut),
-    Custom(custom::CustomState, as_custom_state, as_custom_state_mut),
+    Obj(obj::ObjState, as_obj, as_obj_mut, inline),
+    ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
+    Label(label::LabelState, as_label, as_label_mut, inline),
+    Button(button::ButtonState, as_button, as_button_mut, inline),
+    Slider(slider::SliderState, as_slider, as_slider_mut, inline),
+    Switch(switch::SwitchState, as_switch, as_switch_mut, inline),
+    Bar(bar::BarState, as_bar, as_bar_mut, inline),
+    List(list::ListState, as_list, as_list_mut, boxed),
+    Arc(arc::ArcState, as_arc, as_arc_mut, inline),
+    Checkbox(checkbox::CheckboxState, as_checkbox, as_checkbox_mut, inline),
+    Chart(chart::ChartState, as_chart, as_chart_mut, inline),
+    Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut, inline),
+    Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
+    Led(led::LedState, as_led, as_led_mut, inline),
+    Table(table::TableState, as_table, as_table_mut, inline),
+    Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut, inline),
+    Roller(roller::RollerState, as_roller, as_roller_mut, boxed),
+    ScrollView(scrollview::ScrollViewState, as_scrollview, as_scrollview_mut, inline),
+    Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut, inline),
+    Image(image::ImageState, as_image, as_image_mut, inline),
+    Custom(custom::CustomState, as_custom_state, as_custom_state_mut, inline),
 }
 
 impl WidgetKind {

@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -333,7 +334,7 @@ impl ListBuilder {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::List(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() }),
+            WidgetKind::List(Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() })),
         );
         ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_list));
         ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_list_focused));
