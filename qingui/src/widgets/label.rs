@@ -11,6 +11,7 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+/// Label widget state.
 #[derive(Clone)]
 pub struct LabelState {
     pub text: String,
@@ -27,7 +28,7 @@ pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     );
 }
 
-/// Label 构建器：默认文本测量尺寸 + theme_label
+/// Label builder: default text-measured size + theme_label
 pub struct LabelBuilder {
     text: String,
     style: Option<Style>,
@@ -37,33 +38,40 @@ pub struct LabelBuilder {
 }
 
 impl LabelBuilder {
+    /// Creates a builder with the given text.
     pub fn new(text: &str) -> Self {
         Self {
             text: text.into(),
             style: None, sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_label)));
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let font = crate::font::measure_font(self.style.as_ref(), ui);
         let (w, h) = crate::font::text_size(font, &self.text);
@@ -114,9 +122,11 @@ impl super::WidgetBehavior for LabelState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, ctx, d, clip) }
 }
 
-/// 文本 API(经 prelude 或显式 use 引入)
+/// Text API (brought in via prelude or an explicit use)
 pub trait UiTextExt {
+    /// Sets the label's text (also resizes the node to fit).
     fn set_text(&mut self, obj: ObjRef, text: &str);
+    /// Returns the label's current text.
     fn text(&self, obj: ObjRef) -> String;
 }
 

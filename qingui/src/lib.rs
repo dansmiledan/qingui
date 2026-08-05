@@ -17,14 +17,20 @@ pub mod node;
 pub mod style;
 pub mod ui;
 pub mod widgets;
+/// Handle referencing an object stored in the arena.
 pub use arena::ObjRef;
+/// Event kinds delivered to widget event callbacks.
 pub use event::EventKind;
+/// Core geometry and color types.
 pub use geometry::{Color, Point, Rect};
+/// Main UI state and entry point for all object operations.
 pub use ui::Ui;
+/// Trait implemented by user-defined custom widgets.
 pub use widgets::custom::Widget;
+/// Per-frame effect result reported by a widget's tick.
 pub use widgets::TickOut;
 
-/// 各 widget 扩展 trait 汇总:一行引入全部 widget 专属 API
+/// Aggregates all widget extension traits: brings in every widget-specific API with one import
 pub mod prelude {
     pub use crate::widgets::chart::UiChartExt;
     pub use crate::widgets::checkbox::UiCheckboxExt;

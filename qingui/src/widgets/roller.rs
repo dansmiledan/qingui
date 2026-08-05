@@ -10,9 +10,12 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+/// Row height in pixels.
 pub const ROW_H: i32 = 16;
+/// Duration of the roll animation in ms.
 pub const ROLL_DUR: u64 = 150;
 
+/// Roller widget state.
 #[derive(Clone)]
 pub struct RollerState {
     pub items: Vec<String>,
@@ -27,7 +30,7 @@ impl RollerState {
         if !active {
             self.sel_from = None;
         }
-        // 有 fx（含本帧过期）就重绘：完成帧必须补最后一定格
+        // Redraw if there was fx (including a frame whose fx just expired): the completing frame must render the final settle
         super::TickOut { redraw: had_fx, active }
     }
 
@@ -44,7 +47,7 @@ impl RollerState {
     }
 }
 
-/// 滚动位置：从 from 平滑过渡到 selected
+/// Scroll position: smoothly transitions from `from` to `selected`
 fn sel_f(selected: usize, sel_from: Option<(f32, u64)>, now: u64) -> f32 {
     match sel_from {
         Some((from, start)) => {
@@ -64,12 +67,12 @@ pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64
     let lclip = abs.intersect(&clip).unwrap_or(clip);
     let ap = ctx.ap(255);
     let cy = abs.y + abs.h / 2;
-    // 中心选中行高亮（滚轮在行下滑动）
+    // Highlight of the center selected row (the wheel slides beneath the row)
     d.fill_rounded(Rect::new(abs.x, cy - ROW_H / 2, abs.w, ROW_H), 3, Color::rgb(50, 70, 120), ap, lclip);
     let sf = sel_f(selected, sel_from, ctx.now);
     let lh = crate::font::line_height(ctx.resolved.font);
     for (i, item) in items.iter().enumerate() {
-        // 文本在行高 ROW_H 内垂直居中
+        // Vertically center the text within the row height ROW_H
         let ry = cy + ((i as f32 - sf) * ROW_H as f32) as i32 - lh / 2;
         if ry + lh < lclip.y || ry > lclip.bottom() {
             continue;
@@ -86,8 +89,8 @@ pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64
     }
 }
 
-/// 选中第 idx 项（首尾停止，不循环），带滚动动画。
-/// 动画中途连按时从当前视觉位置续接（不跳变）。
+/// Selects the idx-th item (stops at the ends, no wrap-around), with a scroll animation.
+/// Repeats during the animation continue from the current visual position (no jump).
 pub(crate) fn select(items: &[String], selected: &mut usize, sel_from: &mut Option<(f32, u64)>, idx: usize, now: u64) {
     if items.is_empty() {
         return;
@@ -100,7 +103,7 @@ pub(crate) fn select(items: &[String], selected: &mut usize, sel_from: &mut Opti
     }
 }
 
-/// Roller 构建器：默认 80 x (min(3,n)*16+8)，bg(34,34,44) r4 + focused 白边
+/// Roller builder: default 80 x (min(3,n)*16+8), bg(34,34,44) r4 + white focused border
 pub struct RollerBuilder {
     items: Vec<String>,
     selected: usize,
@@ -113,6 +116,7 @@ pub struct RollerBuilder {
 }
 
 impl RollerBuilder {
+    /// Creates a builder with the given items.
     pub fn new(items: &[&str]) -> Self {
         Self {
             items: items.iter().map(|s| (*s).into()).collect(),
@@ -121,18 +125,22 @@ impl RollerBuilder {
             sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.selected = idx;
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         let base = self.style.take().unwrap_or_else(|| {
             let mut s = Style::default();
@@ -144,23 +152,28 @@ impl RollerBuilder {
         self.style = Some(f(base));
         self
     }
+    /// Sets the focused style.
     pub fn style_focused(mut self, s: Style) -> Self {
         self.style_focused = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let rows = self.items.len().min(3).max(1) as i32;
         let (w, h) = self.size.unwrap_or((80, rows * ROW_H + 8));
@@ -206,8 +219,9 @@ impl super::WidgetBehavior for RollerState {
     fn set_value(&mut self, v: i32) -> bool { super::select_clamp(self.items.len(), &mut self.selected, v) }
 }
 
-/// roller 专属 API(经 prelude 或显式 use 引入)
+/// Roller-specific API (brought in via prelude or an explicit use)
 pub trait UiRollerExt {
+    /// Returns the currently selected index.
     fn roller_selected(&self, obj: ObjRef) -> usize;
 }
 

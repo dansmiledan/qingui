@@ -1,9 +1,10 @@
 use crate::arena::ObjRef;
 
-/// 焦点簿记：计算焦点应移动到的目标索引（纯函数，副作用由 Ui 执行）。
-/// 语义与旧 Ui::group_focus_next/prev 完全一致：
-/// 空组 → None；base = focused.unwrap_or(0)；从 base 沿 dir（±1）步进
-/// 1..=len，跳过 !valid，环绕取模（rem_euclid）；全不可选 → None。
+/// Focus bookkeeping: computes the target index focus should move to (a pure function;
+/// side effects are performed by `Ui`).
+/// Semantics are identical to the old `Ui::group_focus_next/prev`:
+/// empty group → None; base = focused.unwrap_or(0); step from base along dir (±1)
+/// 1..=len, skipping !valid, wrapping via modulo (rem_euclid); all unselectable → None.
 pub(crate) fn step(
     group: &[ObjRef],
     focused: Option<usize>,
@@ -39,19 +40,19 @@ mod tests {
     #[test]
     fn next_wraps_around() {
         let g = vec![obj(0), obj(1), obj(2)];
-        // focused=2，Next(+1) → 环绕到 0
+        // focused=2, Next(+1) → wraps to 0
         assert_eq!(step(&g, Some(2), 1, |_| true), Some(0));
-        // focused=0，Prev(-1) → 环绕到 2
+        // focused=0, Prev(-1) → wraps to 2
         assert_eq!(step(&g, Some(0), -1, |_| true), Some(2));
     }
 
     #[test]
     fn skips_invalid() {
         let g = vec![obj(0), obj(1), obj(2)];
-        // focused=0，Next(+1)：obj1 不可选 → 跳过到 obj2
+        // focused=0, Next(+1): obj1 is unselectable → skip to obj2
         let valid = |o: ObjRef| o.index != 1;
         assert_eq!(step(&g, Some(0), 1, valid), Some(2));
-        // 全不可选 → None
+        // all unselectable → None
         assert_eq!(step(&g, Some(0), 1, |_| false), None);
     }
 

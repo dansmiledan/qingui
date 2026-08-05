@@ -1,31 +1,34 @@
-//! 字体：embedded-graphics MonoFont 渲染与度量。
-//! 经 DrawTarget 适配复用 e-g 的 Text 渲染器；Off 像素不写（背景透明）。
+//! Fonts: embedded-graphics MonoFont rendering and measurement.
+//! Reuses e-g's Text renderer through a DrawTarget adapter; Off pixels are not written
+//! (transparent background).
 
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::text::renderer::TextRenderer;
 
-/// 默认字体（最接近原 font8x8 的紧凑度）
+/// Default font (closest to the original font8x8's compactness)
 pub const DEFAULT_FONT: &MonoFont = &embedded_graphics::mono_font::ascii::FONT_6X10;
 
-/// 逐字水平步进（字宽 + 字距）
+/// Horizontal advance per character (glyph width + spacing)
 pub fn advance(font: &'static MonoFont) -> i32 {
     (font.character_size.width + font.character_spacing) as i32
 }
 
-/// 行高
+/// Line height
 pub fn line_height(font: &'static MonoFont) -> i32 {
     font.character_size.height as i32
 }
 
-/// 内容尺寸测量字体：base style.font → Ui 默认。
-/// 与 resolved_style 三级解析一致（overlay 在构建/设置期未知，只考虑 base style.font），
-/// 保证 widget 内容尺寸与实际绘制字体匹配。
+/// Font used for content-size measurement: base `style.font` → Ui default.
+/// Consistent with the three-level `resolved_style` resolution (the overlay is unknown at
+/// build/set time, so only `base style.font` is considered),
+/// ensuring widget content size matches the font actually used for drawing.
 pub(crate) fn measure_font(style: Option<&crate::style::Style>, ui: &crate::ui::Ui) -> &'static MonoFont<'static> {
     style.and_then(|s| s.font).unwrap_or_else(|| ui.default_font())
 }
 
-/// 文本尺寸（支持 '\n'；逐行经 e-g measure_string 测宽，行高按 font 行高，
-/// 语义与 Text 渲染器的换行严格一致）。空串为 (0, line_height)。
+/// Text size (supports '\n'; each line's width is measured via e-g `measure_string`, line
+/// height follows the font, semantics strictly matching the Text renderer's line breaking).
+/// An empty string is `(0, line_height)`.
 pub fn text_size(font: &'static MonoFont, s: &str) -> (i32, i32) {
     let style = embedded_graphics::mono_font::MonoTextStyle::new(font, embedded_graphics::pixelcolor::BinaryColor::On);
     let mut max_w = 0i32;

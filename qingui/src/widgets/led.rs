@@ -10,6 +10,7 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+/// Led widget state.
 #[derive(Clone)]
 pub struct LedState {
     pub color: Color,
@@ -23,13 +24,13 @@ pub(crate) fn draw(color: Color, bright: u8, ctx: &WidgetCtx, d: &mut DrawBuf, c
     if r <= 0 {
         return;
     }
-    // 亮度：从黑渐变到纯色
+    // Brightness: gradient from black to the solid color
     let on = Color::BLACK.blend(color, bright);
     d.fill_circle(c, r, on, ctx.ap(255), clip);
     d.draw_circle(c, r, 1, Color::rgb(90, 90, 100), ctx.ap(255), clip);
 }
 
-/// Led 构建器：默认 16x16 + bg 透明
+/// Led builder: default 16x16 + transparent bg
 pub struct LedBuilder {
     color: Color,
     bright: Option<u8>,
@@ -41,6 +42,7 @@ pub struct LedBuilder {
 }
 
 impl LedBuilder {
+    /// Creates a builder with the given LED color.
     pub fn new(color: Color) -> Self {
         Self {
             color,
@@ -48,31 +50,38 @@ impl LedBuilder {
             sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the initial brightness (0..=255, default 255).
     pub fn bright(mut self, bright: u8) -> Self {
         self.bright = Some(bright);
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((16, 16));
         let r = ui.insert_node(

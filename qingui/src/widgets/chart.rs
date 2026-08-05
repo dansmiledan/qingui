@@ -11,19 +11,20 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
-/// 一条数据线：定容环形缓冲，满时挤掉最旧点
+/// One data line: a fixed-capacity ring buffer that drops the oldest point when full
 pub struct Series {
     pub color: Color,
-    pub capacity: usize, // ≥1（传 0 钳到 1）
+    pub capacity: usize, // ≥1 (0 is clamped to 1)
     pub points: VecDeque<i32>,
 }
 
 impl Series {
+    /// Creates a series with the given color and capacity (clamped to at least 1).
     pub fn new(color: Color, capacity: usize) -> Self {
         let capacity = capacity.max(1);
         Self { color, capacity, points: VecDeque::with_capacity(capacity) }
     }
-    /// 追加一点（调用方已 clamp 到 range）；满则挤掉最旧
+    /// Appends a point (the caller has already clamped it to the range); drops the oldest when full
     pub fn push(&mut self, v: i32) {
         if self.points.len() == self.capacity {
             self.points.pop_front();
@@ -32,14 +33,15 @@ impl Series {
     }
 }
 
+/// Chart widget state.
 pub struct ChartState {
-    pub min: i32, // Y 轴固定范围
+    pub min: i32, // fixed Y-axis range
     pub max: i32,
     pub series: Vec<Series>,
 }
 
-/// 只画数据线（背景/边框由通用 draw_node 处理）：
-/// 相邻点连线，单点序列画圆点，空序列跳过。无分配。
+/// Draws only the data lines (background/border are handled by the common draw_node):
+/// adjacent points are connected with lines, a single-point series draws a dot, empty series are skipped. No allocation.
 pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
     if abs.w < 1 || abs.h < 1 {
@@ -53,13 +55,13 @@ pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect)
         }
         let mut prev: Option<Point> = None;
         for (i, &v) in ser.points.iter().enumerate() {
-            // X：按容量定位、从左填充；capacity==1 时唯一点画在水平中心
+            // X: positioned by capacity, filled from the left; with capacity==1 the single point is drawn at the horizontal center
             let x = if ser.capacity > 1 {
                 abs.x + i as i32 * (abs.w - 1) / (ser.capacity as i32 - 1)
             } else {
                 abs.x + abs.w / 2
             };
-            // Y：钳到 [min,max] 后线性映射；min==max 画水平中线（避免除零）
+            // Y: clamp to [min,max] then map linearly; min==max draws a horizontal midline (avoids division by zero)
             let y = if max > min {
                 let frac = (v.clamp(min, max) - min) as i64 * (abs.h - 1) as i64 / (max - min) as i64;
                 abs.y + abs.h - 1 - frac as i32
@@ -77,7 +79,7 @@ pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect)
     }
 }
 
-/// Chart 构建器：默认 120x60 + range 0..100
+/// Chart builder: default 120x60 + range 0..100
 pub struct ChartBuilder {
     min: i32,
     max: i32,
@@ -90,6 +92,7 @@ pub struct ChartBuilder {
 }
 
 impl ChartBuilder {
+    /// Creates a builder with the default range 0..100.
     pub fn new() -> Self {
         Self {
             min: 0, max: 100,
@@ -97,37 +100,44 @@ impl ChartBuilder {
             transition: None, events: Vec::new(), series: Vec::new(),
         }
     }
+    /// Sets the fixed Y-axis range.
     pub fn range(mut self, min: i32, max: i32) -> Self {
         self.min = min;
         self.max = max;
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
-    /// 预建一条序列（可多次调用）
+    /// Pre-creates one series (may be called multiple times)
     pub fn series(mut self, color: Color, capacity: usize) -> Self {
         self.series.push((color, capacity));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((120, 60));
         let state = ChartState {
@@ -154,13 +164,19 @@ impl super::WidgetBehavior for ChartState {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self, ctx, d, clip) }
 }
 
-/// chart 数据 API(经 prelude 或显式 use 引入)
+/// Chart data API (brought in via prelude or an explicit use)
 pub trait UiChartExt {
+    /// Adds a new series and returns its index.
     fn chart_add_series(&mut self, c: ObjRef, color: Color, capacity: usize) -> usize;
+    /// Appends a point to a series (clamped to the chart's Y range).
     fn chart_push(&mut self, c: ObjRef, series: usize, v: i32);
+    /// Replaces a series' points (keeps the last `capacity` points, clamped to the Y range).
     fn chart_set_points(&mut self, c: ObjRef, series: usize, points: &[i32]);
+    /// Removes all points of a series.
     fn chart_clear(&mut self, c: ObjRef, series: usize);
+    /// Returns the number of points in a series (0 if the series doesn't exist).
     fn chart_point_count(&self, c: ObjRef, series: usize) -> usize;
+    /// Returns the idx-th point of a series, if any.
     fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32>;
 }
 

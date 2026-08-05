@@ -3,6 +3,7 @@ use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
 use crate::node::{Flag, Node, State, WidgetKind};
 
+/// The UI state: owns the widget tree (arena), dirty tracking, animation, focus, and rendering.
 pub struct Ui {
     pub(crate) arena: Arena<Node>,
     screen: ObjRef,
@@ -23,28 +24,31 @@ pub struct Ui {
 }
 
 impl Ui {
+    /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
+    /// scanlines (used for chunked rendering).
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
         let mut arena = Arena::new();
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), WidgetKind::Obj(crate::widgets::obj::ObjState)));
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
-        dirty.add(Rect::new(0, 0, width, height)); // 建屏全屏标脏
+        dirty.add(Rect::new(0, 0, width, height)); // build screen: dirty the full screen
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
         Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None, default_font: crate::font::DEFAULT_FONT }
     }
 
-    /// 设置全局默认字体（未在 style 中指定 font 的控件用它），全屏标脏
+    /// Sets the global default font (used by widgets that do not specify a `font` in style);
+    /// dirties the whole screen.
     pub fn set_default_font(&mut self, font: &'static embedded_graphics::mono_font::MonoFont<'static>) {
         self.default_font = font;
         self.invalidate_area(Rect::new(0, 0, self.width, self.height));
         self.layout_dirty = true;
     }
 
-    /// 当前全局默认字体
+    /// The current global default font.
     pub fn default_font(&self) -> &'static embedded_graphics::mono_font::MonoFont<'static> {
         self.default_font
     }
 
-    /// 设置叠加绘制钩子（None 清除）。在控件自带内容之上追加绘制
+    /// Sets the overlay draw hook (`None` clears it). Drawn on top of the widget's own content.
     pub fn set_draw_hook(&mut self, obj: ObjRef, hook: Option<crate::node::DrawHook>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.draw_hook = hook;
@@ -52,36 +56,40 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    /// 设置每帧钩子（None 清除）。返回 true 的帧：标脏该对象并保持唤醒
+    /// Sets the per-frame hook (`None` clears it). Frames that return `true` dirty the object
+    /// and keep the timer handler awake.
     pub fn set_tick_hook(&mut self, obj: ObjRef, hook: Option<crate::node::TickHook>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.tick_hook = hook;
         }
     }
 
+    /// Returns the handle of the screen root object.
     pub fn screen(&self) -> ObjRef {
         self.screen
     }
 
+    /// Returns `true` if `obj` is a live object in the tree.
     pub fn is_valid(&self, obj: ObjRef) -> bool {
         self.arena.contains(obj)
     }
 
-    /// 挂载用户自定义 widget（实现 widgets::custom::Widget）
+    /// Mounts a user-defined widget (implementing `widgets::custom::Widget`).
     pub fn create_custom(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::custom::Widget>) -> ObjRef {
         self.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Custom(crate::widgets::custom::CustomState(widget)))
     }
 
-    /// 只读查询自定义 widget 状态（类型不匹配或对象非 Custom 返回 None）
+    /// Read-only query of custom widget state (returns `None` on a type mismatch or if the
+    /// object is not a custom widget).
     pub fn custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
         self.arena.get(obj)?.kind.as_custom()?.as_any().downcast_ref::<T>()
     }
 
-    /// 只读访问 List 状态（非 List 返回 None）
+    /// Read-only access to the List state (returns `None` for non-List objects).
     pub fn as_list(&self, obj: ObjRef) -> Option<&crate::widgets::list::ListState> {
         self.arena.get(obj).and_then(|n| n.kind.as_list())
     }
-    /// 只读访问 Roller 状态（非 Roller 返回 None）
+    /// Read-only access to the Roller state (returns `None` for non-Roller objects).
     pub fn as_roller(&self, obj: ObjRef) -> Option<&crate::widgets::roller::RollerState> {
         self.arena.get(obj).and_then(|n| n.kind.as_roller())
     }
@@ -93,8 +101,9 @@ impl Ui {
         self.arena.get_mut(obj).map(|n| &mut n.kind)
     }
 
-    /// 内置控件扩展 API 的统一入口:类型匹配则执行 f 并标脏,
-    /// 返回 f 的返回值;无效对象/类型不符静默返回 None。
+    /// Unified entry point for the built-in widget extension APIs: runs `f` when the type
+    /// matches and dirties the object,
+    /// returning `f`'s result; invalid objects or type mismatches silently return `None`.
     pub fn update<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         let r = match self.arena.get_mut(obj) {
             Some(n) => n.kind.downcast_mut::<T>().map(f),
@@ -106,7 +115,7 @@ impl Ui {
         r
     }
 
-    /// 可变更新自定义 widget 状态（前后自动标脏）
+    /// Mutably updates custom widget state (dirties before and after).
     pub fn custom_mut<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         self.invalidate_obj(obj);
         let r = self
@@ -121,12 +130,14 @@ impl Ui {
         r
     }
 
+    /// Deletes `obj` and its whole subtree, releasing focus-group membership and the modal
+    /// lock if the modal subtree is removed.
     pub fn delete(&mut self, obj: ObjRef) {
         if obj == self.screen || !self.is_valid(obj) {
             return;
         }
         self.invalidate_obj(obj);
-        // 先级联收集子树
+        // Collect the subtree bottom-up first
         let mut stack = alloc::vec![obj];
         let mut all = Vec::new();
         while let Some(r) = stack.pop() {
@@ -135,7 +146,7 @@ impl Ui {
                 all.push(r);
             }
         }
-        // 从父对象摘链
+        // Unlink from the parent
         if let Some(n) = self.arena.get(obj) {
             if let Some(p) = n.parent {
                 if let Some(pn) = self.arena.get_mut(p) {
@@ -145,22 +156,24 @@ impl Ui {
         }
         for r in all.clone() {
             if self.modal == Some(r) {
-                self.modal = None; // modal 子树被删除：解除模态锁定
+                self.modal = None; // modal subtree deleted: release the modal lock
             }
             self.arena.remove(r);
         }
-        // 焦点组同步移除
+        // Remove from the focus group too
         for r in all {
             self.group_remove(r);
         }
         self.layout_dirty = true;
     }
 
+    /// Returns the direct children of `obj`.
     pub fn children(&self, obj: ObjRef) -> Vec<ObjRef> {
         self.arena.get(obj).map(|n| n.children.clone()).unwrap_or_default()
     }
 
-    /// 调整子对象在父对象中的顺序（触发布局重算；配合 transition 可平滑换位）
+    /// Moves a child within its parent's order (triggers a layout pass; pairs well with
+    /// `transition` for smooth reordering).
     pub fn move_child_to_index(&mut self, obj: ObjRef, index: usize) {
         let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
         if let Some(p) = self.arena.get_mut(parent) {
@@ -173,15 +186,18 @@ impl Ui {
         self.layout_dirty = true;
     }
 
+    /// Returns the local rect of `obj`.
     pub fn rect(&self, obj: ObjRef) -> Rect {
         self.arena.get(obj).map(|n| n.rect).unwrap_or_default()
     }
 
+    /// Returns the absolute screen rect of `obj`.
     pub fn abs_rect(&self, obj: ObjRef) -> Rect {
         crate::render::abs_rect(&self.arena, obj)
     }
 
-    /// 设置视觉平移偏移（对齐 LVGL translate_x/y）：子树整体偏移，只影响渲染，不参与布局
+    /// Sets the visual translation offset (mirrors LVGL translate_x/y): shifts the whole
+    /// subtree visually; affects rendering only, not layout.
     pub fn set_translate(&mut self, obj: ObjRef, x: i32, y: i32) {
         self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
@@ -190,9 +206,9 @@ impl Ui {
         self.invalidate_subtree(obj);
     }
 
-    /// 标脏整棵子树的渲染区域（translate 变化时子元素也会移动）。
-    /// 各节点按其控件类型外扩绘制溢出区（旋钮等）。
-    /// 有效隐藏的子树不产生脏区（重新显示时由 set_hidden 标脏）。
+    /// Dirties the render area of the whole subtree (children move when the translate changes).
+    /// Each node expands by its widget type's draw overflow (knobs, etc.).
+    /// Effectively hidden subtrees produce no dirty area (re-shown via `set_hidden`, which dirties).
     fn invalidate_subtree(&mut self, obj: ObjRef) {
         if !self.is_valid(obj) || self.is_hidden_eff(obj) {
             return;
@@ -216,14 +232,16 @@ impl Ui {
         }
     }
 
+    /// Returns the visual translation offset of `obj`.
     pub fn translate(&self, obj: ObjRef) -> crate::geometry::Point {
         self.arena.get(obj).map(|n| n.translate).unwrap_or_default()
     }
 
-    /// 设置对象位置（本地坐标）。注意：不触发布局重算——位置对布局是输出而非输入，
-    /// 被 Flex/Grid 管理的子对象位置归布局所有（下次布局重算时会被覆盖），
-    /// 需要视觉位移请用 set_translate。
-    /// 标脏整棵子树：子元素的屏幕坐标随父移动。
+    /// Sets the object position (local coordinates). Note: this does not trigger a layout
+    /// pass —position is layout output, not input;
+    /// children managed by Flex/Grid own their positions (the next layout pass overwrites them),
+    /// so use `set_translate` for visual displacement.
+    /// Dirties the whole subtree: children's screen coordinates follow the parent's move.
     pub fn set_pos(&mut self, obj: ObjRef, x: i32, y: i32) {
         self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
@@ -233,7 +251,8 @@ impl Ui {
         self.invalidate_subtree(obj);
     }
 
-    /// 设置对象尺寸。标脏整棵子树（子元素坐标/裁剪可能随父变化）。
+    /// Sets the object size. Dirties the whole subtree (child coordinates/clipping may
+    /// change with the parent).
     pub fn set_size(&mut self, obj: ObjRef, w: i32, h: i32) {
         self.invalidate_subtree(obj);
         if let Some(n) = self.arena.get_mut(obj) {
@@ -244,39 +263,44 @@ impl Ui {
         self.layout_dirty = true;
     }
 
+    /// Marks `rect` as needing a repaint.
     pub fn invalidate_area(&mut self, rect: Rect) {
         self.dirty.add(rect);
     }
-    /// 标脏对象区域（含控件绘制溢出外扩）。
-    /// 有效隐藏的对象不产生脏区（重新显示时由 set_hidden 标脏）。
+    /// Dirties the object's area (expanded by the widget's draw overflow).
+    /// Effectively hidden objects produce no dirty area (re-shown via `set_hidden`, which dirties).
     pub fn invalidate_obj(&mut self, obj: ObjRef) {
         if self.is_valid(obj) && !self.is_hidden_eff(obj) {
             let ext = self.arena.get(obj).map(|n| n.kind.overflow()).unwrap_or(0);
             let r = self.abs_rect(obj);
-            // 控件绘制可能超出自身矩形（旋钮等），标脏外扩
+            // A widget may draw outside its own rect (knobs, etc.), so expand the dirty area
             self.dirty.add(Rect::new(r.x - ext, r.y - ext, r.w + 2 * ext, r.h + 2 * ext));
         }
     }
+    /// Takes all pending dirty rects.
     pub fn take_dirty(&mut self) -> Vec<Rect> {
         self.dirty.take()
     }
+    /// Returns `true` if there are no pending dirty rects.
     pub fn dirty_is_empty(&self) -> bool {
         self.dirty.is_empty()
     }
 
+    /// Shows or hides `obj` (dirties the old area when hiding and the new area when showing).
     pub fn set_hidden(&mut self, obj: ObjRef, hidden: bool) {
         if hidden {
-            self.invalidate_obj(obj); // 置位前标脏：擦除对象原区域
+            self.invalidate_obj(obj); // dirty before setting: erase the object's old area
         }
         if let Some(n) = self.arena.get_mut(obj) {
             n.flags.set(Flag::HIDDEN, hidden);
         }
         if !hidden {
-            self.invalidate_obj(obj); // 显示后标脏：重绘对象
+            self.invalidate_obj(obj); // dirty after showing: repaint the object
         }
         self.layout_dirty = true;
     }
 
+    /// Replaces the base style of `obj`.
     pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style = style;
@@ -284,6 +308,7 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
+    /// Replaces the pressed-state overlay style of `obj`.
     pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_pressed = style;
@@ -291,6 +316,7 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
+    /// Replaces the focused-state overlay style of `obj`.
     pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_focused = style;
@@ -298,6 +324,7 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
+    /// Replaces the selected-state overlay style of `obj`.
     pub fn set_style_selected(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_selected = style;
@@ -305,6 +332,7 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
+    /// Sets (`on` = true) or clears a state flag on `obj`.
     pub fn set_state(&mut self, obj: ObjRef, state: State, on: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.state.set(state, on);
@@ -312,60 +340,74 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
+    /// Returns the current state flags of `obj`.
     pub fn state(&self, obj: ObjRef) -> State {
         self.arena.get(obj).map(|n| n.state).unwrap_or_default()
     }
+    /// Returns the fully resolved style of `obj`.
     pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
         crate::render::resolved_style(&self.arena, obj, self.default_font)
     }
 
+    /// Sets the display flush callback.
     pub fn set_flush(&mut self, f: alloc::boxed::Box<dyn crate::display::Flush>) {
         self.flush = Some(f);
     }
 
+    /// Advances the internal clock by `ms` milliseconds.
     pub fn tick_inc(&mut self, ms: u32) {
         self.time_ms += ms as u64;
     }
+    /// Returns the current internal time in milliseconds.
     pub fn time(&self) -> u64 {
         self.time_ms
     }
 
+    /// Starts an animation (an existing animation on the same target/property is replaced).
     pub fn anim_start(&mut self, a: crate::anim::Anim) {
-        // 同目标同属性的旧动画被替换（对齐 LVGL 语义）
+        // The old animation on the same target/property is replaced (mirrors LVGL semantics)
         self.anim_stop(a.target, a.prop);
-        // 立即应用起始值，避免跳变
+        // Apply the start value immediately to avoid a jump
         self.apply_anim_value(a.target, a.prop, a.start);
         self.anims.push(crate::anim::RunningAnim { anim: a, start_time: self.time_ms });
     }
+    /// Stops any animation running on `target`'s `prop`.
     pub fn anim_stop(&mut self, target: ObjRef, prop: crate::anim::AnimProp) {
         self.anims.retain(|r| !(r.anim.target == target && r.anim.prop == prop));
     }
+    /// Returns `true` while any animation is in flight.
     pub fn anim_running(&self) -> bool {
         !self.anims.is_empty()
     }
 
+    /// Advances the whole UI by one frame: steps animations, lays out, ticks widgets, and
+    /// renders. Returns the suggested next timer delay in ms (0 = keep waking, `u32::MAX` = idle).
     pub fn timer_handler(&mut self) -> u32 {
         self.step_anims();
         if self.layout_dirty {
             self.layout_pass();
             self.layout_dirty = false;
         }
-        // 浮层定位每帧执行（跟随目标移动/动画；位置未变时无开销）
+        // Floating layers are repositioned every frame (following the target's movement/animation;
+        // no cost when the position is unchanged)
         self.layout_floating(self.screen);
         let fx_active = self.tick_widgets();
         self.render();
         if self.anim_running() || fx_active { 0 } else { u32::MAX }
     }
 
-    /// 遍历对象树推进每帧效果（fx/Spinner/tick_hook），活动节点标脏。
-    /// 返回是否仍有活动效果（决定 timer_handler 是否持续唤醒）。
+    /// Walks the object tree advancing per-frame effects (fx/Spinner/tick_hook), dirtying
+    /// active nodes.
+    /// Returns whether any effect is still active (whether `timer_handler` keeps waking).
     fn tick_widgets(&mut self) -> bool {
         let now = self.time_ms;
         let mut any = false;
         let mut stack = alloc::vec![self.screen];
         while let Some(r) = stack.pop() {
-            // HIDDEN 子树整体跳过：祖先被剪掉保证了被访问节点的祖先均可见，
-            // 故只需查自身标志。隐藏节点不 tick、不标脏、不计活动。
+            // HIDDEN subtrees are skipped wholesale: since pruned ancestors guarantee every
+            // visited node's ancestors are visible,
+            // only the node's own flag needs checking. Hidden nodes are not ticked, not
+            // dirtied, and count as inactive.
             let hidden = self.arena.get(r).map(|n| n.flags.contains(Flag::HIDDEN)).unwrap_or(false);
             if hidden {
                 continue;
@@ -381,7 +423,7 @@ impl Ui {
                 any = true;
             }
             if has_hook {
-                // take-调用-放回：hook 签名含 &mut Ui
+                // take-call-put-back: the hook signature includes `&mut Ui`
                 let mut hook = self.arena.get_mut(r).and_then(|n| n.tick_hook.take());
                 if let Some(h) = hook.as_mut() {
                     if h(self, r, now) {
@@ -402,7 +444,8 @@ impl Ui {
         let screen = self.screen;
         self.layout_subtree(screen);
     }
-    /// 浮层定位（先序遍历保证锚定链按树序解析；位置未变化时不标脏）
+    /// Floating-layer positioning (pre-order traversal so anchor chains resolve in tree order;
+    /// no dirtying when the position is unchanged).
     fn layout_floating(&mut self, obj: ObjRef) {
         let fl = self.arena.get(obj).and_then(|n| n.floating);
         if let Some((target, attach)) = fl {
@@ -416,7 +459,7 @@ impl Ui {
                 Attach::Left => (t.x - r.w, t.y + (t.h - r.h) / 2),
                 Attach::Right => (t.right(), t.y + (t.h - r.h) / 2),
             };
-            // 转为父对象本地坐标（相对父 abs 原点）
+            // Convert to the parent's local coordinates (relative to the parent's abs origin)
             let pabs = self.arena.get(obj).and_then(|n| n.parent).map(|p| self.abs_rect(p));
             let (px, py) = pabs.map(|p| (p.x, p.y)).unwrap_or((0, 0));
             let (nx, ny) = (dx - px, dy - py);
@@ -459,7 +502,7 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 设置宽/高尺寸策略（None = 内容尺寸）
+    /// Sets the width/height sizing strategies (None = content size).
     pub fn set_sizing(&mut self, obj: ObjRef, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.sizing_w = w;
@@ -468,7 +511,7 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 设置宽高比（千分比：1000 = 1:1，1778 ≈ 16:9；None 取消）
+    /// Sets the aspect ratio (per-mille: 1000 = 1:1, 1778 ≈16:9; None clears it).
     pub fn set_aspect(&mut self, obj: ObjRef, ratio: Option<u32>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.aspect_ratio = ratio;
@@ -476,7 +519,8 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 设置布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡；None 关闭
+    /// Sets the layout transition: (duration ms, easing). Position/size changes from layout
+    /// animate automatically; None disables it.
     pub fn set_transition(&mut self, obj: ObjRef, transition: Option<(u32, crate::anim::Easing)>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style.transition = transition;
@@ -484,7 +528,8 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 已有奔向相同目标值的同属性动画？（避免布局重算反复重启过渡动画）
+    /// Is there already an animation heading to the same target value for this property?
+    /// (Avoids restarting transition animations on repeated layout passes.)
     fn anim_end_for(&self, target: ObjRef, prop: crate::anim::AnimProp) -> Option<i32> {
         self.anims
             .iter()
@@ -492,7 +537,8 @@ impl Ui {
             .map(|r| r.anim.end)
     }
 
-    /// 布局写位置：开启过渡且非首次布局时自动动画到目标，否则瞬移
+    /// Layout write for position: animates to the target when transitions are on and it is not
+    /// the first layout, otherwise moves instantly.
     pub(crate) fn layout_move(&mut self, obj: ObjRef, x: i32, y: i32) {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
@@ -525,7 +571,8 @@ impl Ui {
         }
     }
 
-    /// 布局写尺寸：开启过渡且非首次布局时自动动画到目标，否则瞬移
+    /// Layout write for size: animates to the target when transitions are on and it is not
+    /// the first layout, otherwise resizes instantly.
     pub(crate) fn layout_resize(&mut self, obj: ObjRef, w: i32, h: i32) {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
@@ -553,13 +600,15 @@ impl Ui {
         if !animated && (cur.w != w || cur.h != h) {
             self.set_size(obj, w, h);
         }
-        // laid_out 由 layout_move 统一标记（两者总是成对调用）
+        // laid_out is set uniformly by layout_move (the two are always called in pairs)
     }
+    /// Returns `true` if `obj` has the HIDDEN flag.
     pub fn is_hidden(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags.contains(Flag::HIDDEN)).unwrap_or(false)
     }
 
-    /// 设置浮层锚定：对象变为浮动（IGNORE_LAYOUT），位置由锚点自动计算并跟随目标
+    /// Anchors `obj` as a floating layer: it becomes floating (IGNORE_LAYOUT), and its
+    /// position is computed automatically and follows the target.
     pub fn set_floating(&mut self, obj: ObjRef, target: ObjRef, attach: crate::layout::Attach) {
         if !self.is_valid(obj) || !self.is_valid(target) {
             return;
@@ -571,7 +620,7 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 取消浮层锚定（IGNORE_LAYOUT 标志保留，可手动清除）
+    /// Clears the floating anchor (the IGNORE_LAYOUT flag is kept; clear it manually if desired).
     pub fn clear_floating(&mut self, obj: ObjRef) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.floating = None;
@@ -579,7 +628,7 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// 设置叠放次序（渲染时兄弟节点按 z_index 稳定排序，大者在上）
+    /// Sets the stacking order (siblings are stably sorted by z_index at render time, larger = on top).
     pub fn set_z_index(&mut self, obj: ObjRef, z: i16) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.z_index = z;
@@ -587,7 +636,8 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    /// 设置视口裁剪：子树绘制被裁剪到本对象矩形内（对齐 LVGL 的 clip 内容，滚动容器用）
+    /// Sets viewport clipping: the subtree is drawn clipped to this object's rect (mirrors
+    /// LVGL's clip content, for scroll containers).
     pub fn set_clip_children(&mut self, obj: ObjRef, clip: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.flags.set(Flag::CLIP_CHILDREN, clip);
@@ -595,7 +645,8 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
-    /// 设置/查询浮动标志：浮动对象不参与父容器布局（弹窗/悬浮层用）
+    /// Sets/queries the ignore-layout flag: floating objects are excluded from the parent
+    /// container's layout (for popups/overlays).
     pub fn set_ignore_layout(&mut self, obj: ObjRef, ignore: bool) {
         if let Some(n) = self.arena.get_mut(obj) {
             if ignore {
@@ -606,6 +657,7 @@ impl Ui {
         }
         self.layout_dirty = true;
     }
+    /// Returns `true` if `obj` has the IGNORE_LAYOUT flag.
     pub fn is_ignore_layout(&self, obj: ObjRef) -> bool {
         self.arena.get(obj).map(|n| n.flags.contains(Flag::IGNORE_LAYOUT)).unwrap_or(false)
     }
@@ -616,7 +668,7 @@ impl Ui {
         while i < self.anims.len() {
             let target = self.anims[i].anim.target;
             if !self.is_valid(target) {
-                self.anims.remove(i); // 目标已删除：清理动画
+                self.anims.remove(i); // target deleted: clean up the animation
                 continue;
             }
             let ev = { let r = &self.anims[i]; crate::anim::eval(&r.anim, r.start_time, now) };
@@ -679,6 +731,7 @@ impl Ui {
         }
     }
 
+    /// Renders all pending dirty areas to the flush callback.
     pub fn render(&mut self) {
         crate::render::render(
             self.screen,
@@ -701,6 +754,7 @@ impl Ui {
         r
     }
 
+    /// Sets the widget's value (sends `ValueChanged` if it actually changed).
     pub fn set_value(&mut self, obj: ObjRef, v: i32) {
         self.invalidate_value_area(obj);
         let changed = match self.arena.get_mut(obj) {
@@ -713,15 +767,17 @@ impl Ui {
         }
     }
 
-    /// 值变化时的标脏区域（invalidate_obj 已按控件类型外扩）
+    /// Area dirtied when the value changes (`invalidate_obj` already expands per widget type).
     fn invalidate_value_area(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
     }
 
+    /// Returns the widget's current value.
     pub fn value(&self, obj: ObjRef) -> i32 {
         self.arena.get(obj).map(|n| n.kind.value()).unwrap_or(0)
     }
 
+    /// Sets the widget's value range.
     pub fn set_range(&mut self, obj: ObjRef, min: i32, max: i32) {
         self.invalidate_obj(obj);
         if let Some(n) = self.arena.get_mut(obj) {
@@ -730,24 +786,27 @@ impl Ui {
         self.invalidate_obj(obj);
     }
 
+    /// Registers an event callback on `obj`.
     pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.events.push((kind, cb));
         }
     }
 
+    /// Delivers `kind` to every matching callback registered on `obj`.
     pub fn send_event(&mut self, obj: ObjRef, kind: crate::event::EventKind) {
         use crate::event::EventKind;
         let mut cursor = 0usize;
         loop {
-            // 找到下一个匹配的回调并取出（先移出 arena，避免回调内 &mut Ui 冲突）
+            // Find and take the next matching callback (removed from the arena first so a
+            // callback's `&mut Ui` does not conflict)
             let taken = {
                 let Some(n) = self.arena.get_mut(obj) else { return };
                 let mut found = None;
                 let mut i = cursor;
                 while i < n.events.len() {
                     let matches = match (&n.events[i].0, &kind) {
-                        (EventKind::Key(_), EventKind::Key(_)) => true, // Key 按类别通配
+                        (EventKind::Key(_), EventKind::Key(_)) => true, // Key wildcards by category
                         (a, b) => a == b,
                     };
                     if matches {
@@ -761,7 +820,8 @@ impl Ui {
             };
             let Some(mut cb) = taken else { return };
             cb(self, obj, kind);
-            // 放回（对象可能已被回调删除；回调内新注册的回调本轮不触发）
+            // Put it back (the object may have been deleted by the callback; callbacks
+            // registered during a callback are not triggered this round)
             if let Some(n) = self.arena.get_mut(obj) {
                 let idx = cursor.min(n.events.len());
                 n.events.insert(idx, (stored_label(kind), cb));
@@ -772,6 +832,7 @@ impl Ui {
         }
     }
 
+    /// Adds `obj` to the focus group (focusing it if the group was empty).
     pub fn group_add(&mut self, obj: ObjRef) {
         if self.is_valid(obj) && !self.group.contains(&obj) {
             self.group.push(obj);
@@ -782,6 +843,7 @@ impl Ui {
             }
         }
     }
+    /// Removes `obj` from the focus group, moving focus to a neighbor when needed.
     pub fn group_remove(&mut self, obj: ObjRef) {
         if let Some(pos) = self.group.iter().position(|&o| o == obj) {
             self.group.remove(pos);
@@ -801,31 +863,36 @@ impl Ui {
             }
         }
     }
+    /// Returns the currently focused object, if any.
     pub fn focused(&self) -> Option<ObjRef> {
         self.focused_idx.and_then(|i| self.group.get(i).copied())
     }
+    /// Focuses `obj` (it must be in the focus group).
     pub fn group_focus(&mut self, obj: ObjRef) {
         if let Some(pos) = self.group.iter().position(|&o| o == obj) {
             self.focus_to(pos);
         }
     }
+    /// Moves focus to the next focusable object in the group.
     pub fn group_focus_next(&mut self) {
         if let Some(i) = crate::focus::step(&self.group, self.focused_idx, 1, |o| self.focusable(o)) {
             self.focus_to(i);
         }
     }
+    /// Moves focus to the previous focusable object in the group.
     pub fn group_focus_prev(&mut self) {
         if let Some(i) = crate::focus::step(&self.group, self.focused_idx, -1, |o| self.focusable(o)) {
             self.focus_to(i);
         }
     }
-    /// 可被聚焦：未有效隐藏，且在 modal 子树内（modal 未设置时全局）
+    /// Focusable: not effectively hidden, and inside the modal subtree (anywhere when no modal
+    /// is set).
     fn focusable(&self, obj: ObjRef) -> bool {
         if self.is_hidden_eff(obj) {
             return false;
         }
         let Some(m) = self.modal else { return true };
-        // obj == modal 或 obj 是 modal 的后代
+        // obj == modal, or obj is a descendant of modal
         let mut cur = Some(obj);
         while let Some(o) = cur {
             if o == m {
@@ -836,7 +903,7 @@ impl Ui {
         false
     }
 
-    /// 设置模态对象：焦点导航锁定在其子树内，并把焦点移入
+    /// Sets a modal object: focus navigation locks to its subtree, and focus moves inside it.
     pub fn set_modal(&mut self, obj: ObjRef) {
         if !self.is_valid(obj) {
             return;
@@ -851,12 +918,12 @@ impl Ui {
         }
     }
 
-    /// 清除模态：恢复全局焦点导航（焦点保持当前对象）
+    /// Clears the modal: restores global focus navigation (focus stays on the current object).
     pub fn clear_modal(&mut self) {
         self.modal = None;
     }
 
-    /// 有效隐藏：自身或任一祖先 HIDDEN
+    /// Effectively hidden: self or any ancestor has HIDDEN.
     fn is_hidden_eff(&self, obj: ObjRef) -> bool {
         let mut cur = Some(obj);
         while let Some(o) = cur {
@@ -884,6 +951,8 @@ impl Ui {
         }
     }
 
+    /// Routes a key to the focused widget: sends the Key event, then the widget's `on_key`;
+    /// unconsumed keys fall through to focus navigation / Clicked.
     pub fn keypad_input(&mut self, key: crate::input::Key) {
         use crate::input::Key;
         let Some(f) = self.focused() else { return };
@@ -892,12 +961,12 @@ impl Ui {
         }
         self.send_event(f, crate::event::EventKind::Key(key));
         if !self.is_valid(f) {
-            return; // Key 回调可能删除了焦点对象
+            return; // the Key callback may have deleted the focused object
         }
         if self.call_on_key(f, key) {
             return;
         }
-        // 默认：未被控件消费的按键走焦点导航 / Clicked
+        // Default: keys not consumed by a widget drive focus navigation / Clicked
         match key {
             Key::Next | Key::Right | Key::Down => self.group_focus_next(),
             Key::Prev | Key::Left | Key::Up => self.group_focus_prev(),
@@ -906,8 +975,10 @@ impl Ui {
         }
     }
 
-    /// 控件的按键处理：kind 拆出后调用其 on_key，放回再执行通用副作用。
-    /// （拆出期间节点 kind 为占位 Obj，故内置控件的 on_key 不接收 &mut Ui）
+    /// Widget key handling: takes the kind out, calls its `on_key`, puts it back, then runs
+    /// the common side effects.
+    /// (While taken out the node's kind is a placeholder Obj, so built-in widgets' `on_key`
+    /// does not receive `&mut Ui`.)
     fn call_on_key(&mut self, obj: ObjRef, key: crate::input::Key) -> bool {
         use crate::widgets::KeyCtx;
         let edited = self.state(obj).contains(State::EDITED);
@@ -917,13 +988,13 @@ impl Ui {
             Some(n) => core::mem::replace(&mut n.kind, WidgetKind::Obj(crate::widgets::obj::ObjState)),
             None => return false,
         };
-        // Custom：用户状态在拆出的 Box 里，on_key 可安全接收 &mut Ui
+        // Custom: the user state lives in the taken-out Box, so `on_key` may safely take `&mut Ui`
         if let Some(w) = kind.as_custom_mut() {
             let consumed = w.on_key(self, obj, key);
             if let Some(n) = self.arena.get_mut(obj) {
                 n.kind = kind;
             } else {
-                return true; // 节点已在处理过程中被删除：视为已消费（与内置分支对称）
+                return true; // the node was deleted during handling: treat as consumed (symmetric with the built-in branch)
             }
             if consumed {
                 self.invalidate_obj(obj);
@@ -934,7 +1005,7 @@ impl Ui {
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind = kind;
         } else {
-            return true; // 节点已在处理过程中被删除：视为已消费
+            return true; // the node was deleted during handling: treat as consumed
         }
         self.apply_key_outcome(obj, out)
     }
@@ -970,7 +1041,7 @@ impl Ui {
 
 }
 
-/// Key 事件统一存储为占位值，匹配按类别通配（见 send_event）
+/// Key events are stored as a placeholder value; matching wildcards by category (see `send_event`).
 fn stored_label(kind: crate::event::EventKind) -> crate::event::EventKind {
     match kind {
         crate::event::EventKind::Key(_) => crate::event::EventKind::Key(crate::input::Key::Enter),

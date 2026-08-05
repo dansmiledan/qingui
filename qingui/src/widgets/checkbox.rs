@@ -13,6 +13,7 @@ use super::{WidgetCtx, WidgetKind};
 
 const BOX: i32 = 12;
 
+/// Checkbox widget state.
 #[derive(Clone)]
 pub struct CheckboxState {
     pub text: alloc::string::String,
@@ -30,10 +31,10 @@ pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, 
     let ap = |b: u8| ctx.ap(b);
     let by = abs.y + (abs.h - BOX) / 2;
     let brect = Rect::new(abs.x, by, BOX, BOX);
-    // 方框
+    // Box
     d.draw_border(brect, 1, 2, Color::rgb(150, 150, 160), ap(255), clip);
     if checked {
-        // 勾：两条线
+        // Check mark: two lines
         let p1 = Point { x: abs.x + 2, y: by + 6 };
         let p2 = Point { x: abs.x + 5, y: by + 9 };
         let p3 = Point { x: abs.x + 10, y: by + 3 };
@@ -50,7 +51,7 @@ pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, 
     );
 }
 
-/// Checkbox 构建器：默认 BOX+6+文本宽 x 16，bg 透明 + focused 白边
+/// Checkbox builder: default BOX+6+text-width x 16, transparent bg + white focused border
 pub struct CheckboxBuilder {
     text: alloc::string::String,
     checked: bool,
@@ -63,6 +64,7 @@ pub struct CheckboxBuilder {
 }
 
 impl CheckboxBuilder {
+    /// Creates a builder with the given label text.
     pub fn new(text: &str) -> Self {
         Self {
             text: text.into(),
@@ -71,18 +73,22 @@ impl CheckboxBuilder {
             sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the initial checked state.
     pub fn checked(mut self, checked: bool) -> Self {
         self.checked = checked;
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         let base = self.style.take().unwrap_or_else(|| {
             let mut s = Style::default();
@@ -93,23 +99,28 @@ impl CheckboxBuilder {
         self.style = Some(f(base));
         self
     }
+    /// Sets the focused style.
     pub fn style_focused(mut self, s: Style) -> Self {
         self.style_focused = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or_else(|| {
             let font = crate::font::measure_font(self.style.as_ref(), ui);
@@ -148,8 +159,9 @@ impl CheckboxBuilder {
     }
 }
 
-/// checkbox 切换 API(经 prelude 或显式 use 引入)
+/// Checkbox toggle API (brought in via prelude or an explicit use)
 pub trait UiCheckboxExt {
+    /// Flips the checkbox's checked state and sends a ValueChanged event.
     fn toggle_checkbox(&mut self, obj: ObjRef);
 }
 

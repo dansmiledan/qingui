@@ -28,24 +28,24 @@ pub mod spinner;
 pub mod switch;
 pub mod table;
 
-/// 控件绘制上下文：通用部分（背景/边框）由 Ui::draw_node 处理，
-/// 各控件 draw 只画自己的内容。
+/// Widget drawing context: the common parts (background/border) are handled by `Ui::draw_node`,
+/// each widget's `draw` only paints its own content.
 pub struct WidgetCtx<'a> {
     pub abs: Rect,
     pub resolved: &'a ResolvedStyle,
     pub edited: bool,
     pub opa: u8, // node opa 0..=255
-    pub now: u64, // 当前时间（ms），供控件内部效果插值
+    pub now: u64, // current time (ms), for interpolating internal widget effects
 }
 
 impl WidgetCtx<'_> {
-    /// 与节点 opa 合成后的透明度
+    /// Opacity after compositing with the node's opa
     pub fn ap(&self, base: u8) -> u8 {
         (base as u32 * self.opa as u32 / 255) as u8
     }
 }
 
-/// 每帧效果推进结果：redraw = 本帧需重绘；active = 效果仍活动（保持唤醒）
+/// Per-frame effect progress result: `redraw` = needs repaint this frame; `active` = effect still running (keeps the widget awake)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TickOut {
     pub redraw: bool,
@@ -53,31 +53,34 @@ pub struct TickOut {
 }
 
 impl TickOut {
+    /// No repaint and no active effect
     pub const IDLE: Self = Self { redraw: false, active: false };
+    /// Repaints and keeps the effect active
     pub const ACTIVE: Self = Self { redraw: true, active: true };
 }
 
-/// 按键处理上下文（由 Ui 从节点/自身状态收集后传入）
+/// Key handling context (collected by Ui from the node/its own state before dispatch)
 pub(crate) struct KeyCtx {
-    pub edited: bool, // 节点处于 EDITED 态
-    pub vis_h: i32,   // 节点可视高度（滚动控件用）
+    pub edited: bool, // node is in the EDITED state
+    pub vis_h: i32,   // node visible height (used by scrolling widgets)
     pub now: u64,
 }
 
-/// 按键处理结果：Ui 据此执行通用副作用（标脏/事件/EDITED 态）；特异副作用经 Deferred 交给 widget 文件执行
+/// Key handling result: Ui performs the common side effects (dirtying/events/EDITED state);
+/// widget-specific side effects run via `Deferred` in the widget file
 pub(crate) enum KeyOutcome {
-    Pass,          // 未消费 → 走默认（移焦/Clicked）
-    Consumed,      // 已消费，标脏
-    ValueChanged,  // 已消费，标脏并发 ValueChanged 事件
-    EnterEdit,     // 进入 EDITED 态
-    ExitEdit,      // 退出 EDITED 态并标脏
-    /// 特异副作用延迟执行：widget 文件提供的静态执行函数 + i32 载荷。
-    /// Ui 在把 kind 放回 arena 后调用 f(self, obj, p)（干净窗口，无占位），视为已消费。
+    Pass,          // not consumed → fall through to default (focus move / Clicked)
+    Consumed,      // consumed, dirty the node
+    ValueChanged,  // consumed, dirty the node and send a ValueChanged event
+    EnterEdit,     // enter the EDITED state
+    ExitEdit,      // leave the EDITED state and dirty the node
+    /// Widget-specific side effect, executed later: a static exec fn provided by the widget file + an i32 payload.
+    /// Ui calls `f(self, obj, p)` after putting the kind back in the arena (clean window, no placeholder); treated as consumed.
     Deferred(fn(&mut Ui, ObjRef, i32), i32),
 }
 
-/// 控件行为接口:draw 必须实现(新 widget 忘了画会编译错),
-/// 其余行为大多数控件没有,给默认空实现。
+/// Widget behavior interface: `draw` must be implemented (a new widget that forgets to paint fails to compile);
+/// most widgets lack the other behaviors, so they get default no-op implementations.
 pub(crate) trait WidgetBehavior {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect);
     fn tick(&mut self, _now: u64) -> TickOut { TickOut::IDLE }
@@ -88,7 +91,7 @@ pub(crate) trait WidgetBehavior {
     fn overflow(&self) -> i32 { 0 }
 }
 
-/// set_value 共用:clamp 到 [min,max],返回是否有变化
+/// Shared for `set_value`: clamp to `[min, max]`, return whether the value changed
 pub(crate) fn clamp_val(min: i32, max: i32, value: &mut i32, v: i32) -> bool {
     let nv = v.clamp(min, max);
     let changed = nv != *value;
@@ -96,7 +99,7 @@ pub(crate) fn clamp_val(min: i32, max: i32, value: &mut i32, v: i32) -> bool {
     changed
 }
 
-/// 选择型控件共用:clamp 到 [0,len),返回是否有变化
+/// Shared for selection widgets: clamp to `[0, len)`, return whether the value changed
 pub(crate) fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
     if len == 0 { return false; }
     let nv = (v.max(0) as usize).min(len - 1);
@@ -105,10 +108,11 @@ pub(crate) fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
     changed
 }
 
-/// 声明式注册 widget:生成 enum、行为分发、as_xxx 访问器、downcast。
-/// 每加一个 widget 只需在此处加一行。
+/// Declaratively registers a widget: generates the enum, behavior dispatch, `as_xxx` accessors, and downcast.
+/// Adding a widget requires just one line here.
 macro_rules! define_widgets {
     ($($variant:ident($state:ty, $as:ident, $as_mut:ident)),+ $(,)?) => {
+        /// Discriminated widget state: one variant per registered widget type.
         pub enum WidgetKind {
             $( $variant($state), )+
         }
@@ -136,14 +140,16 @@ macro_rules! define_widgets {
                 match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(s, key, ctx), )+ }
             }
             $(
+                /// Returns `Some(&$state)` if this widget is a `$variant`.
                 pub fn $as(&self) -> Option<&$state> {
                     match self { WidgetKind::$variant(s) => Some(s), _ => None }
                 }
+                /// Returns `Some(&mut $state)` if this widget is a `$variant`.
                 pub fn $as_mut(&mut self) -> Option<&mut $state> {
                     match self { WidgetKind::$variant(s) => Some(s), _ => None }
                 }
             )+
-            /// 按类型下发 &mut 状态(Ui::update 用);TypeId 比对 + Any downcast
+            /// Hands out `&mut` state by type (used by `Ui::update`); TypeId comparison + Any downcast
             pub(crate) fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
                 $(
                     if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {

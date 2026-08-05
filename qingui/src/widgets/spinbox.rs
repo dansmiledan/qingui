@@ -11,6 +11,7 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+/// Spinbox widget state.
 #[derive(Clone)]
 pub struct SpinboxState {
     pub min: i32,
@@ -55,7 +56,7 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: 
     for (i, ch) in text.chars().enumerate() {
         let x = x0 + i as i32 * adv;
         if i as u8 == cursor && ctx.edited {
-            // 光标位：反色高亮
+            // Cursor position: inverted highlight
             d.fill_rounded(Rect::new(x - 1, abs.y + 1, adv + 2, abs.h - 2), 2, Color::rgb(80, 140, 255), ap, lclip);
             let mut buf = [0u8; 4];
             d.draw_text_opa(Point { x, y }, font, ch.encode_utf8(&mut buf), Color::BLACK, ap, lclip);
@@ -66,20 +67,20 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: 
     }
 }
 
-/// 光标移动（±1，范围内循环）
+/// Moves the cursor (±1, wrapping within range)
 pub(crate) fn move_cursor(digits: u8, cursor: &mut u8, dir: i32) {
     let n = digits.max(1) as i32;
     *cursor = (*cursor as i32 + dir).rem_euclid(n) as u8;
 }
 
-/// 当前光标位数字增减（按位权改变值，范围 clamp）
+/// Increases/decreases the digit under the cursor (changes the value by the digit's place weight, clamped to range)
 pub(crate) fn step_digit(min: i32, max: i32, value: &mut i32, digits: u8, cursor: u8, dir: i32) {
     let pos = (digits.max(1) - 1 - cursor.min(digits.max(1) - 1)) as u32;
     let step = 10i32.pow(pos);
     *value = (*value + dir * step).clamp(min, max);
 }
 
-/// Spinbox 构建器：默认 digits*advance+12 x (行高+8)，bg(40,40,52) r4 + focused 白边
+/// Spinbox builder: default digits*advance+12 x (line height+8), bg(40,40,52) r4 + white focused border
 pub struct SpinboxBuilder {
     min: i32,
     max: i32,
@@ -94,6 +95,7 @@ pub struct SpinboxBuilder {
 }
 
 impl SpinboxBuilder {
+    /// Creates a builder for the given range and digit count.
     pub fn new(min: i32, max: i32, digits: u8) -> Self {
         Self {
             min, max,
@@ -102,18 +104,22 @@ impl SpinboxBuilder {
             sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the initial value.
     pub fn value(mut self, v: i32) -> Self {
         self.value = Some(v);
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         let base = self.style.take().unwrap_or_else(|| {
             let mut s = Style::default();
@@ -125,23 +131,28 @@ impl SpinboxBuilder {
         self.style = Some(f(base));
         self
     }
+    /// Sets the focused style.
     pub fn style_focused(mut self, s: Style) -> Self {
         self.style_focused = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let font = crate::font::measure_font(self.style.as_ref(), ui);
         let (w, h) = self.size.unwrap_or((self.digits as i32 * crate::font::advance(font) + 12, crate::font::line_height(font) + 8));

@@ -1,6 +1,8 @@
 use crate::geometry::{Color, Rect};
 
+/// Callback used to push rendered pixels to the display driver.
 pub trait Flush {
-    /// area 为屏幕绝对坐标矩形；pixels 为 area.w*area.h 个像素（行优先，RGB888）
+    /// `area` is a rectangle in absolute screen coordinates; `pixels` holds `area.w * area.h`
+    /// pixels (row-major, RGB888).
     fn flush(&mut self, area: Rect, pixels: &[Color]);
 }

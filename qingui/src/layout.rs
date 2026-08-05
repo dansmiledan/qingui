@@ -2,40 +2,42 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
-/// 轴尺寸策略（借鉴 Clay 的 FIT/GROW/FIXED/PERCENT 模型）
+/// Axis sizing strategy (modeled after Clay's FIT/GROW/FIXED/PERCENT model).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Sizing {
-    /// 内容尺寸（带 min/max 约束）；未设置 sizing 时的默认行为
+    /// Content size (with min/max constraints); the default behavior when no sizing is set.
     Fit { min: i32, max: i32 },
-    /// 固定尺寸
+    /// Fixed size.
     Fixed(i32),
-    /// 瓜分父容器剩余空间（带约束）
+    /// Share the parent container's remaining space (with constraints).
     Grow { min: i32, max: i32 },
-    /// 父容器尺寸的百分比（0-100）
+    /// A percentage of the parent container's size (0-100).
     Percent(i32),
 }
 
 impl Sizing {
+    /// `Grow` with no constraints: takes whatever space is left.
     pub const GROW: Sizing = Sizing::Grow { min: 0, max: i32::MAX };
+    /// `Fit` with no constraints: natural content size.
     pub const FIT: Sizing = Sizing::Fit { min: 0, max: i32::MAX };
 }
 
-/// 浮层锚定方式（对齐 Clay 的 floating attachTo）
+/// Floating-layer anchoring (mirrors Clay's floating attachTo).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Attach {
-    /// 与目标中心对齐
+    /// Centered on the target.
     Center,
-    /// 目标上边缘外侧，水平居中
+    /// Outside the target's top edge, horizontally centered.
     Top,
-    /// 目标下边缘外侧，水平居中
+    /// Outside the target's bottom edge, horizontally centered.
     Bottom,
-    /// 目标左边缘外侧，垂直居中
+    /// Outside the target's left edge, vertically centered.
     Left,
-    /// 目标右边缘外侧，垂直居中
+    /// Outside the target's right edge, vertically centered.
     Right,
 }
 
-/// 基础尺寸（Grow 先取 min，剩余空间稍后分配；parent 用于 Percent）
+/// Basis size (`Grow` first takes `min`, remaining space is allocated later; `parent` is used for `Percent`).
 fn axis_basis(s: Option<Sizing>, content: i32, parent: i32) -> i32 {
     match s {
         None => content,
@@ -46,7 +48,7 @@ fn axis_basis(s: Option<Sizing>, content: i32, parent: i32) -> i32 {
     }
 }
 
-/// 单元格/目标尺寸下的最终尺寸（Grid：Grow = 填满单元格）
+/// Final size within a cell/target size (Grid: `Grow` = fill the cell).
 fn axis_in_cell(s: Option<Sizing>, content: i32, cell: i32) -> i32 {
     match s {
         None => content,
@@ -57,35 +59,54 @@ fn axis_in_cell(s: Option<Sizing>, content: i32, cell: i32) -> i32 {
     }
 }
 
+/// Flex layout direction.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FlexDir {
+    /// Left to right.
     Row,
+    /// Top to bottom.
     Column,
+    /// Right to left.
     RowReverse,
+    /// Bottom to top.
     ColumnReverse,
 }
 
+/// Alignment along a flex axis.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Align {
+    /// Pack toward the start.
     Start,
+    /// Center the items.
     Center,
+    /// Pack toward the end.
     End,
+    /// Distribute free space between items.
     SpaceBetween,
+    /// Distribute free space around each item.
     SpaceAround,
+    /// Distribute free space evenly including the ends.
     SpaceEvenly,
 }
 
+/// Flex layout parameters applied to a container.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Flex {
+    /// Main axis direction.
     pub dir: FlexDir,
+    /// Whether items wrap onto multiple lines when the main axis overflows.
     pub wrap: bool,
+    /// Alignment along the main axis.
     pub main: Align,
+    /// Alignment of items along the cross axis within a line.
     pub cross: Align,
+    /// Alignment of lines along the cross axis.
     pub track: Align,
+    /// Spacing between items, in pixels.
     pub gap: i32,
 }
 
-/// 对容器 container 执行一次 flex 布局（直接修改子对象 rect 的 x/y）
+/// Runs one flex layout pass on `container` (directly modifies the x/y of child rects).
 pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     let kids: Vec<ObjRef> = ui
         .children(container)
@@ -108,7 +129,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
         order.reverse();
     }
 
-    // 尺寸基础值（含 sizing 策略；Grow 先取 min，剩余空间稍后分配）
+    // Basis sizes (with sizing strategy; Grow first takes min, remaining space is allocated later)
     let area_main = if is_row { area_w } else { area_h };
     let area_cross_total = if is_row { area_h } else { area_w };
     let mut main_sz: Vec<i32> = Vec::with_capacity(order.len());
@@ -128,7 +149,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
         aspect.push(st.aspect_ratio);
     }
 
-    // 分行
+    // Split into lines
     let mut lines: Vec<Vec<usize>> = Vec::new();
     let mut cur: Vec<usize> = Vec::new();
     let mut cur_main = 0i32;
@@ -146,18 +167,18 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
         lines.push(cur);
     }
 
-    // 行高（交叉轴尺寸）
+    // Line heights (cross-axis sizes)
     let line_cross: Vec<i32> = lines
         .iter()
         .map(|l| l.iter().map(|&i| cross_sz[i]).max().unwrap_or(0))
         .collect();
     let total_cross: i32 = line_cross.iter().sum::<i32>() + f.gap * (lines.len() as i32 - 1).max(0);
 
-    // track 对齐：行间交叉轴分布
+    // track alignment: cross-axis distribution between lines
     let (mut cross_pos, track_gap) = distribute(total_cross, area_cross_total, f.track, lines.len() as i32, f.gap);
 
     for (li, line) in lines.iter().enumerate() {
-        // Grow 子对象平分主轴剩余空间
+        // Grow children split the main-axis space remaining on the line
         let grow_idx: Vec<usize> = line
             .iter()
             .copied()
@@ -174,13 +195,13 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
                 }
             }
         }
-        // 交叉轴 Grow 撑满容器交叉轴
+        // Cross-axis Grow fills the container's cross axis
         for &i in line {
             if let Some(Sizing::Grow { min, max }) = cross_grow[i] {
                 cross_sz[i] = area_cross_total.clamp(min, max);
             }
         }
-        // 宽高比：由主轴最终尺寸推交叉轴（优先于交叉轴 sizing）
+        // Aspect ratio: derive the cross size from the final main size (takes priority over cross-axis sizing)
         for &i in line {
             if let Some(ratio) = aspect[i] {
                 if ratio > 0 {
@@ -203,7 +224,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
             } else {
                 (origin_x + cross_pos + cross_off, origin_y + main_pos)
             };
-            // sizing 改变尺寸时写回（过渡动画由 layout_resize/layout_move 处理）
+            // Write back when sizing changes the size (transition animations are handled by layout_resize/layout_move)
             let (fw, fh) = if is_row { (m, c) } else { (c, m) };
             ui.layout_resize(order[i], fw, fh);
             ui.layout_move(order[i], x, y);
@@ -213,7 +234,8 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     }
 }
 
-/// 计算起始位置与项间距：把 content 总长按 align 放入 area
+/// Computes the start offset and item spacing: places the total `content` length inside `area`
+/// according to `align`.
 fn distribute(content: i32, area: i32, align: Align, count: i32, gap: i32) -> (i32, i32) {
     let free = (area - content).max(0);
     match align {
@@ -243,29 +265,38 @@ fn align_offset(item: i32, line: i32, align: Align) -> i32 {
         Align::Start => 0,
         Align::Center => (line - item) / 2,
         Align::End => line - item,
-        _ => 0, // Space* 对单 item 无意义
+        _ => 0, // Space* has no meaning for a single item
     }
 }
 
+/// Grid track sizing: a fixed pixel width, a flexible fraction, or content width.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Track {
+    /// Fixed pixel size.
     Px(i32),
+    /// Flexible fraction of the remaining space.
     Fr(u8),
+    /// Sized to the largest single-cell child.
     Content,
 }
 
+/// Grid layout parameters applied to a container.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Grid {
+    /// Column tracks, left to right.
     pub cols: Vec<Track>,
+    /// Row tracks, top to bottom.
     pub rows: Vec<Track>,
+    /// Spacing between columns, in pixels.
     pub col_gap: i32,
+    /// Spacing between rows, in pixels.
     pub row_gap: i32,
 }
 
-/// 轨道尺寸求解：返回每条轨道的像素尺寸
+/// Solves track sizes: returns the pixel size of every track.
 fn solve_tracks(
     tracks: &[Track],
-    child_sizes: &[(u8, u8, i32)], // (起始, 跨度, 尺寸)，仅 span=1 参与 Content
+    child_sizes: &[(u8, u8, i32)], // (start, span, size); only span=1 children feed Content
     gap: i32,
     area: i32,
 ) -> Vec<i32> {
@@ -276,7 +307,7 @@ fn solve_tracks(
             Track::Fr(_) | Track::Content => 0,
         })
         .collect();
-    // Content：取该轨道 span=1 子对象最大尺寸
+    // Content: take the largest size among the track's span=1 children
     for (start, span, size) in child_sizes {
         if *span == 1 {
             if let Some(Track::Content) = tracks.get(*start as usize) {
@@ -296,7 +327,7 @@ fn solve_tracks(
         for (i, t) in tracks.iter().enumerate() {
             if let Track::Fr(w) = t {
                 if Some(i) == last_fr {
-                    sizes[i] = remaining - used; // 最后一条吃掉取整误差
+                    sizes[i] = remaining - used; // last track absorbs the rounding error
                 } else {
                     sizes[i] = remaining * *w as i32 / fr_total as i32;
                     used += sizes[i];
@@ -311,6 +342,7 @@ fn track_offset(sizes: &[i32], idx: u8, gap: i32) -> i32 {
     sizes[..idx as usize].iter().sum::<i32>() + gap * idx as i32
 }
 
+/// Runs one grid layout pass on `container`: positions every child in its grid cell.
 pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
     let style = ui.resolved_style(container);
     let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
@@ -337,7 +369,7 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
 
     for &k in &kids {
         let ((ci, cs), (ri, rs)) = ui.grid_cell(k);
-        // 单元格尺寸（含 span 与 gap）
+        // Cell size (including span and gaps)
         let span_w = |i: u8, s: u8| -> i32 {
             let mut w = 0;
             for t in i..(i + s) {
@@ -353,12 +385,12 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
             h + g.row_gap * (s as i32 - 1)
         };
         let (cw, ch) = (span_w(ci, cs), span_h(ri, rs));
-        // sizing 策略决定子对象在单元格内的尺寸
+        // The sizing strategy decides each child's size inside its cell
         let st = ui.resolved_style(k);
         let cur = ui.rect(k);
         let mut fw = axis_in_cell(st.sizing_w, cur.w, cw);
         let mut fh = axis_in_cell(st.sizing_h, cur.h, ch);
-        // 宽高比：在单元格限制内按比例内嵌
+        // Aspect ratio: fit proportionally within the cell bounds
         if let Some(ratio) = st.aspect_ratio {
             if ratio > 0 {
                 fh = (fw as i64 * 1000 / ratio as i64) as i32;
@@ -440,7 +472,8 @@ mod tests {
 
     #[test]
     fn solve_tracks_last_fr_eats_rounding() {
-        // 100 不能被 3 整除：plain formula 每条约 33，最后一条吃掉取整误差 → 34
+        // 100 is not divisible by 3: the plain formula gives ~33 each, the last track absorbs
+        // the rounding error → 34
         let tracks = [Track::Fr(1), Track::Fr(1), Track::Fr(1)];
         assert_eq!(solve_tracks(&tracks, &[], 0, 100), vec![33, 33, 34]);
     }

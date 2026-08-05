@@ -1,10 +1,13 @@
 use crate::geometry::Color;
 
-/// 布局描述。
+/// Layout description for a container.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Layout {
+    /// No automatic layout.
     None,
+    /// Flex layout.
     Flex(crate::layout::Flex),
+    /// Grid layout.
     Grid(crate::layout::Grid),
 }
 
@@ -14,54 +17,72 @@ impl Default for Layout {
     }
 }
 
-/// 扁平样式：Option 字段，None 表示"不覆盖"。
-/// 可用结构体字面量，也可用 builder 链式构造：`Style::new().bg(RED).radius(4).pads(8)`
+/// Flat style: `Option` fields, where `None` means "do not override".
+/// Usable as a struct literal or built with a chained builder: `Style::new().bg(RED).radius(4).pads(8)`
 #[derive(Clone, Default, PartialEq, Debug)]
 pub struct Style {
+    /// Background color.
     pub bg_color: Option<Color>,
+    /// Background opacity (0..=255).
     pub bg_opa: Option<u8>,
+    /// Border color.
     pub border_color: Option<Color>,
+    /// Border width in pixels.
     pub border_width: Option<i32>,
+    /// Corner radius in pixels.
     pub radius: Option<i32>,
+    /// Left padding.
     pub pad_left: Option<i32>,
+    /// Right padding.
     pub pad_right: Option<i32>,
+    /// Top padding.
     pub pad_top: Option<i32>,
+    /// Bottom padding.
     pub pad_bottom: Option<i32>,
+    /// Text color.
     pub text_color: Option<Color>,
+    /// Container layout.
     pub layout: Option<Layout>,
-    /// 宽/高尺寸策略（None = 内容尺寸）
+    /// Width sizing strategy (None = content size).
     pub sizing_w: Option<crate::layout::Sizing>,
+    /// Height sizing strategy (None = content size).
     pub sizing_h: Option<crate::layout::Sizing>,
-    /// 宽高比（千分比：1000 = 1:1，1778 ≈ 16:9）
+    /// Aspect ratio (per-mille: 1000 = 1:1, 1778 ≈ 16:9).
     pub aspect_ratio: Option<u32>,
-    /// 布局过渡：(时长 ms, 缓动)。布局改变位置/尺寸时自动动画过渡
+    /// Layout transition: (duration ms, easing). Position/size changes from layout are
+    /// animated automatically when set.
     pub transition: Option<(u32, crate::anim::Easing)>,
-    /// 文本字体（None = 用 Ui 默认字体）
+    /// Text font (None = use the Ui default font).
     pub font: Option<&'static embedded_graphics::mono_font::MonoFont<'static>>,
 }
 
 impl Style {
+    /// Creates an empty style with all fields unset.
     pub fn new() -> Self {
         Self::default()
     }
+    /// Sets the background color.
     pub fn bg(mut self, color: Color) -> Self {
         self.bg_color = Some(color);
         self
     }
+    /// Sets the background opacity (0..=255).
     pub fn bg_opa(mut self, opa: u8) -> Self {
         self.bg_opa = Some(opa);
         self
     }
+    /// Sets the border color and width.
     pub fn border(mut self, color: Color, width: i32) -> Self {
         self.border_color = Some(color);
         self.border_width = Some(width);
         self
     }
+    /// Sets the corner radius.
     pub fn radius(mut self, radius: i32) -> Self {
         self.radius = Some(radius);
         self
     }
-    /// 四边统一 padding
+    /// Uniform padding on all four sides.
     pub fn pads(mut self, v: i32) -> Self {
         self.pad_left = Some(v);
         self.pad_right = Some(v);
@@ -69,7 +90,7 @@ impl Style {
         self.pad_bottom = Some(v);
         self
     }
-    /// 分别设置 padding：(左, 右, 上, 下)
+    /// Sets padding per side: (left, right, top, bottom).
     pub fn pad(mut self, left: i32, right: i32, top: i32, bottom: i32) -> Self {
         self.pad_left = Some(left);
         self.pad_right = Some(right);
@@ -77,29 +98,34 @@ impl Style {
         self.pad_bottom = Some(bottom);
         self
     }
+    /// Sets the text color.
     pub fn text_color(mut self, color: Color) -> Self {
         self.text_color = Some(color);
         self
     }
+    /// Sets the container layout.
     pub fn layout(mut self, layout: Layout) -> Self {
         self.layout = Some(layout);
         self
     }
+    /// Sets the width and height sizing strategies.
     pub fn sizing(mut self, w: crate::layout::Sizing, h: crate::layout::Sizing) -> Self {
         self.sizing_w = Some(w);
         self.sizing_h = Some(h);
         self
     }
+    /// Sets the aspect ratio (per-mille).
     pub fn aspect(mut self, ratio: u32) -> Self {
         self.aspect_ratio = Some(ratio);
         self
     }
+    /// Sets the layout transition (duration ms, easing).
     pub fn transition(mut self, duration_ms: u32, easing: crate::anim::Easing) -> Self {
         self.transition = Some((duration_ms, easing));
         self
     }
 
-    /// other 的 Some 字段覆盖 self 的同名字段（样式组合）
+    /// `other`'s `Some` fields override `self`'s same-named fields (style composition).
     pub fn merge(mut self, other: Style) -> Style {
         if other.bg_color.is_some() { self.bg_color = other.bg_color; }
         if other.bg_opa.is_some() { self.bg_opa = other.bg_opa; }
@@ -121,23 +147,40 @@ impl Style {
     }
 }
 
+/// A fully resolved style: every field concrete, with defaults applied for anything unset.
 #[derive(Clone, PartialEq, Debug)]
 pub struct ResolvedStyle {
+    /// Background color.
     pub bg_color: Color,
+    /// Background opacity (0..=255).
     pub bg_opa: u8,
+    /// Border color.
     pub border_color: Color,
+    /// Border width in pixels.
     pub border_width: i32,
+    /// Corner radius in pixels.
     pub radius: i32,
+    /// Left padding.
     pub pad_left: i32,
+    /// Right padding.
     pub pad_right: i32,
+    /// Top padding.
     pub pad_top: i32,
+    /// Bottom padding.
     pub pad_bottom: i32,
+    /// Text color.
     pub text_color: Color,
+    /// Container layout.
     pub layout: Layout,
+    /// Width sizing strategy (None = content size).
     pub sizing_w: Option<crate::layout::Sizing>,
+    /// Height sizing strategy (None = content size).
     pub sizing_h: Option<crate::layout::Sizing>,
+    /// Aspect ratio (per-mille).
     pub aspect_ratio: Option<u32>,
+    /// Layout transition: (duration ms, easing).
     pub transition: Option<(u32, crate::anim::Easing)>,
+    /// Text font.
     pub font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
@@ -164,7 +207,8 @@ impl Default for ResolvedStyle {
     }
 }
 
-/// 逐字段回落：overlay -> base -> default（未命中时用 ResolvedStyle::default() 的其余字段）
+/// Per-field fallback: overlay -> base -> default (fields not hit use the rest of
+/// `ResolvedStyle::default()`).
 pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded_graphics::mono_font::MonoFont<'static>) -> ResolvedStyle {
     let d = ResolvedStyle::default();
     let pick = |o: Option<&Style>, f: fn(&Style) -> Option<Color>| -> Option<Color> {
@@ -199,24 +243,29 @@ pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded
     }
 }
 
-/// 通用基础样式：所有控件默认样式的基础。
-/// 注意：只用于组合"基础样式"；状态覆盖样式（pressed/focused）保持稀疏，不要用它组合。
+/// The common base style: foundation for every widget's default style.
+/// Note: only for composing the "base style"; state-overlay styles (pressed/focused) stay
+/// sparse — do not build them from this.
 pub fn theme_base() -> Style {
     Style::new().text_color(Color::WHITE).bg_opa(255).radius(4)
 }
 
+/// Default style for the screen background.
 pub fn theme_screen() -> Style {
     theme_base().bg(Color::rgb(24, 24, 32))
 }
 
+/// Default style for a plain object.
 pub fn theme_obj() -> Style {
     theme_base().bg(Color::rgb(40, 40, 52))
 }
 
+/// Default style for a label (transparent background).
 pub fn theme_label() -> Style {
-    theme_base().bg_opa(0) // 透明背景
+    theme_base().bg_opa(0) // transparent background
 }
 
+/// Default style for a button.
 pub fn theme_button() -> Style {
     theme_base()
         .bg(Color::rgb(60, 90, 160))
@@ -224,12 +273,14 @@ pub fn theme_button() -> Style {
         .border(Color::rgb(90, 120, 200), 1)
 }
 
+/// Pressed-state overlay style for a button.
 pub fn theme_button_pressed() -> Style {
     let mut s = Style::default();
     s.bg_color = Some(Color::rgb(40, 60, 110));
     s
 }
 
+/// Focused-state overlay style for a button.
 pub fn theme_button_focused() -> Style {
     let mut s = Style::default();
     s.border_color = Some(Color::WHITE);
@@ -237,10 +288,12 @@ pub fn theme_button_focused() -> Style {
     s
 }
 
+/// Default style for a slider.
 pub fn theme_slider() -> Style {
     theme_base().bg(Color::rgb(70, 70, 80)).radius(6)
 }
 
+/// Focused-state overlay style for a slider.
 pub fn theme_slider_focused() -> Style {
     let mut s = Style::default();
     s.border_color = Some(Color::WHITE);
@@ -248,10 +301,12 @@ pub fn theme_slider_focused() -> Style {
     s
 }
 
+/// Default style for a switch (fully rounded on a height of 20).
 pub fn theme_switch() -> Style {
-    theme_base().bg(Color::rgb(90, 90, 90)).radius(10) // 高度 20 的全圆角
+    theme_base().bg(Color::rgb(90, 90, 90)).radius(10) // full rounding for a height of 20
 }
 
+/// Focused-state overlay style for a switch.
 pub fn theme_switch_focused() -> Style {
     let mut s = Style::default();
     s.border_color = Some(Color::WHITE);
@@ -259,16 +314,19 @@ pub fn theme_switch_focused() -> Style {
     s
 }
 
+/// Default style for a progress bar.
 pub fn theme_bar() -> Style {
     theme_base().bg(Color::rgb(70, 70, 80))
 }
 
+/// Default style for a list.
 pub fn theme_list() -> Style {
     theme_base()
         .bg(Color::rgb(34, 34, 44))
         .border(Color::rgb(70, 70, 90), 1)
 }
 
+/// Focused-state overlay style for a list.
 pub fn theme_list_focused() -> Style {
     let mut s = Style::default();
     s.border_color = Some(Color::WHITE);

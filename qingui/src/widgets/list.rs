@@ -9,9 +9,12 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::{WidgetCtx, WidgetKind};
 
+/// Row height in pixels.
 pub const ROW_H: i32 = 16;
+/// Duration of the item/highlight/scroll effects in ms.
 pub const FX_DUR: u64 = 200;
 
+/// List widget state: items, selection, scroll offset and animation effects.
 #[derive(Clone)]
 pub struct ListState {
     pub items: Vec<String>,
@@ -24,7 +27,7 @@ impl ListState {
     pub(crate) fn tick(&mut self, now: u64) -> super::TickOut {
         let was_active = self.fx.active(now);
         let removed = self.fx.prune(now);
-        // 活动中逐帧重绘；清理掉效果的这一帧也补一次重绘（清掉 ghost 残影）
+        // Redraw every frame while active; the frame that clears an effect also repaints once (to remove the ghost residue)
         super::TickOut { redraw: was_active || removed, active: self.fx.active(now) }
     }
 
@@ -43,16 +46,16 @@ impl ListState {
     }
 }
 
-/// 单个 item 的入场/位移效果（绘制时按时间插值，收敛后由 prune 清理）
+/// Entry/shift effect for a single item (interpolated by time while drawing, cleaned up by prune once settled)
 #[derive(Clone)]
 pub struct ItemFx {
     pub index: usize,
-    pub dy: i32, // 起始位移（收敛到 0）
+    pub dy: i32, // starting offset (settles to 0)
     pub fade_in: bool,
     pub start: u64,
 }
 
-/// 删除中的渐隐项（数据已移除，仅视觉残留）
+/// Fading-out item being deleted (data already removed, only visual residue)
 #[derive(Clone)]
 pub struct Ghost {
     pub text: String,
@@ -60,17 +63,19 @@ pub struct Ghost {
     pub start: u64,
 }
 
+/// Per-list animation effects: entry/shift fx, the fading ghost, and the recorded highlight/scroll start positions.
 #[derive(Clone, Default)]
 pub struct ListFx {
     pub item_fx: Vec<ItemFx>,
     pub ghost: Option<Ghost>,
-    /// 高亮滑动：(旧选中索引, 开始时间)
+    /// Highlight slide: (old selected index, start time)
     pub sel_from: Option<(usize, u64)>,
-    /// 平滑滚动：(旧 scroll, 开始时间)
+    /// Smooth scroll: (old scroll, start time)
     pub scroll_from: Option<(i32, u64)>,
 }
 
 impl ListFx {
+    /// Returns whether any effect is still active at the given time.
     pub fn active(&self, now: u64) -> bool {
         let fresh = |start: u64| now.saturating_sub(start) < FX_DUR;
         self.item_fx.iter().any(|f| fresh(f.start))
@@ -79,6 +84,7 @@ impl ListFx {
             || self.scroll_from.is_some_and(|(_, s)| fresh(s))
     }
 
+    /// Removes effects that have settled; returns whether anything was cleaned up.
     pub fn prune(&mut self, now: u64) -> bool {
         let had = !self.item_fx.is_empty()
             || self.ghost.is_some()
@@ -99,7 +105,7 @@ impl ListFx {
             || self.ghost.is_some()
             || self.sel_from.is_some()
             || self.scroll_from.is_some();
-        had && !has // 有内容被清理
+        had && !has // something was cleaned up
     }
 }
 
@@ -112,12 +118,12 @@ pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, 
     let now = ctx.now;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
 
-    // 有效 scroll（平滑滚动插值）
+    // Effective scroll (smooth-scroll interpolation)
     let eff_scroll = match fx.scroll_from {
         Some((from, start)) => from + ((scroll - from) as f32 * lerp_t(start, now)) as i32,
         None => scroll,
     };
-    // 高亮行位置（滑动插值，单位：行）
+    // Highlight row position (slide interpolation, in rows)
     let hl_row_f = match fx.sel_from {
         Some((from, start)) => {
             let t = lerp_t(start, now);
@@ -128,11 +134,11 @@ pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, 
     if !items.is_empty() {
         let hl = Rect::new(abs.x, abs.y + (hl_row_f * ROW_H as f32) as i32 - eff_scroll, abs.w, ROW_H);
         if hl.intersects(&lclip) {
-            // 高亮带圆角，避免覆盖列表自身的圆角边框
+            // Highlight with rounded corners so it doesn't cover the list's own rounded border
             d.fill_rounded(hl, ctx.resolved.radius.min(ROW_H / 2), Color::rgb(50, 70, 120), ctx.ap(255), lclip);
         }
     }
-    // items（带入场/位移效果）
+    // items (with entry/shift effects)
     for (i, item) in items.iter().enumerate() {
         let mut dy = 0;
         let mut opa = ctx.ap(255);
@@ -152,7 +158,7 @@ pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, 
         }
         d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, opa, lclip);
     }
-    // 删除中的 ghost 渐隐
+    // Fading out of the ghost being deleted
     if let Some(g) = &fx.ghost {
         let t = lerp_t(g.start, now);
         let ry = abs.y + g.index as i32 * ROW_H - eff_scroll;
@@ -170,8 +176,8 @@ pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, 
     }
 }
 
-/// 选中第 idx 项（记录高亮滑动/平滑滚动效果）并调整 scroll 保证可见。
-/// scroll 始终按行对齐（ROW_H 整数倍），避免半行错位。
+/// Selects the idx-th item (recording the highlight slide/smooth scroll effects) and adjusts scroll to keep it visible.
+/// scroll is always row-aligned (an integer multiple of ROW_H) to avoid half-row misalignment.
 pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, fx: &mut ListFx, idx: usize, vis_h: i32, now: u64) {
     if items.is_empty() {
         return;
@@ -184,8 +190,8 @@ pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, f
     ensure_visible(*selected, items.len(), scroll, fx, vis_h, now);
 }
 
-/// 调整 scroll：保证 selected 可见，且尾部不留空窗（删除尾部项后自动上滚）。
-/// scroll 按行对齐；变化时记录平滑滚动效果。
+/// Adjusts scroll: keeps selected visible and leaves no blank window at the tail (auto-scrolls up after deleting tail items).
+/// scroll is row-aligned; records a smooth scroll effect when it changes.
 pub(crate) fn ensure_visible(selected: usize, item_count: usize, scroll: &mut i32, fx: &mut ListFx, vis_h: i32, now: u64) {
     let old = *scroll;
     if item_count == 0 {
@@ -198,8 +204,8 @@ pub(crate) fn ensure_visible(selected: usize, item_count: usize, scroll: &mut i3
     let vis_rows = (vis_h / ROW_H).max(1);
     let count = item_count as i32;
     let sel = selected as i32;
-    let mut first = *scroll / ROW_H; // 当前首个可见行
-    // 尾部空窗：向上收
+    let mut first = *scroll / ROW_H; // the first currently visible row
+    // Tail blank window: pull back up
     if first + vis_rows > count {
         first = (count - vis_rows).max(0);
     }
@@ -214,39 +220,39 @@ pub(crate) fn ensure_visible(selected: usize, item_count: usize, scroll: &mut i3
     }
 }
 
-/// 在 idx 处插入一项：下方 item 下滑让位，新项淡入。
-/// （容量上限属于业务策略，由调用方控制，控件本身不限制）
+/// Inserts an item at idx: items below slide down to make room, the new item fades in.
+/// (The capacity limit is a business decision left to the caller; the widget itself does not restrict it)
 pub(crate) fn insert(items: &mut Vec<String>, fx: &mut ListFx, idx: usize, text: &str, now: u64) {
     let idx = idx.min(items.len());
     items.insert(idx, text.into());
-    // 进行中的 fx 索引顺延
+    // Shift indices of in-flight fx
     for f in fx.item_fx.iter_mut() {
         if f.index >= idx {
             f.index += 1;
         }
     }
-    // 下方 item 从旧位置（上一行）滑入新位置
+    // Items below slide from their old position (the row above) into the new position
     for i in (idx + 1)..items.len() {
         fx.item_fx.push(ItemFx { index: i, dy: -ROW_H, fade_in: false, start: now });
     }
     fx.item_fx.push(ItemFx { index: idx, dy: 0, fade_in: true, start: now });
 }
 
-/// 删除选中项：ghost 渐隐，下方 item 上移补位
+/// Deletes the selected item: ghost fades out, items below shift up to fill the gap
 pub(crate) fn remove(items: &mut Vec<String>, fx: &mut ListFx, selected: &mut usize, now: u64) -> bool {
     if items.is_empty() || *selected >= items.len() {
         return false;
     }
     let text = items.remove(*selected);
     fx.ghost = Some(Ghost { text, index: *selected, start: now });
-    // 进行中的 fx：被删项丢弃，下方顺延
+    // In-flight fx: drop the deleted item, shift those below
     fx.item_fx.retain(|f| f.index != *selected);
     for f in fx.item_fx.iter_mut() {
         if f.index > *selected {
             f.index -= 1;
         }
     }
-    // 下方 item 从旧位置（下一行）滑入新位置
+    // Items below slide from their old position (the row below) into the new position
     for i in *selected..items.len() {
         fx.item_fx.push(ItemFx { index: i, dy: ROW_H, fade_in: false, start: now });
     }
@@ -256,7 +262,7 @@ pub(crate) fn remove(items: &mut Vec<String>, fx: &mut ListFx, selected: &mut us
     true
 }
 
-/// List 构建器：默认 120 x (min(5,n)*16+2)，theme_list/focused
+/// List builder: default 120 x (min(5,n)*16+2), theme_list/focused
 pub struct ListBuilder {
     items: Vec<String>,
     selected: usize,
@@ -269,6 +275,7 @@ pub struct ListBuilder {
 }
 
 impl ListBuilder {
+    /// Creates a builder with the given items.
     pub fn new(items: &[&str]) -> Self {
         Self {
             items: items.iter().map(|s| (*s).into()).collect(),
@@ -277,39 +284,48 @@ impl ListBuilder {
             sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.selected = idx;
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_list)));
         self
     }
+    /// Sets the focused style.
     pub fn style_focused(mut self, s: Style) -> Self {
         self.style_focused = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let rows = self.items.len().min(5).max(1) as i32;
         let (w, h) = self.size.unwrap_or((120, rows * ROW_H + 2));
@@ -344,15 +360,18 @@ impl super::WidgetBehavior for ListState {
     fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
 }
 
-/// list 专属 API(经 prelude 或显式 use 引入)
+/// List-specific API (brought in via prelude or an explicit use)
 pub trait UiListExt {
+    /// Selects the idx-th item (clamped to the list range).
     fn list_select(&mut self, obj: ObjRef, idx: usize);
+    /// Returns the currently selected index.
     fn list_selected(&self, obj: ObjRef) -> usize;
-    /// 在 idx 处插入一项（下方 item 下滑让位，新项淡入）。
-    /// 容量上限由调用方控制（可用 list_len 判断）。
+    /// Inserts an item at idx (items below slide down to make room, the new item fades in).
+    /// The capacity limit is up to the caller (use list_len to check).
     fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str);
-    /// 删除当前选中项（渐隐 + 下方 item 上移），返回是否成功
+    /// Deletes the currently selected item (fades out + items below shift up), returns whether it succeeded
     fn list_remove(&mut self, obj: ObjRef) -> bool;
+    /// Returns the number of items.
     fn list_len(&self, obj: ObjRef) -> usize;
 }
 
@@ -379,7 +398,7 @@ impl UiListExt for Ui {
         if let Some(k) = self.kind_mut(obj) {
             if let Some(s) = k.as_list_mut() {
                 let idx = idx.min(s.items.len());
-                // 插入位置在选中项之上时，选中索引顺延
+                // When the insertion point is above the selected item, shift the selected index down
                 if !s.items.is_empty() && s.selected >= idx {
                     s.selected += 1;
                 }
@@ -397,7 +416,7 @@ impl UiListExt for Ui {
             Some(k) => {
                 if let Some(s) = k.as_list_mut() {
                     let ok = remove(&mut s.items, &mut s.fx, &mut s.selected, now);
-                    // 删除后尾部空窗时自动上滚填满窗口
+                    // Auto-scroll up to fill the window when the tail leaves a blank gap after deletion
                     ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now);
                     ok
                 } else {

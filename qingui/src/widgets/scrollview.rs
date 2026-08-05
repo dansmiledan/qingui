@@ -11,10 +11,10 @@ use crate::style::{Layout, Style};
 use crate::ui::Ui;
 use super::{KeyCtx, KeyOutcome, WidgetBehavior, WidgetCtx, WidgetKind};
 
-/// 单次按键滚动步进(px)
+/// Scroll step per key press (px)
 pub const STEP: i32 = 20;
 
-/// 滚动容器状态:视口 CLIP_CHILDREN,content 经 translate 移动
+/// Scrolling container state: viewport CLIP_CHILDREN, content moved via translate
 pub struct ScrollViewState {
     pub(crate) content: ObjRef,
     pub scroll: i32, // ≤0
@@ -30,20 +30,20 @@ impl ScrollViewState {
     }
 }
 
-/// 滚动执行函数：Ui 在 kind 放回后调用。
+/// Scroll exec fn: Ui calls it after putting the kind back.
 pub(crate) fn scroll_by_exec(ui: &mut Ui, sv: ObjRef, delta: i32) {
     ui.scrollview_scroll_by(sv, delta);
 }
 
 impl WidgetBehavior for ScrollViewState {
-    // 容器:内容由子节点绘制(视口 CLIP 已由通用管线处理)
+    // Container: content is drawn by child nodes (viewport CLIP is handled by the common pipeline)
     fn draw(&self, _ctx: &WidgetCtx, _d: &mut DrawBuf, _clip: Rect) {}
     fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
         self.on_key(key, ctx)
     }
 }
 
-/// ScrollView 构建器:默认 120x100,视口透明 + content column flex
+/// ScrollView builder: default 120x100, transparent viewport + content column flex
 pub struct ScrollViewBuilder {
     size: Option<(i32, i32)>,
     style: Option<Style>,
@@ -53,27 +53,34 @@ pub struct ScrollViewBuilder {
 }
 
 impl ScrollViewBuilder {
+    /// Creates an empty builder.
     pub fn new() -> Self {
         Self { size: None, style: None, sizing: None, transition: None, events: Vec::new() }
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self { self.size = Some((w, h)); self }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self { self.style = Some(s); self }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h)); self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.transition = Some((dur, easing)); self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.events.push((kind, cb)); self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((120, 100));
-        // 视口先以 Obj 占位(content 引用需要自指后的句柄)
+        // The viewport is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
         ui.set_clip_children(r, true);
-        // content:column flex,宽 GROW,透明
+        // content: column flex, width GROW, transparent
         let content = ui.insert_node(r, Rect::new(0, 0, w, 0), WidgetKind::Obj(super::obj::ObjState));
         let mut cs = Style::default();
         cs.bg_opa = Some(0);
@@ -83,15 +90,15 @@ impl ScrollViewBuilder {
             dir: FlexDir::Column, wrap: false,
             main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
         }));
-        // 占位 kind 换真身
+        // Replace the placeholder kind with the real one
         if let Some(n) = ui.kind_mut(r) {
             *n = WidgetKind::ScrollView(ScrollViewState { content, scroll: 0 });
         }
-        // 视口样式:默认透明;聚焦样式给默认边框高亮
+        // Viewport style: transparent by default; focused style gives a default border highlight
         let mut vs = self.style.unwrap_or_default();
         if vs.bg_opa.is_none() { vs.bg_opa = Some(0); }
         ui.set_style(r, vs);
-        // 视口默认 column flex:让 content 的宽 GROW 跟随视口宽(否则 GROW 是死代码)
+        // The viewport is a column flex by default: lets content's width GROW follow the viewport width (otherwise GROW is dead code)
         ui.set_layout(r, Layout::Flex(Flex {
             dir: FlexDir::Column, wrap: false,
             main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
@@ -110,10 +117,13 @@ impl ScrollViewBuilder {
     }
 }
 
-/// ScrollView API(经 prelude 引入)
+/// ScrollView API (brought in via prelude)
 pub trait UiScrollViewExt {
+    /// Returns the scrollable content node, if any.
     fn scrollview_content(&self, sv: ObjRef) -> Option<ObjRef>;
+    /// Scrolls so the content's translate.y equals `y` (clamped to the scrollable range).
     fn scrollview_scroll_to(&mut self, sv: ObjRef, y: i32);
+    /// Scrolls by `delta` pixels relative to the current position.
     fn scrollview_scroll_by(&mut self, sv: ObjRef, delta: i32);
 }
 
@@ -124,12 +134,12 @@ impl UiScrollViewExt for Ui {
 
     fn scrollview_scroll_to(&mut self, sv: ObjRef, y: i32) {
         let Some(content) = self.scrollview_content(sv) else { return };
-        // 子节点 rect 由布局产出:先冲刷待处理布局,保证下面读到最新 rect(同 itemlist ensure_visible)
+        // Child rects are produced by layout: flush pending layout first so the rects read below are current (same as itemlist ensure_visible)
         if self.layout_dirty {
             self.layout_pass();
             self.layout_dirty = false;
         }
-        // content_h = 子节点最大底边;视口高 = sv 高度
+        // content_h = the child nodes' maximum bottom edge; viewport height = sv height
         let content_h = self.children(content).iter()
             .map(|&c| self.rect(c).y + self.rect(c).h)
             .max()
@@ -137,7 +147,7 @@ impl UiScrollViewExt for Ui {
         let view_h = self.rect(sv).h;
         let min = -(content_h - view_h).max(0);
         let ny = y.clamp(min, 0);
-        // clamp 后与当前 scroll 相同则早退:不写 state、不 set_translate,避免白重绘(同 itemlist ensure_visible)
+        // Early return if the clamped value equals the current scroll: no state write, no set_translate, avoids a needless repaint (same as itemlist ensure_visible)
         let cur = self.kind(sv).and_then(|k| k.as_scrollview()).map(|s| s.scroll);
         if cur == Some(ny) { return; }
         if let Some(s) = self.kind_mut(sv).and_then(|k| k.as_scrollview_mut()) {
@@ -149,7 +159,7 @@ impl UiScrollViewExt for Ui {
     fn scrollview_scroll_by(&mut self, sv: ObjRef, delta: i32) {
         let cur = self.kind(sv).and_then(|k| k.as_scrollview()).map(|s| s.scroll);
         if let Some(cur) = cur {
-            // scroll 即 translate.y(≤0):正 delta 向下滚 = 内容向上移 = translate 减小
+            // scroll equals translate.y (≤0): a positive delta scrolls down = content moves up = translate decreases
             self.scrollview_scroll_to(sv, cur - delta);
         }
     }

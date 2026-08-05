@@ -1,7 +1,8 @@
 use crate::geometry::{Color, Rect};
 
-/// 4x4 超采样覆盖率：像素 (dx, dy)（相对圆心的像素偏移）落在半径 r 圆内的子采样数，0..=16。
-/// 子采样点取像素内 1/4 间隔的中心位置（1/16 像素定点坐标）。
+/// 4x4 supersampling coverage: number of subsamples of pixel (dx, dy) (pixel offset from the
+/// circle center) that fall inside a circle of radius r, in 0..=16.
+/// Subsample points are taken at 1/4-spaced centers inside the pixel (1/16-pixel fixed-point coordinates).
 fn circle_cov16(dx: i32, dy: i32, r: i32) -> i32 {
     let r16 = 16 * r;
     let rr = r16 * r16;
@@ -18,7 +19,7 @@ fn circle_cov16(dx: i32, dy: i32, r: i32) -> i32 {
     n
 }
 
-/// sin(0°..=90°)，256 定点（sin(d°) * 256 四舍五入）
+/// sin(0°..=90°), 256 fixed-point (sin(d°) * 256 rounded)
 #[rustfmt::skip]
 const SIN90: [i32; 91] = [
       0,   4,   9,  13,  18,  22,  27,  31,  36,  40,
@@ -33,7 +34,7 @@ const SIN90: [i32; 91] = [
     256,
 ];
 
-/// 角度（度，屏幕坐标：0°=+x 向右，沿顺时针增大）→ 单位向量（256 定点）
+/// Angle in degrees (screen coordinates: 0° = +x rightward, increasing clockwise) → unit vector (256 fixed-point)
 pub(crate) fn dir_vec(deg: i32) -> (i32, i32) {
     let d = deg.rem_euclid(360);
     let (q, a) = (d / 90, d % 90);
@@ -46,7 +47,8 @@ pub(crate) fn dir_vec(deg: i32) -> (i32, i32) {
     }
 }
 
-/// 圆弧扇形的 4x4 超采样覆盖率：子采样同时满足环带（inner < d ≤ outer）与角度楔形
+/// 4x4 supersampling coverage of an arc sector: subsamples must satisfy both the ring band
+/// (inner < d ≤ outer) and the angular wedge
 fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i32), and_mode: bool) -> i32 {
     let out2 = (16 * outer) * (16 * outer);
     let in2 = (16 * inner) * (16 * inner);
@@ -59,7 +61,7 @@ fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i
             if d2 > out2 || (inner > 0 && d2 <= in2) {
                 continue;
             }
-            // 楔形包含判定（叉积符号）
+            // Wedge containment test (cross-product sign)
             let z1 = s.0 * sy - s.1 * sx;
             let z2 = e.0 * sy - e.1 * sx;
             let inside = if and_mode { z1 >= 0 && z2 <= 0 } else { z1 >= 0 || z2 <= 0 };
@@ -71,7 +73,7 @@ fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i
     n
 }
 
-/// Rect → e-g Rectangle（x/y 起点 + 尺寸；负尺寸防御为 0）
+/// Rect → e-g Rectangle (x/y origin + size; negative sizes are defended to 0)
 fn eg_rect(r: Rect) -> embedded_graphics::primitives::Rectangle {
     embedded_graphics::primitives::Rectangle::new(
         embedded_graphics::geometry::Point::new(r.x, r.y),
@@ -79,14 +81,19 @@ fn eg_rect(r: Rect) -> embedded_graphics::primitives::Rectangle {
     )
 }
 
-/// 一块屏幕区域的像素缓冲。坐标一律为屏幕绝对坐标，写入时减去 area 原点。
+/// Pixel buffer covering a screen region. All coordinates are absolute screen coordinates;
+/// writes are offset by the `area` origin.
 pub struct DrawBuf<'a> {
+    /// The backing pixel storage.
     pub pixels: &'a mut [Color],
+    /// The absolute screen region this buffer covers.
     pub area: Rect,
+    /// Row length in pixels (usually `area.w`).
     pub stride: i32,
 }
 
 impl DrawBuf<'_> {
+    /// Fills the whole buffer with `c`.
     pub fn clear(&mut self, c: Color) {
         self.pixels.fill(c);
     }
@@ -111,6 +118,7 @@ impl DrawBuf<'_> {
         }
     }
 
+    /// Fills `r` with `c` at opacity `opa` (0..=255), clipped to `clip` and the buffer area.
     pub fn fill_rect(&mut self, r: Rect, c: Color, opa: u8, clip: Rect) {
         let Some(r) = r.intersect(&clip).and_then(|r| r.intersect(&self.area)) else {
             return;
@@ -122,7 +130,8 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 1:1 blit RGB565(小端)位图;data 不足 w*h*2 时静默不画。无分配。
+    /// 1:1 blit of an RGB565 (little-endian) bitmap; silently draws nothing when `data` is
+    /// shorter than `w * h * 2`. No allocation.
     pub fn blit565(&mut self, x: i32, y: i32, w: i32, h: i32, data: &[u8], opa: u8, clip: Rect) {
         if w <= 0 || h <= 0 || data.len() < (w as usize) * (h as usize) * 2 {
             return;
@@ -142,19 +151,20 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 圆角实心矩形：角用 4x4 超采样抗锯齿
+    /// Filled rounded rectangle: corners use 4x4 supersampling anti-aliasing.
     pub fn fill_rounded(&mut self, r: Rect, radius: i32, c: Color, opa: u8, clip: Rect) {
         let radius = radius.min(r.w / 2).min(r.h / 2).max(0);
         if radius == 0 {
             self.fill_rect(r, c, opa, clip);
             return;
         }
-        // 中间带（覆盖全高的中央竖带）
+        // Center band (the vertical strip covering the full height)
         self.fill_rect(Rect::new(r.x + radius, r.y, r.w - 2 * radius, r.h), c, opa, clip);
-        // 左右侧带（角区之间的直边段）
+        // Left and right side bands (the straight segments between the corner areas)
         self.fill_rect(Rect::new(r.x, r.y + radius, radius, r.h - 2 * radius), c, opa, clip);
         self.fill_rect(Rect::new(r.right() - radius, r.y + radius, radius, r.h - 2 * radius), c, opa, clip);
-        // 四个角：超采样覆盖率混合（圆边外 1px 也有部分覆盖，形成平滑过渡）
+        // Four corners: supersampled coverage blend (the 1px band outside the rounded edge
+        // is partially covered too, forming a smooth transition)
         let corners = [
             (r.x + radius, r.y + radius, -1i32, -1i32),
             (r.right() - radius - 1, r.y + radius, 1, -1),
@@ -174,8 +184,9 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 边框：外接矩形 r 的内侧画 width 宽的一圈，角半径 radius。
-    /// 实现为 width 个 1px 圆角矩形描边（逐圈内缩）。
+    /// Border: draws a `width`-thick ring along the inside of the bounding rect `r`, with
+    /// corner radius `radius`.
+    /// Implemented as `width` 1px rounded-rect strokes, each inset one more pixel.
     pub fn draw_border(&mut self, r: Rect, width: i32, radius: i32, c: Color, opa: u8, clip: Rect) {
         for i in 0..width {
             let inner = Rect::new(r.x + i, r.y + i, r.w - 2 * i, r.h - 2 * i);
@@ -183,12 +194,12 @@ impl DrawBuf<'_> {
                 break;
             }
             let rad = (radius - i).max(0).min(inner.w / 2).min(inner.h / 2);
-            // 四条直边
+            // Four straight edges
             self.fill_rect(Rect::new(inner.x + rad, inner.y, inner.w - 2 * rad, 1), c, opa, clip);
             self.fill_rect(Rect::new(inner.x + rad, inner.bottom() - 1, inner.w - 2 * rad, 1), c, opa, clip);
             self.fill_rect(Rect::new(inner.x, inner.y + rad, 1, inner.h - 2 * rad), c, opa, clip);
             self.fill_rect(Rect::new(inner.right() - 1, inner.y + rad, 1, inner.h - 2 * rad), c, opa, clip);
-            // 四个角的 1px 圆弧带（超采样抗锯齿）
+            // Four corners as 1px arc bands (supersampled anti-aliasing)
             if rad > 0 {
                 let corners = [
                     (inner.x + rad, inner.y + rad, -1i32, -1i32),
@@ -211,12 +222,13 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 经 e-g Text 渲染器绘制文本；On 像素走 put(fg/opa)，Off 不写（背景透明）。
+    /// Draws text via the e-g Text renderer; On pixels go through `put(fg/opa)`, Off pixels
+    /// are not written (transparent background).
     pub fn draw_text(&mut self, pos: crate::geometry::Point, font: &'static embedded_graphics::mono_font::MonoFont, s: &str, c: Color, clip: Rect) {
         self.draw_text_opa(pos, font, s, c, 255, clip);
     }
 
-    /// 圆盘（填充圆），4x4 超采样抗锯齿
+    /// Filled disc (solid circle), 4x4 supersampling anti-aliased.
     pub fn fill_circle(&mut self, center: crate::geometry::Point, radius: i32, c: Color, opa: u8, clip: Rect) {
         if radius <= 0 {
             return;
@@ -232,7 +244,7 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 圆环（width 宽的圆边，向内收缩），4x4 超采样抗锯齿
+    /// Ring (a `width`-thick circle edge, inset inward), 4x4 supersampling anti-aliased.
     pub fn draw_circle(&mut self, center: crate::geometry::Point, radius: i32, width: i32, c: Color, opa: u8, clip: Rect) {
         if radius <= 0 || width <= 0 {
             return;
@@ -249,8 +261,8 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// 圆弧/扇形：从 start_deg 沿顺时针扫到 end_deg（屏幕坐标，0°=+x 向右）。
-    /// width = 环宽（=radius 时为扇形/饼图）。全边缘 4x4 超采样抗锯齿。
+    /// Arc/pie sector: sweeps clockwise from `start_deg` to `end_deg` (screen coordinates, 0° = +x rightward).
+    /// `width` = ring thickness (a pie chart when equal to `radius`). Full-edge 4x4 supersampling anti-aliasing.
     pub fn draw_arc(
         &mut self,
         center: crate::geometry::Point,
@@ -289,7 +301,7 @@ impl DrawBuf<'_> {
         }
     }
 
-    /// draw_text 的带透明度版本
+    /// Version of `draw_text` with an explicit opacity.
     pub fn draw_text_opa(&mut self, pos: crate::geometry::Point, font: &'static embedded_graphics::mono_font::MonoFont, s: &str, c: Color, opa: u8, clip: Rect) {
         use embedded_graphics::draw_target::DrawTarget;
         use embedded_graphics::Drawable;
@@ -313,8 +325,9 @@ impl DrawBuf<'_> {
                 Ok(())
             }
         }
-        // 必须手实现 Dimensions 而非 OriginDimensions：后者原点恒为 (0,0)，
-        // 而 clipped() 会把 clip 与 bounding_box 相交，非零 area 原点会错误裁掉文本
+        // `Dimensions` must be implemented manually rather than `OriginDimensions`: the latter
+        // always reports origin (0,0), while `clipped()` intersects the clip with the bounding
+        // box, so a non-zero `area` origin would incorrectly crop the text
         impl embedded_graphics::geometry::Dimensions for EgTarget<'_, '_> {
             fn bounding_box(&self) -> embedded_graphics::primitives::Rectangle {
                 eg_rect(self.d.area)
@@ -332,7 +345,7 @@ impl DrawBuf<'_> {
         .draw(&mut t);
     }
 
-    /// 直线（Bresenham + 半径 stamp 实现线宽）
+    /// Line (Bresenham + a radius stamp for line width).
     pub fn draw_line(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, width: i32, c: Color, opa: u8, clip: Rect) {
         let (mut x0, mut y0) = (p1.x, p1.y);
         let (x1, y1) = (p2.x, p2.y);

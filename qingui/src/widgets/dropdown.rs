@@ -12,6 +12,7 @@ use crate::ui::Ui;
 use super::list::UiListExt;
 use super::{WidgetCtx, WidgetKind};
 
+/// Dropdown widget state.
 #[derive(Clone)]
 pub struct DropdownState {
     pub items: Vec<String>,
@@ -24,8 +25,8 @@ impl DropdownState {
     }
 }
 
-/// 打开 Dropdown 的浮层列表（Attach::Bottom 锚定，模态锁定）。
-/// payload 未使用，仅用于匹配 Deferred 的 fn(&mut Ui, ObjRef, i32) 签名。
+/// Opens the dropdown's popup list (anchored via Attach::Bottom, modal locked).
+/// The payload is unused; it only exists to match Deferred's fn(&mut Ui, ObjRef, i32) signature.
 pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
     let Some((items, sel, w)) = ui.arena.get(obj).map(|n| match &n.kind {
         WidgetKind::Dropdown(s) => (s.items.clone(), s.selected, n.rect.w),
@@ -43,7 +44,7 @@ pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
     ui.set_floating(lst, obj, crate::layout::Attach::Bottom);
     ui.group_add(lst);
     ui.set_modal(lst);
-    // 选中：写回 dropdown 并发 ValueChanged，关闭浮层，还原焦点
+    // On select: write back to the dropdown and send ValueChanged, close the popup, restore focus
     ui.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
         let idx = ui.list_selected(l);
         if let Some(n) = ui.arena.get_mut(obj) {
@@ -59,7 +60,7 @@ pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
             ui.group_focus(p);
         }
     }));
-    // Esc：不改值，直接关闭
+    // Esc: close without changing the value
     ui.add_event_cb(lst, crate::event::EventKind::Key(crate::input::Key::Esc), Box::new(move |ui, l, k| {
         if k == crate::event::EventKind::Key(crate::input::Key::Esc) {
             ui.clear_modal();
@@ -84,14 +85,14 @@ pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut D
         ap,
         lclip,
     );
-    // 下拉箭头（小三角）
+    // Dropdown arrow (small triangle)
     let ax = abs.right() - 10;
     let ay = abs.y + abs.h / 2;
     d.draw_line(Point { x: ax - 3, y: ay - 2 }, Point { x: ax, y: ay + 2 }, 1, ctx.resolved.text_color, ap, lclip);
     d.draw_line(Point { x: ax, y: ay + 2 }, Point { x: ax + 3, y: ay - 2 }, 1, ctx.resolved.text_color, ap, lclip);
 }
 
-/// Dropdown 构建器：默认 100x20，bg(40,40,52) r4 + focused 白边
+/// Dropdown builder: default 100x20, bg(40,40,52) r4 + white focused border
 pub struct DropdownBuilder {
     items: Vec<String>,
     selected: usize,
@@ -104,6 +105,7 @@ pub struct DropdownBuilder {
 }
 
 impl DropdownBuilder {
+    /// Creates a builder with the given items.
     pub fn new(items: &[&str]) -> Self {
         Self {
             items: items.iter().map(|s| (*s).into()).collect(),
@@ -112,18 +114,22 @@ impl DropdownBuilder {
             sizing: None, transition: None, events: Vec::new(),
         }
     }
+    /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.selected = idx;
         self
     }
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self {
         self.size = Some((w, h));
         self
     }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
         self
     }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         let base = self.style.take().unwrap_or_else(|| {
             let mut s = Style::default();
@@ -135,23 +141,28 @@ impl DropdownBuilder {
         self.style = Some(f(base));
         self
     }
+    /// Sets the focused style.
     pub fn style_focused(mut self, s: Style) -> Self {
         self.style_focused = Some(s);
         self
     }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self {
         self.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
         self.events.push((kind, cb));
         self
     }
 
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let (w, h) = self.size.unwrap_or((100, 20));
         let selected = if self.items.is_empty() { 0 } else { self.selected.min(self.items.len() - 1) };

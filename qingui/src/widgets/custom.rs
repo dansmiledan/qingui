@@ -8,19 +8,19 @@ use crate::ui::Ui;
 
 use super::{TickOut, WidgetCtx};
 
-/// 用户自定义 widget：经 Ui::create_custom 挂载为 WidgetKind::Custom，
-/// 与内置控件一样参与绘制/逐帧/按键。
+/// User-defined widget: mounted as `WidgetKind::Custom` via `Ui::create_custom`,
+/// participating in drawing/per-frame/key handling like built-in widgets.
 ///
-/// 注意：on_key 调用期间本节点的 kind 处于"拆出"状态（节点内是占位 Obj），
-/// 修改自身状态请直接改 self；对其他节点的操作不受限。
+/// Note: while `on_key` is being called, this node's kind is "taken out" (the node holds a placeholder `Obj`),
+/// so modify your own state directly on `self`; operations on other nodes are unrestricted.
 pub trait Widget {
-    /// 内容绘制（背景/边框/opa 由 Ui 统一处理）
+    /// Content drawing (background/border/opa are handled uniformly by Ui)
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect);
-    /// 每帧推进：返回活动状态（默认无逐帧行为）
+    /// Per-frame progress: returns the active state (no per-frame behavior by default)
     fn tick(&mut self, _now: u64) -> TickOut {
         TickOut::IDLE
     }
-    /// 按键处理：返回 true 表示消费（默认不消费，走默认移焦/Clicked）
+    /// Key handling: returns true if consumed (not consumed by default, falls through to default focus move/Clicked)
     fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, _key: Key) -> bool {
         false
     }
@@ -28,8 +28,8 @@ pub trait Widget {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-/// Custom 变体的状态包装：把 trait object 委托收进 WidgetBehavior，宏即可一视同仁。
-/// 不可 Clone（trait object 无法克隆），故 WidgetKind 不再 derive Clone。
+/// State wrapper for the Custom variant: delegates the trait object into `WidgetBehavior` so the macro treats it uniformly.
+/// Not `Clone` (trait objects cannot be cloned), so `WidgetKind` no longer derives `Clone`.
 pub struct CustomState(pub alloc::boxed::Box<dyn Widget>);
 
 impl super::WidgetBehavior for CustomState {
