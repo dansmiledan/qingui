@@ -8,7 +8,7 @@
 - **脏矩形**：属性变化自动标脏，只重绘变化区域（合并/裁剪/上限坍缩）
 - **动画**：`tick_inc` 驱动的时间线动画，6 种 easing，支持 delay/repeat/playback/完成回调
 - **按键交互**：仿 LVGL 的 keypad + 焦点组（group），Slider 编辑态、Switch 切换、List 项导航与滚动
-- **控件**：Obj、Label、Button、Slider、Switch、Bar、List
+- **控件**：Obj、Label、Button、Slider、Switch、Bar、List、Arc、Checkbox、Chart、Dropdown、Image、ItemList、Led、Msgbox、Roller、ScrollView、Spinbox、Spinner、Table、Custom
 - **布局**：手动定位 + Flex（row/column、wrap、对齐）+ Grid（px/fr/content 轨道）
 - **样式**：扁平样式结构 + 按状态（Pressed/Focused/Disabled）覆盖
 - **字体**：多字体——embedded-graphics MonoFont，内置 FONT_6X10 默认，可插 eg 生态字体（ASCII，非 ASCII 回落 `?`）
