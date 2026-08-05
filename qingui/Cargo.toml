@@ -10,6 +10,8 @@ categories = ["embedded", "graphics", "no-std"]
 readme = "README.md"
 # examples/ 下有非可执行的模块文件（sim/、images.rs），显式声明可执行 example
 autoexamples = false
+# benches/ 下只有一个显式声明的 memory bench（harness = false → 自定义 main）
+autobenches = false
 
 [[example]]
 name = "demo"
@@ -18,6 +20,11 @@ path = "examples/demo.rs"
 [[example]]
 name = "gallery"
 path = "examples/gallery.rs"
+
+[[bench]]
+name = "memory"
+path = "benches/memory.rs"
+harness = false
 
 [dependencies]
 bitflags = { version = "2.13.1", default-features = false }
