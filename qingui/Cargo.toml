@@ -8,9 +8,9 @@ repository = "https://github.com/dansmiledan/qingui"
 keywords = ["gui", "embedded", "no_std", "lvgl", "framebuffer"]
 categories = ["embedded", "graphics", "no-std"]
 readme = "README.md"
-# examples/ 下有非可执行的模块文件（sim/、images.rs），显式声明可执行 example
+# examples/ holds non-executable modules (sim/, images.rs); declare runnable examples explicitly
 autoexamples = false
-# benches/ 下只有一个显式声明的 memory bench（harness = false → 自定义 main）
+# benches/ holds a single explicitly-declared memory bench (harness = false -> custom main)
 autobenches = false
 
 [[example]]

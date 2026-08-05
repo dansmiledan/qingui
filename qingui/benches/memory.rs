@@ -59,7 +59,9 @@ fn report_static_sizes() {
     println!("4 x Style     {:>6} B", 4 * size_of::<Style>());
     println!("Node          {:>6} B", size_of::<Node>());
     println!("WidgetKind    {:>6} B", size_of::<WidgetKind>());
-    println!("  largest-variant tax = {} B (WidgetKind - ObjState)", size_of::<WidgetKind>() - size_of::<obj::ObjState>());
+    println!("  largest state (ItemListState) = {} B", size_of::<itemlist::ItemListState>());
+    println!("  discriminator overhead = {} B (WidgetKind - largest state)", size_of::<WidgetKind>() - size_of::<itemlist::ItemListState>());
+    println!("  NOTE: every node carries WidgetKind ({} B) for kind regardless of its state", size_of::<WidgetKind>());
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
     }
@@ -87,6 +89,72 @@ fn report_static_sizes() {
     println!("Ui            {:>6} B", size_of::<qingui::Ui>());
 }
 
+enum Tier { Small, Medium, Large }
+
+fn build_scene(tier: Tier) -> qingui::Ui {
+    use qingui::prelude::*;
+    use qingui::widgets::button::ButtonBuilder;
+    use qingui::widgets::chart::ChartBuilder;
+    use qingui::widgets::itemlist::ItemListBuilder;
+    use qingui::widgets::list::ListBuilder;
+    use qingui::widgets::slider::SliderBuilder;
+    use qingui::{Color, Ui};
+
+    let (n_items, n_chart_pts) = match tier {
+        Tier::Small => (5, 16),
+        Tier::Medium => (20, 64),
+        Tier::Large => (60, 256),
+    };
+    let mut ui = Ui::new(320, 240, 24);
+    let scr = ui.screen();
+    // ListBuilder::new takes &[&str]; build the label strings first (their allocation
+    // is counted, which is representative of real use). Same pattern as dropdown.rs.
+    let texts: Vec<String> = (0..n_items).map(|i| format!("item{i}")).collect();
+    let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+    // Keep handles alive so the built tree (and its allocations) stays resident.
+    let _list = ListBuilder::new(&refs).build(&mut ui, scr);
+    for i in 0..n_items {
+        ButtonBuilder::new(&format!("btn{i}")).build(&mut ui, scr);
+    }
+    for _ in 0..n_items / 4 {
+        SliderBuilder::new(0, 100).build(&mut ui, scr);
+    }
+    let _chart = ChartBuilder::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
+    let _il = ItemListBuilder::new().build(&mut ui, scr);
+    for _ in 0..n_items {
+        ui.itemlist_add_item(_il);
+    }
+    // Force real allocations through layout / render / animation paths.
+    for _ in 0..5 {
+        ui.tick_inc(16);
+        ui.timer_handler();
+    }
+    ui
+}
+
+fn node_count(ui: &qingui::Ui) -> usize {
+    let mut n = 0;
+    let mut stack = vec![ui.screen()];
+    while let Some(o) = stack.pop() {
+        n += 1;
+        stack.extend(ui.children(o));
+    }
+    n
+}
+
+fn bench_scene(label: &str, tier: Tier) {
+    reset();
+    let ui = build_scene(tier);
+    let nodes = node_count(&ui);
+    let peak = peak();
+    let live = current();
+    drop(ui);
+    println!("{label:<8} {nodes:>5} nodes  peak {peak:>9} B  live {live:>9} B");
+}
+
 fn main() {
     report_static_sizes();
+    bench_scene("small", Tier::Small);
+    bench_scene("medium", Tier::Medium);
+    bench_scene("large", Tier::Large);
 }
