@@ -24,8 +24,6 @@ pub(crate) struct CommonBuilder {
 impl CommonBuilder {
     /// Applies the layout/sizing/transition/events tail to an inserted node.
     /// Style defaults are widget-specific and stay in each `WidgetCfg::build`.
-    // Not referenced until widget builders are migrated onto this scaffolding.
-    #[allow(dead_code)]
     pub fn apply_tail(self, ui: &mut Ui, r: ObjRef) {
         if let Some(l) = self.layout {
             ui.set_layout(r, l);

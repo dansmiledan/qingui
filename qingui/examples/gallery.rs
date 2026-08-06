@@ -12,10 +12,10 @@ use qingui::style::Layout;
 use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::canvas::CanvasBuilder;
+use qingui::widgets::canvas::CanvasCfg;
 use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownCfg;
-use qingui::widgets::itemlist::ItemListBuilder;
+use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::led::LedCfg;
 use qingui::widgets::list::ListCfg;
@@ -169,7 +169,7 @@ impl Demo {
 
         // ItemList: menu-style list (each item is a Led icon + Label text);
         // viewport height 60 < content height 5*16=80, scrolling the selection demonstrates content scrolling
-        let menu = ItemListBuilder::new().size(140, 60).build(ui, screen);
+        let menu = ItemListCfg::new().size(140, 60).build(ui, screen);
         for (color, name) in [
             (Color::GREEN, "Wi-Fi"),
             (Color::BLUE, "Bluetooth"),
@@ -204,7 +204,7 @@ impl Demo {
         kids.push(table);
 
         // Canvas: an arc spinning with now
-        let cv = CanvasBuilder::new(Box::new(|d, abs, clip, now| {
+        let cv = CanvasCfg::new(Box::new(|d, abs, clip, now| {
             let c = qingui::Point { x: abs.x + 18, y: abs.y + 18 };
             let end = (now / 10) as i32 % 360;
             d.draw_arc(c, 14, 4, 0, end, Color::rgb(80, 140, 255), 255, clip);

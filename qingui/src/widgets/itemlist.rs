@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
 use crate::geometry::{Color, Rect};
@@ -8,6 +7,7 @@ use crate::layout::{Align, Flex, FlexDir, Sizing};
 use crate::node::State;
 use crate::style::{Layout, Style};
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{KeyCtx, KeyOutcome, WidgetKind};
 
 /// Container-type list: items are ordinary child nodes (the user builds the content freely), the widget only handles selection/navigation/scrolling.
@@ -63,43 +63,33 @@ fn column_layout() -> Layout {
     })
 }
 
-/// ItemList builder: default 120x100, with inline default viewport style (dark background + border) and default selected style (blue background)
-pub struct ItemListBuilder {
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
+/// Builder for the ItemList widget.
+pub type ItemListBuilder = WidgetBuilder<ItemListCfg>;
+
+/// ItemList configuration: optional custom selected-item style.
+pub struct ItemListCfg {
     style_selected: Option<Style>,
-    style_focused: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, crate::anim::Easing)>,
-    events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
 }
 
-impl ItemListBuilder {
+impl ItemListCfg {
     /// Creates an empty builder.
-    pub fn new() -> Self {
-        Self { size: None, style: None, style_selected: None, style_focused: None, sizing: None, transition: None, events: Vec::new() }
+    pub fn new() -> WidgetBuilder<ItemListCfg> {
+        WidgetBuilder { common: CommonBuilder::default(), cfg: ItemListCfg { style_selected: None } }
     }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self { self.size = Some((w, h)); self }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self { self.style = Some(s); self }
+}
+
+impl WidgetBuilder<ItemListCfg> {
     /// The selected style for items (overlaid on State::SELECTED).
     /// Note: it must explicitly include bg_opa, otherwise the item base's bg_opa(0) makes the highlight invisible
-    pub fn style_selected(mut self, s: Style) -> Self { self.style_selected = Some(s); self }
-    /// The focused style for the viewport (overlaid on State::FOCUSED)
-    pub fn style_focused(mut self, s: Style) -> Self { self.style_focused = Some(s); self }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self { self.sizing = Some((w, h)); self }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self { self.transition = Some((dur, easing)); self }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
-        self.events.push((kind, cb)); self
+    pub fn style_selected(mut self, s: Style) -> Self {
+        self.cfg.style_selected = Some(s);
+        self
     }
+}
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((120, 100));
+impl WidgetCfg for ItemListCfg {
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport node is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
         ui.set_clip_children(r, true);
@@ -114,7 +104,7 @@ impl ItemListBuilder {
             n.kind = WidgetKind::ItemList(Box::new(ItemListState { selected: 0, content, sel_style }));
         }
         // Viewport style (defaults to theme_list's dark background + border)
-        let mut vs = self.style.unwrap_or_else(|| {
+        let mut vs = common.style.take().unwrap_or_else(|| {
             let mut s = Style::default();
             s.bg_color = Some(Color::rgb(34, 34, 44));
             s.bg_opa = Some(255);
@@ -126,16 +116,8 @@ impl ItemListBuilder {
             if vs.bg_opa.is_none() { vs.bg_opa = Some(255); }
             vs
         });
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_list_focused));
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
+        common.apply_tail(ui, r);
         r
     }
 }

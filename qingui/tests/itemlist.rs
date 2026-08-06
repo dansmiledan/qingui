@@ -3,7 +3,7 @@ use qingui::input::Key;
 use qingui::node::State;
 use qingui::prelude::*;
 use qingui::style::Style;
-use qingui::widgets::itemlist::ItemListBuilder;
+use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
 use qingui::{Color, EventKind, ObjRef, Rect, Ui};
 use std::cell::{Cell, RefCell};
@@ -33,7 +33,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 fn build4() -> (Ui, ObjRef, Vec<ObjRef>) {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     let mut items = Vec::new();
     for t in ["a", "b", "c", "d"] {
         let it = ui.itemlist_add_item(il).expect("add_item on ItemList");
@@ -99,7 +99,7 @@ fn viewport_clips_scrolled_items() {
     ss.bg_color = Some(Color::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, ss);
-    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     ui.set_pos(il, 10, 30); // viewport kept away from the screen edges so scrolled-out areas are still assertable on screen
     for _ in 0..4 {
         let it = ui.itemlist_add_item(il).unwrap();
@@ -129,7 +129,7 @@ fn remove_selected_clamps_and_reselects() {
 fn empty_list_key_does_not_panic_and_consumes() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     ui.group_add(il);
     ui.keypad_input(Key::Up); // empty list: no panic, key consumed (focus does not move)
     assert_eq!(ui.focused(), Some(il));
@@ -142,7 +142,7 @@ fn empty_list_key_does_not_panic_and_consumes() {
 fn direct_item_delete_does_not_panic_and_clamps_selection() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     let mut items = Vec::new();
     for t in ["a", "b", "c"] {
         let it = ui.itemlist_add_item(il).expect("add_item on ItemList");
@@ -171,7 +171,7 @@ fn direct_item_delete_does_not_panic_and_clamps_selection() {
 fn uneven_items_scroll_minimally() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let il = ItemListBuilder::new().size(60, 40).build(&mut ui, scr);
+    let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     let mut items = Vec::new();
     for h in [10, 30, 20] {
         let it = ui.itemlist_add_item(il).expect("add_item on ItemList");

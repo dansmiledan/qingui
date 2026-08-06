@@ -1,5 +1,5 @@
 use qingui::display::Flush;
-use qingui::widgets::canvas::CanvasBuilder;
+use qingui::widgets::canvas::CanvasCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -35,7 +35,7 @@ fn canvas_callback_draws_custom_content() {
     let scr = ui.screen();
     ui.set_style(scr, bg);
 
-    let cv = CanvasBuilder::new(Box::new(|d, abs, clip, _now| {
+    let cv = CanvasCfg::new(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x + 2, abs.y + 2, 5, 5), Color::RED, 255, clip);
         d.draw_arc(
             qingui::Point { x: abs.x + 20, y: abs.y + 20 },
@@ -67,7 +67,7 @@ fn canvas_clipped_by_chunk() {
     let mut ui = Ui::new(64, 48, 16); // small buffer → multiple chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
-    let cv = CanvasBuilder::new(Box::new(|d, abs, clip, _now| {
+    let cv = CanvasCfg::new(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x, abs.y, 64, 48), Color::WHITE, 255, clip);
     }))
     .size(64, 48)

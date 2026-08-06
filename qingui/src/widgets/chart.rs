@@ -1,14 +1,11 @@
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Point, Rect};
-use crate::layout::Sizing;
-use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{WidgetCtx, WidgetKind};
 
 /// One data line: a fixed-capacity ring buffer that drops the oldest point when full
@@ -79,83 +76,51 @@ pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect)
     }
 }
 
-/// Chart builder: default 120x60 + range 0..100
-pub struct ChartBuilder {
+/// Builder for the Chart widget.
+pub type ChartBuilder = WidgetBuilder<ChartCfg>;
+
+/// Chart configuration: fixed Y-axis range and the initial series.
+pub struct ChartCfg {
     min: i32,
     max: i32,
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
     series: Vec<(Color, usize)>,
 }
 
-impl ChartBuilder {
+impl ChartCfg {
     /// Creates a builder with the default range 0..100.
-    pub fn new() -> Self {
-        Self {
-            min: 0, max: 100,
-            size: None, style: None, sizing: None,
-            transition: None, events: Vec::new(), series: Vec::new(),
+    pub fn new() -> WidgetBuilder<ChartCfg> {
+        WidgetBuilder {
+            common: CommonBuilder::default(),
+            cfg: ChartCfg { min: 0, max: 100, series: Vec::new() },
         }
     }
+}
+
+impl WidgetBuilder<ChartCfg> {
     /// Sets the fixed Y-axis range.
     pub fn range(mut self, min: i32, max: i32) -> Self {
-        self.min = min;
-        self.max = max;
-        self
-    }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self {
-        self.size = Some((w, h));
-        self
-    }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb));
+        self.cfg.min = min;
+        self.cfg.max = max;
         self
     }
     /// Pre-creates one series (may be called multiple times)
     pub fn series(mut self, color: Color, capacity: usize) -> Self {
-        self.series.push((color, capacity));
+        self.cfg.series.push((color, capacity));
         self
     }
+}
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((120, 60));
+impl WidgetCfg for ChartCfg {
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or((120, 60));
         let state = ChartState {
             min: self.min,
             max: self.max,
             series: self.series.into_iter().map(|(c, cap)| Series::new(c, cap)).collect(),
         };
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Chart(state));
-        ui.set_style(r, self.style.unwrap_or_default());
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        ui.set_style(r, common.style.take().unwrap_or_default());
+        common.apply_tail(ui, r);
         r
     }
 }

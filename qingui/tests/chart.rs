@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::prelude::*;
-use qingui::widgets::chart::ChartBuilder;
+use qingui::widgets::chart::ChartCfg;
 use qingui::Rect;
 use qingui::{Color, Ui};
 use std::cell::RefCell;
@@ -11,7 +11,7 @@ fn builder_defaults_and_add_series() {
     let mut ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     // Default is 0 series; pre-build 1 series (capacity 4)
-    let c = ChartBuilder::new().series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
     assert_eq!(ui.chart_point_count(c, 0), 0);
     assert_eq!(ui.chart_point_count(c, 1), 0); // out-of-range series → 0
     // Attach one more series at runtime, index increments
@@ -23,7 +23,7 @@ fn builder_defaults_and_add_series() {
 fn push_appends_and_clamps() {
     let mut ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartBuilder::new().range(0, 100).series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 4).build(&mut ui, s);
     ui.chart_push(c, 0, -5);  // clamped to 0
     ui.chart_push(c, 0, 150); // clamped to 100
     ui.chart_push(c, 0, 42);
@@ -38,7 +38,7 @@ fn push_appends_and_clamps() {
 fn push_evicts_oldest_when_full() {
     let mut ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartBuilder::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
     for v in [1, 2, 3, 4] {
         ui.chart_push(c, 0, v);
     }
@@ -51,7 +51,7 @@ fn push_evicts_oldest_when_full() {
 fn set_points_replaces_and_truncates() {
     let mut ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartBuilder::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
     ui.chart_push(c, 0, 99);
     ui.chart_set_points(c, 0, &[1, 2, 3, 4, 5]); // over capacity: only the newest 3 are kept
     assert_eq!(ui.chart_point_count(c, 0), 3);
@@ -65,7 +65,7 @@ fn set_points_replaces_and_truncates() {
 fn invalid_targets_are_silent_noop() {
     let mut ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartBuilder::new().series(Color::BLUE, 3).build(&mut ui, s);
+    let c = ChartCfg::new().series(Color::BLUE, 3).build(&mut ui, s);
     // Out-of-range series index
     ui.chart_push(c, 99, 5);
     ui.chart_set_points(c, 99, &[1, 2]);
@@ -82,7 +82,7 @@ fn invalid_targets_are_silent_noop() {
 fn push_marks_dirty() {
     let mut ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartBuilder::new().series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
     ui.take_dirty();
     assert!(ui.dirty_is_empty());
     ui.chart_push(c, 0, 10);
@@ -109,7 +109,7 @@ fn renders_flat_line_at_bottom_for_min_values() {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let s = ui.screen();
     // chart fills the screen, capacity = width → one point per column; all pushed to min → the polyline hugs the bottom row
-    let c = ChartBuilder::new()
+    let c = ChartCfg::new()
         .range(0, 47)
         .size(64, 48)
         .series(Color::RED, 64)

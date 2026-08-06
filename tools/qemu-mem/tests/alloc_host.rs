@@ -14,8 +14,8 @@ extern crate alloc;
 use allocator::{current, peak};
 use qingui::prelude::*;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::chart::ChartBuilder;
-use qingui::widgets::itemlist::ItemListBuilder;
+use qingui::widgets::chart::ChartCfg;
+use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::slider::SliderCfg;
@@ -47,8 +47,8 @@ fn build_scene(tier: Tier) -> Ui {
     for _ in 0..n_items / 4 {
         SliderCfg::new(0, 100).build(&mut ui, scr);
     }
-    let _chart = ChartBuilder::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
-    let _il = ItemListBuilder::new().build(&mut ui, scr);
+    let _chart = ChartCfg::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
+    let _il = ItemListCfg::new().build(&mut ui, scr);
     for _ in 0..n_items {
         ui.itemlist_add_item(_il);
     }

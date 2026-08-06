@@ -1,14 +1,14 @@
 use qingui::input::Key;
 use qingui::prelude::*;
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::scrollview::{ScrollViewBuilder, STEP};
+use qingui::widgets::scrollview::{ScrollViewCfg, STEP};
 use qingui::{Rect, Ui};
 
 /// Builds a 60px viewport + 3 40px items (content 120px)
 fn build() -> (Ui, qingui::ObjRef, qingui::ObjRef) {
     let mut ui = Ui::new(160, 120, 24);
     let s = ui.screen();
-    let sv = ScrollViewBuilder::new().size(80, 60).build(&mut ui, s);
+    let sv = ScrollViewCfg::new().size(80, 60).build(&mut ui, s);
     let content = ui.scrollview_content(sv).unwrap();
     for _ in 0..3 {
         let item = ObjCfg::new().build(&mut ui, content);
@@ -51,7 +51,7 @@ fn focused_up_down_scrolls_and_clamps() {
 fn short_content_never_scrolls() {
     let mut ui = Ui::new(160, 120, 24);
     let s = ui.screen();
-    let sv = ScrollViewBuilder::new().size(80, 60).build(&mut ui, s);
+    let sv = ScrollViewCfg::new().size(80, 60).build(&mut ui, s);
     let content = ui.scrollview_content(sv).unwrap();
     let item = ObjCfg::new().build(&mut ui, content);
     ui.set_size(item, 60, 30); // content 30 < viewport 60

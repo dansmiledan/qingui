@@ -1,14 +1,11 @@
-use alloc::vec::Vec;
-
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
 use crate::geometry::Rect;
 use crate::input::Key;
 use crate::layout::{Align, Flex, FlexDir, Sizing};
 use crate::style::{Layout, Style};
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{KeyCtx, KeyOutcome, WidgetBehavior, WidgetCtx, WidgetKind};
 
 /// Scroll step per key press (px)
@@ -43,40 +40,22 @@ impl WidgetBehavior for ScrollViewState {
     }
 }
 
-/// ScrollView builder: default 120x100, transparent viewport + content column flex
-pub struct ScrollViewBuilder {
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
+/// Builder for the ScrollView widget.
+pub type ScrollViewBuilder = WidgetBuilder<ScrollViewCfg>;
+
+/// ScrollView configuration.
+pub struct ScrollViewCfg;
+
+impl ScrollViewCfg {
+    /// Creates an empty builder.
+    pub fn new() -> WidgetBuilder<ScrollViewCfg> {
+        WidgetBuilder { common: CommonBuilder::default(), cfg: ScrollViewCfg }
+    }
 }
 
-impl ScrollViewBuilder {
-    /// Creates an empty builder.
-    pub fn new() -> Self {
-        Self { size: None, style: None, sizing: None, transition: None, events: Vec::new() }
-    }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self { self.size = Some((w, h)); self }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self { self.style = Some(s); self }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h)); self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing)); self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb)); self
-    }
-
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((120, 100));
+impl WidgetCfg for ScrollViewCfg {
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
         ui.set_clip_children(r, true);
@@ -95,7 +74,7 @@ impl ScrollViewBuilder {
             *n = WidgetKind::ScrollView(ScrollViewState { content, scroll: 0 });
         }
         // Viewport style: transparent by default; focused style gives a default border highlight
-        let mut vs = self.style.unwrap_or_default();
+        let mut vs = common.style.take().unwrap_or_default();
         if vs.bg_opa.is_none() { vs.bg_opa = Some(0); }
         ui.set_style(r, vs);
         // The viewport is a column flex by default: lets content's width GROW follow the viewport width (otherwise GROW is dead code)
@@ -103,16 +82,8 @@ impl ScrollViewBuilder {
             dir: FlexDir::Column, wrap: false,
             main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
         }));
-        ui.set_style_focused(r, crate::style::theme_list_focused());
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
+        common.apply_tail(ui, r);
         r
     }
 }

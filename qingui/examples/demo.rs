@@ -8,18 +8,18 @@ use qingui::style::{Layout, Style};
 use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::chart::ChartBuilder;
+use qingui::widgets::chart::ChartCfg;
 use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::image::ImageCfg;
-use qingui::widgets::itemlist::ItemListBuilder;
+use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::led::LedCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerCfg;
-use qingui::widgets::scrollview::ScrollViewBuilder;
+use qingui::widgets::scrollview::ScrollViewCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::spinner::SpinnerCfg;
@@ -143,7 +143,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     }));
     // Scrolling content: text + image widget examples (static image + gif frame animation);
     // When content exceeds the viewport, focus the ScrollView and scroll with Up/Down
-    let sv = ScrollViewBuilder::new().build(ui, page_about);
+    let sv = ScrollViewCfg::new().build(ui, page_about);
     ui.set_sizing(sv, Some(Sizing::GROW), Some(Sizing::GROW));
     let sv_content = ui.scrollview_content(sv).unwrap();
     // Multi-font demo: default FONT_6X10 side by side with an overridden FONT_10X20
@@ -283,13 +283,13 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_layout(page_itemlist, column());
 
     // Two line charts (top/bottom): different colors, data pushed periodically by main's tick
-    let chart1 = ChartBuilder::new()
+    let chart1 = ChartCfg::new()
         .range(0, 100)
         .series(Color::rgb(80, 140, 255), 48)
         .build(ui, page_itemlist);
     ui.set_sizing(chart1, Some(Sizing::GROW), None);
     ui.set_size(chart1, 160, 56);
-    let chart2 = ChartBuilder::new()
+    let chart2 = ChartCfg::new()
         .range(0, 100)
         .series(Color::rgb(255, 160, 60), 48)
         .build(ui, page_itemlist);
@@ -298,7 +298,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     charts.borrow_mut().extend([chart1, chart2]);
 
     // Complex ItemList: each item = LED + Label + Checkbox
-    let il = ItemListBuilder::new().build(ui, page_itemlist);
+    let il = ItemListCfg::new().build(ui, page_itemlist);
     ui.set_sizing(il, Some(Sizing::GROW), Some(Sizing::GROW));
     let item_controls: Rc<RefCell<Vec<(ObjRef, ObjRef)>>> = Rc::new(RefCell::new(Vec::new()));
     for i in 0..8 {
