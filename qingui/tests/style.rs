@@ -1,5 +1,5 @@
 use qingui::style::{theme_base, theme_button, theme_button_pressed, Style};
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Ui};
 
 #[test]
@@ -46,7 +46,7 @@ fn composed_theme_button_matches_expected() {
 fn default_button_resolves_theme() {
     let mut ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
-    let b = ObjBuilder::new().build(&mut ui, scr);
+    let b = ObjCfg::new().build(&mut ui, scr);
     ui.set_style(b, theme_button());
     let r = ui.resolved_style(b);
     assert_eq!(r.bg_color, theme_button().bg_color.unwrap());
@@ -58,7 +58,7 @@ fn default_button_resolves_theme() {
 fn base_style_field_fallback() {
     let mut ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     let mut s = Style::default();
     s.bg_color = Some(Color::RED);
     ui.set_style(o, s);
@@ -71,7 +71,7 @@ fn base_style_field_fallback() {
 fn state_override_wins_then_falls_back() {
     let mut ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
-    let b = ObjBuilder::new().build(&mut ui, scr);
+    let b = ObjCfg::new().build(&mut ui, scr);
     let mut base = theme_button();
     base.bg_color = Some(Color::BLUE);
     ui.set_style(b, base.clone());

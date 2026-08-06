@@ -17,7 +17,7 @@ fn spinner_keeps_timer_awake() {
 fn hidden_parent_stops_spinner_dirty() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    let panel = qingui::widgets::obj::ObjBuilder::new().build(&mut ui, s);
+    let panel = qingui::widgets::obj::ObjCfg::new().build(&mut ui, s);
     SpinnerBuilder::new().build(&mut ui, panel);
     ui.tick_inc(16);
     ui.timer_handler();

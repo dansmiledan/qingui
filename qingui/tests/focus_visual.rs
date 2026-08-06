@@ -1,7 +1,7 @@
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::list::ListBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::widgets::switch::SwitchBuilder;
 use qingui::{Color, Rect, Ui};
@@ -57,10 +57,10 @@ fn slider_shows_focus_border() {
 fn moving_container_repaints_children_old_area() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let parent = ObjBuilder::new().build(&mut ui, scr);
+    let parent = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(parent, 10, 10);
     ui.set_size(parent, 20, 20);
-    let child = ObjBuilder::new().build(&mut ui, parent);
+    let child = ObjCfg::new().build(&mut ui, parent);
     ui.set_pos(child, -10, 0); // child extends beyond the parent's left edge
     ui.set_size(child, 10, 10);
     let mut s = qingui::style::Style::default();

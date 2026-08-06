@@ -1,6 +1,6 @@
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::style::Layout;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 
 fn flex(dir: FlexDir, main: Align, cross: Align, gap: i32) -> Layout {
@@ -9,12 +9,12 @@ fn flex(dir: FlexDir, main: Align, cross: Align, gap: i32) -> Layout {
 
 fn row_of(ui: &mut Ui, n: usize, w: i32, h: i32) -> Vec<qingui::ObjRef> {
     let scr = ui.screen();
-    let c = ObjBuilder::new().build(ui, scr);
+    let c = ObjCfg::new().build(ui, scr);
     ui.set_pos(c, 0, 0);
     ui.set_size(c, 200, 100);
     (0..n)
         .map(|_| {
-            let ch = ObjBuilder::new().build(ui, c);
+            let ch = ObjCfg::new().build(ui, c);
             ui.set_size(ch, w, h);
             ch
         })

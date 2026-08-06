@@ -1,5 +1,5 @@
 use qingui::anim::{Anim, AnimProp, Easing};
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::Ui;
 
@@ -22,7 +22,7 @@ fn easing_bounds() {
 fn linear_anim_progresses_with_tick() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 0, 0);
     ui.anim_start(anim_to(o, AnimProp::X, 100, 100));
     assert!(ui.anim_running());
@@ -41,7 +41,7 @@ fn linear_anim_progresses_with_tick() {
 fn anim_with_delay() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 100, 100);
     a.delay_ms = 100;
     ui.anim_start(a);
@@ -57,7 +57,7 @@ fn anim_with_delay() {
 fn playback_reverses() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 100, 100);
     a.repeat = 2;
     a.playback = true;
@@ -78,7 +78,7 @@ fn playback_reverses() {
 fn anim_stop_removes() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.anim_start(anim_to(o, AnimProp::X, 100, 1000));
     ui.anim_stop(o, AnimProp::X);
     assert!(!ui.anim_running());
@@ -92,7 +92,7 @@ fn on_done_callback_fires() {
     let fired2 = fired.clone();
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 10, 10);
     a.on_done = Some(Box::new(move |_ui: &mut Ui| fired2.set(true)));
     ui.anim_start(a);
@@ -121,13 +121,13 @@ fn anim_x_on_flex_child_not_reset_by_layout() {
     use qingui::style::Layout;
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
-    let c = ObjBuilder::new().build(&mut ui, scr);
+    let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
     ui.set_layout(c, Layout::Flex(Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
     }));
-    let k = ObjBuilder::new().build(&mut ui, c);
+    let k = ObjCfg::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.timer_handler();
     assert_eq!(ui.rect(k).x, 0); // layout-computed position
@@ -145,13 +145,13 @@ fn translate_offsets_abs_rect_and_survives_layout() {
     use qingui::Rect;
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
-    let c = ObjBuilder::new().build(&mut ui, scr);
+    let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
     ui.set_layout(c, Layout::Flex(Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
     }));
-    let k = ObjBuilder::new().build(&mut ui, c);
+    let k = ObjCfg::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.set_translate(c, 5, 7); // parent container translated → whole subtree offsets
     ui.timer_handler();
@@ -166,7 +166,7 @@ fn translate_offsets_abs_rect_and_survives_layout() {
 fn anim_translate_x() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.anim_start(anim_to(o, AnimProp::TranslateX, 100, 100));
     ui.tick_inc(50);
     ui.timer_handler();

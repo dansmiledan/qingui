@@ -1,7 +1,7 @@
 use qingui::display::Flush;
 use qingui::node::State;
 use qingui::style::Style;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -31,7 +31,7 @@ fn build() -> (Rc<RefCell<RecFlush>>, Ui, qingui::ObjRef) {
     let mut ui = Ui::new(64, 64, 16);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
-    let o = ObjBuilder::new()
+    let o = ObjCfg::new()
         .size(10, 10)
         .style(Style::new().bg(Color::RED))
         .build(&mut ui, scr);

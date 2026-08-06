@@ -1,7 +1,7 @@
 use qingui::input::Key;
 use qingui::widgets::bar::BarBuilder;
 use qingui::widgets::button::ButtonBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::widgets::switch::SwitchBuilder;
 use qingui::{EventKind, Ui};
@@ -112,7 +112,7 @@ fn set_value_fires_value_changed() {
 fn focus_skips_hidden_objects() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let page = ObjBuilder::new().build(&mut ui, scr);
+    let page = ObjCfg::new().build(&mut ui, scr);
     let a = ButtonBuilder::new("A").build(&mut ui, page); // hidden with page
     let b = ButtonBuilder::new("B").build(&mut ui, scr);
     ui.group_add(a);
@@ -133,7 +133,7 @@ fn modal_restricts_focus_navigation() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ButtonBuilder::new("A").build(&mut ui, scr);
-    let dlg = ObjBuilder::new().build(&mut ui, scr);
+    let dlg = ObjCfg::new().build(&mut ui, scr);
     let ok = ButtonBuilder::new("OK").build(&mut ui, dlg);
     ui.group_add(a);
     ui.group_add(ok);

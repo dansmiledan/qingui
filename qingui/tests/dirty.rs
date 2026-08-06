@@ -1,4 +1,4 @@
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Rect, Ui};
 
 #[test]
@@ -6,7 +6,7 @@ fn move_obj_marks_old_and_new_area() {
     let mut ui = Ui::new(320, 240, 40);
     ui.take_dirty(); // clear the full-screen dirty produced when the screen was created
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 10, 10);
     ui.set_size(o, 20, 20);
     ui.take_dirty();
@@ -42,7 +42,7 @@ fn area_clipped_to_screen() {
 fn style_change_invalidates_obj() {
     let mut ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 10, 10);
     ui.set_size(o, 20, 20);
     ui.take_dirty();
@@ -57,7 +57,7 @@ fn hidden_obj_setters_dont_dirty_but_hide_show_do() {
     use qingui::widgets::bar::BarBuilder;
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let panel = ObjBuilder::new().build(&mut ui, scr);
+    let panel = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(panel, 40, 40);
     let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
     ui.take_dirty();
@@ -95,7 +95,7 @@ fn hidden_target_anim_does_not_dirty() {
     let mut ui = Ui::new(64, 48, 48);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
-    let panel = ObjBuilder::new().build(&mut ui, scr);
+    let panel = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(panel, 40, 40);
     let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
     // Infinite value animation (same as the demo animate page) + position animation (set_pos path)

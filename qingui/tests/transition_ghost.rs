@@ -4,7 +4,7 @@ use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::Layout;
 use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::list::ListBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, ObjRef, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -49,7 +49,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     ui.set_grid_cell(menu, (0, 1), (1, 1));
     ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
 
-    let panel = ObjBuilder::new().build(&mut ui, screen);
+    let panel = ObjCfg::new().build(&mut ui, screen);
     ui.set_grid_cell(panel, (1, 1), (1, 1));
     ui.set_style(panel, qingui::style::theme_obj());
     ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -58,7 +58,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
 
-    let page = ObjBuilder::new().build(&mut ui, panel);
+    let page = ObjCfg::new().build(&mut ui, panel);
     let mut ps = qingui::style::Style::default();
     ps.bg_opa = Some(0);
     ui.set_style(page, ps);

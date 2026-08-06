@@ -2,7 +2,7 @@ use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::Sizing;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,7 +23,7 @@ fn style_builder_chain() {
 fn anim_builder_chain() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.anim_start(
         Anim::new(o, AnimProp::X, 0, 100, 100)
             .easing(Easing::EaseInOutQuad)

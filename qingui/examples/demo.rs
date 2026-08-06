@@ -17,7 +17,7 @@ use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::msgbox::MsgboxBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerBuilder;
 use qingui::widgets::scrollview::ScrollViewBuilder;
 use qingui::widgets::slider::SliderBuilder;
@@ -88,14 +88,14 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_grid_cell(menu, (0, 1), (1, 1));
     ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
 
-    let panel = ObjBuilder::new().build(ui, screen);
+    let panel = ObjCfg::new().build(ui, screen);
     ui.set_grid_cell(panel, (1, 1), (1, 1));
     ui.set_style(panel, qingui::style::theme_obj());
     ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(panel, column());
 
     // ---- Settings page: Slider + Switch + preview Bar ----
-    let page_settings = ObjBuilder::new().build(ui, panel);
+    let page_settings = ObjCfg::new().build(ui, panel);
     ui.set_style(page_settings, transparent());
     ui.set_sizing(page_settings, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_settings, column());
@@ -123,7 +123,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     }));
 
     // ---- About page: Wide button + ScrollView (About text and two images scroll past the visible viewport) ----
-    let page_about = ObjBuilder::new().build(ui, panel);
+    let page_about = ObjCfg::new().build(ui, panel);
     ui.set_style(page_about, transparent());
     ui.set_sizing(page_about, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_about, column());
@@ -162,7 +162,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let _anim = ImageBuilder::new(&images::MIAO).build(ui, sv_content);
 
     // ---- Animate page: infinitely ping-ponging Bar + arc gauge ----
-    let page_animate = ObjBuilder::new().build(ui, panel);
+    let page_animate = ObjCfg::new().build(ui, panel);
     ui.set_style(page_animate, transparent());
     ui.set_sizing(page_animate, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_animate, column());
@@ -185,7 +185,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let _ = spinner;
 
     // ---- LongList page: 20-item long list + add/del buttons ----
-    let page_longlist = ObjBuilder::new().build(ui, panel);
+    let page_longlist = ObjCfg::new().build(ui, panel);
     ui.set_style(page_longlist, transparent());
     ui.set_sizing(page_longlist, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_longlist, column());
@@ -198,7 +198,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     .build(ui, page_longlist);
     ui.set_size(long_list, 160, 5 * 16 + 2);
 
-    let btn_row = ObjBuilder::new().build(ui, page_longlist);
+    let btn_row = ObjCfg::new().build(ui, page_longlist);
     ui.set_style(btn_row, transparent());
     ui.set_size(btn_row, 160, 28);
     ui.set_layout(btn_row, Layout::Flex(Flex {
@@ -244,7 +244,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     }));
 
     // ---- P1 Demo page: Roller / Dropdown / Spinbox / LED / Table ----
-    let page_p1 = ObjBuilder::new().build(ui, panel);
+    let page_p1 = ObjCfg::new().build(ui, panel);
     ui.set_style(page_p1, transparent());
     ui.set_sizing(page_p1, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_p1, column());
@@ -253,7 +253,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         .build(ui, page_p1);
     let dropdown = DropdownBuilder::new(&["Red", "Green", "Blue"]).build(ui, page_p1);
     let spinbox = SpinboxBuilder::new(0, 999, 3).build(ui, page_p1);
-    let led_row = ObjBuilder::new().build(ui, page_p1);
+    let led_row = ObjCfg::new().build(ui, page_p1);
     ui.set_style(led_row, transparent());
     ui.set_size(led_row, 120, 18);
     ui.set_layout(led_row, Layout::Flex(Flex {
@@ -277,7 +277,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         .build(ui, page_p1);
 
     // ---- ItemList page: two streaming charts (top/bottom) + an ItemList of 3-control items ----
-    let page_itemlist = ObjBuilder::new().build(ui, panel);
+    let page_itemlist = ObjCfg::new().build(ui, panel);
     ui.set_style(page_itemlist, transparent());
     ui.set_sizing(page_itemlist, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_itemlist, column());

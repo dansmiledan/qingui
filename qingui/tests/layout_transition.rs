@@ -1,7 +1,7 @@
 use qingui::anim::Easing;
 use qingui::layout::{Align, Flex, FlexDir, Sizing};
 use qingui::style::Layout;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{ObjRef, Ui};
 
 fn flex(main: Align) -> Layout {
@@ -14,10 +14,10 @@ fn flex(main: Align) -> Layout {
 fn setup() -> (Ui, ObjRef, ObjRef) {
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
-    let c = ObjBuilder::new().build(&mut ui, scr);
+    let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
     ui.set_layout(c, flex(Align::Start));
-    let k = ObjBuilder::new().build(&mut ui, c);
+    let k = ObjCfg::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.set_transition(k, Some((100, Easing::Linear)));
     (ui, c, k)

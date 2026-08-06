@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::layout::Attach;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,7 +27,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 }
 
 fn solid(ui: &mut Ui, parent: qingui::ObjRef, c: Color) -> qingui::ObjRef {
-    let o = ObjBuilder::new().build(ui, parent);
+    let o = ObjCfg::new().build(ui, parent);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(c);
     ui.set_style(o, s);

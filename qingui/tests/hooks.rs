@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::widgets::button::ButtonBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -46,7 +46,7 @@ fn draw_hook_overlays_builtin_widget() {
 fn tick_hook_drives_wakeup_and_redraw() {
     let mut ui = Ui::new(64, 64, 16);
     let scr = ui.screen();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     let hits = Rc::new(Cell::new(0u32));
     let h = hits.clone();
     ui.set_tick_hook(o, Some(Box::new(move |_ui, _obj, _now| {

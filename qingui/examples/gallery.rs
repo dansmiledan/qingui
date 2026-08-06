@@ -19,7 +19,7 @@ use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelBuilder;
 use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerBuilder;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::widgets::spinbox::SpinboxBuilder;
@@ -219,7 +219,7 @@ impl Demo {
             true // redraw every frame
         })));
 
-        let obj = ObjBuilder::new().build(ui, screen);
+        let obj = ObjCfg::new().build(ui, screen);
         ui.set_size(obj, 40, 40);
         ui.set_style(obj, qingui::style::theme_obj());
         kids.push(obj);

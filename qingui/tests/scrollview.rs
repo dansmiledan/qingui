@@ -1,6 +1,6 @@
 use qingui::input::Key;
 use qingui::prelude::*;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::scrollview::{ScrollViewBuilder, STEP};
 use qingui::{Rect, Ui};
 
@@ -11,7 +11,7 @@ fn build() -> (Ui, qingui::ObjRef, qingui::ObjRef) {
     let sv = ScrollViewBuilder::new().size(80, 60).build(&mut ui, s);
     let content = ui.scrollview_content(sv).unwrap();
     for _ in 0..3 {
-        let item = ObjBuilder::new().build(&mut ui, content);
+        let item = ObjCfg::new().build(&mut ui, content);
         ui.set_size(item, 60, 40);
     }
     (ui, sv, content)
@@ -53,7 +53,7 @@ fn short_content_never_scrolls() {
     let s = ui.screen();
     let sv = ScrollViewBuilder::new().size(80, 60).build(&mut ui, s);
     let content = ui.scrollview_content(sv).unwrap();
-    let item = ObjBuilder::new().build(&mut ui, content);
+    let item = ObjCfg::new().build(&mut ui, content);
     ui.set_size(item, 60, 30); // content 30 < viewport 60
     ui.group_add(sv);
     ui.group_focus(sv);

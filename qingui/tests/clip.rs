@@ -1,5 +1,5 @@
 use qingui::display::Flush;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -33,10 +33,10 @@ fn build(bg: Color) -> (Rc<RefCell<RecFlush>>, Ui, qingui::ObjRef, qingui::ObjRe
     let scr = ui.screen();
     ui.set_style(scr, s);
     // Viewport 20x20 @ (5,5)
-    let vp = ObjBuilder::new().size(20, 20).build(&mut ui, scr);
+    let vp = ObjCfg::new().size(20, 20).build(&mut ui, scr);
     ui.set_pos(vp, 5, 5);
     // White 20x20 child placed at (10,0) inside the vp: the right half extends past the viewport
-    let child = ObjBuilder::new()
+    let child = ObjCfg::new()
         .size(20, 20)
         .style(qingui::style::Style::new().bg(Color::WHITE))
         .build(&mut ui, vp);

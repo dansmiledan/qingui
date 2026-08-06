@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::style::theme_screen;
-use qingui::widgets::obj::ObjBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -25,7 +25,7 @@ fn chunked_render_covers_dirty_area() {
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     ui.set_style(scr, theme_screen());
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 8, 8);
     ui.set_size(o, 16, 16);
     let mut s = qingui::style::Style::default();
@@ -77,7 +77,7 @@ fn small_dirty_flushes_only_that_area() {
     let scr = ui.screen();
     ui.set_style(scr, theme_screen());
     ui.render();
-    let o = ObjBuilder::new().build(&mut ui, scr);
+    let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 40, 40);
     ui.set_size(o, 8, 8);
     let mut s = qingui::style::Style::default();
