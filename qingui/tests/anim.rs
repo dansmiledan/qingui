@@ -1,6 +1,6 @@
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::slider::SliderBuilder;
+use qingui::widgets::slider::SliderCfg;
 use qingui::Ui;
 
 fn anim_to(target: qingui::ObjRef, prop: AnimProp, end: i32, dur: u32) -> Anim {
@@ -105,7 +105,7 @@ fn on_done_callback_fires() {
 fn anim_value_updates_widget_and_dirty() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.take_dirty();
     ui.anim_start(anim_to(s, AnimProp::Value, 100, 100));
     // anim_start applies the start value immediately → marks dirty (animation linked with dirty rects)

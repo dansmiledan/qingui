@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::input::Key;
-use qingui::widgets::arc::ArcBuilder;
+use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::prelude::*;
 use qingui::widgets::msgbox::MsgboxBuilder;
@@ -45,7 +45,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 fn arc_value_and_indicator() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let a = ArcBuilder::new(0, 100).build(&mut ui, scr);
+    let a = ArcCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(a, 10, 10);
     ui.set_value(a, 50);
     ui.render();
@@ -65,7 +65,7 @@ fn arc_value_and_indicator() {
 fn arc_edited_turns_indicator_yellow() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let a = ArcBuilder::new(0, 100).build(&mut ui, scr);
+    let a = ArcCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(a, 10, 10);
     ui.set_value(a, 50);
     ui.set_state(a, qingui::node::State::EDITED, true);

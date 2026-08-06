@@ -6,14 +6,14 @@ use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::roller::RollerBuilder;
-use qingui::widgets::slider::SliderBuilder;
+use qingui::widgets::slider::SliderCfg;
 use qingui::{Color, EventKind, Ui};
 
 #[test]
 fn slider_builder_defaults() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     let r = ui.rect(s);
     assert_eq!((r.w, r.h), (100, 12)); // default size
     assert_eq!(ui.value(s), 0); // default value = min
@@ -35,7 +35,7 @@ fn slider_builder_defaults() {
 fn slider_builder_overrides() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100)
+    let s = SliderCfg::new(0, 100)
         .size(140, 14)
         .value(50)
         .style_with(|s| s.bg(Color::RED))

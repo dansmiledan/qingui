@@ -54,12 +54,12 @@ fn style_change_invalidates_obj() {
 
 #[test]
 fn hidden_obj_setters_dont_dirty_but_hide_show_do() {
-    use qingui::widgets::bar::BarBuilder;
+    use qingui::widgets::bar::BarCfg;
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let panel = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(panel, 40, 40);
-    let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
+    let bar = BarCfg::new(0, 100).build(&mut ui, panel);
     ui.take_dirty();
     // The hide action itself must mark dirty (erase the object's original area)
     ui.set_hidden(panel, true);
@@ -78,7 +78,7 @@ fn hidden_obj_setters_dont_dirty_but_hide_show_do() {
 fn hidden_target_anim_does_not_dirty() {
     use qingui::anim::{Anim, AnimProp, Easing};
     use qingui::display::Flush;
-    use qingui::widgets::bar::BarBuilder;
+    use qingui::widgets::bar::BarCfg;
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -97,7 +97,7 @@ fn hidden_target_anim_does_not_dirty() {
     let scr = ui.screen();
     let panel = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(panel, 40, 40);
-    let bar = BarBuilder::new(0, 100).build(&mut ui, panel);
+    let bar = BarCfg::new(0, 100).build(&mut ui, panel);
     // Infinite value animation (same as the demo animate page) + position animation (set_pos path)
     ui.anim_start(Anim { target: bar, prop: AnimProp::Value, start: 0, end: 100,
                          duration_ms: 1200, delay_ms: 0, repeat: -1, playback: false,

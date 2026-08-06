@@ -1,14 +1,10 @@
-use alloc::vec::Vec;
-
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
-use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{WidgetCtx, WidgetKind};
 
 /// Spinbox widget state.
@@ -80,82 +76,52 @@ pub(crate) fn step_digit(min: i32, max: i32, value: &mut i32, digits: u8, cursor
     *value = (*value + dir * step).clamp(min, max);
 }
 
-/// Spinbox builder: default digits*advance+12 x (line height+8), bg(40,40,52) r4 + white focused border
-pub struct SpinboxBuilder {
+/// Builder for the Spinbox widget.
+pub type SpinboxBuilder = WidgetBuilder<SpinboxCfg>;
+
+/// Spinbox configuration: value range, digit count, and initial value.
+pub struct SpinboxCfg {
     min: i32,
     max: i32,
     digits: u8,
     value: Option<i32>,
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    style_focused: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
 }
 
-impl SpinboxBuilder {
+impl SpinboxCfg {
     /// Creates a builder for the given range and digit count.
-    pub fn new(min: i32, max: i32, digits: u8) -> Self {
-        Self {
-            min, max,
-            digits: digits.max(1),
-            value: None, size: None, style: None, style_focused: None,
-            sizing: None, transition: None, events: Vec::new(),
+    pub fn new(min: i32, max: i32, digits: u8) -> WidgetBuilder<SpinboxCfg> {
+        WidgetBuilder {
+            common: CommonBuilder::default(),
+            cfg: SpinboxCfg { min, max, digits: digits.max(1), value: None },
         }
     }
+
+    /// Base style: dark rounded background with white text.
+    fn base_style() -> Style {
+        let mut s = Style::default();
+        s.bg_color = Some(Color::rgb(40, 40, 52));
+        s.radius = Some(4);
+        s.text_color = Some(Color::WHITE);
+        s
+    }
+}
+
+impl WidgetBuilder<SpinboxCfg> {
     /// Sets the initial value.
     pub fn value(mut self, v: i32) -> Self {
-        self.value = Some(v);
+        self.cfg.value = Some(v);
         self
     }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self {
-        self.size = Some((w, h));
-        self
-    }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Modifies on top of the default style.
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        let base = self.style.take().unwrap_or_else(|| {
-            let mut s = Style::default();
-            s.bg_color = Some(Color::rgb(40, 40, 52));
-            s.radius = Some(4);
-            s.text_color = Some(Color::WHITE);
-            s
-        });
-        self.style = Some(f(base));
-        self
-    }
-    /// Sets the focused style.
-    pub fn style_focused(mut self, s: Style) -> Self {
-        self.style_focused = Some(s);
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb));
-        self
+}
+
+impl WidgetCfg for SpinboxCfg {
+    fn default_style() -> Style {
+        Self::base_style()
     }
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let font = crate::font::measure_font(self.style.as_ref(), ui);
-        let (w, h) = self.size.unwrap_or((self.digits as i32 * crate::font::advance(font) + 12, crate::font::line_height(font) + 8));
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let font = crate::font::measure_font(common.style.as_ref(), ui);
+        let (w, h) = common.size.unwrap_or((self.digits as i32 * crate::font::advance(font) + 12, crate::font::line_height(font) + 8));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
@@ -167,30 +133,16 @@ impl SpinboxBuilder {
                 cursor: self.digits - 1,
             }),
         );
-        let base = self.style.unwrap_or_else(|| {
-            let mut s = Style::default();
-            s.bg_color = Some(Color::rgb(40, 40, 52));
-            s.radius = Some(4);
-            s.text_color = Some(Color::WHITE);
-            s
-        });
+        let base = common.style.take().unwrap_or_else(Self::base_style);
         ui.set_style(r, base.clone());
-        let focused = self.style_focused.unwrap_or_else(|| {
+        let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
             s.border_color = Some(Color::WHITE);
             s.border_width = Some(1);
             s
         });
         ui.set_style_focused(r, focused);
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        common.apply_tail(ui, r);
         r
     }
 }

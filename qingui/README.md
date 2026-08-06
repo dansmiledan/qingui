@@ -20,7 +20,7 @@
 ```rust
 use qingui::display::Flush;
 use qingui::input::Key;
-use qingui::widgets::slider::SliderBuilder;
+use qingui::widgets::slider::SliderCfg;
 use qingui::{Color, Rect, Ui};
 
 struct MyFlush;
@@ -35,7 +35,7 @@ ui.set_flush(Box::new(MyFlush));
 
 // Builder：默认尺寸/样式（通用 theme_base + 控件专属）可链式覆盖
 let scr = ui.screen();
-let slider = SliderBuilder::new(0, 100)
+let slider = SliderCfg::new(0, 100)
     .size(140, 14)
     .value(50)
     .style_with(|s| s.bg(Color::rgb(90, 90, 120)))

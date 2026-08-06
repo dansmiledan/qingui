@@ -9,8 +9,8 @@ use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::prelude::*;
 use qingui::style::Layout;
-use qingui::widgets::arc::ArcBuilder;
-use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::arc::ArcCfg;
+use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::canvas::CanvasBuilder;
 use qingui::widgets::checkbox::CheckboxCfg;
@@ -21,10 +21,10 @@ use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerBuilder;
-use qingui::widgets::slider::SliderBuilder;
-use qingui::widgets::spinbox::SpinboxBuilder;
+use qingui::widgets::slider::SliderCfg;
+use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::spinner::SpinnerBuilder;
-use qingui::widgets::switch::SwitchBuilder;
+use qingui::widgets::switch::SwitchCfg;
 use qingui::widgets::table::TableBuilder;
 use qingui::{Color, ObjRef, Ui};
 
@@ -108,25 +108,25 @@ impl Demo {
         self.checkbox = Some(cb);
         kids.push(cb);
 
-        let sw = SwitchBuilder::new().build(ui, screen);
+        let sw = SwitchCfg::new().build(ui, screen);
         self.switch = Some(sw);
         kids.push(sw);
 
-        let sl = SliderBuilder::new(0, 100)
+        let sl = SliderCfg::new(0, 100)
             .size(70, 12)
             .value(40)
             .build(ui, screen);
         self.slider = Some(sl);
         kids.push(sl);
 
-        let bar = BarBuilder::new(0, 100)
+        let bar = BarCfg::new(0, 100)
             .size(70, 10)
             .value(60)
             .build(ui, screen);
         self.bar = Some(bar);
         kids.push(bar);
 
-        let arc = ArcBuilder::new(0, 100).build(ui, screen);
+        let arc = ArcCfg::new(0, 100).build(ui, screen);
         ui.set_size(arc, 56, 56);
         // Arc rotates in an infinite loop
         ui.anim_start(Anim::new(arc, AnimProp::Value, 0, 100, 3000).repeat(-1));
@@ -146,7 +146,7 @@ impl Demo {
         );
         kids.push(led);
 
-        let sb = SpinboxBuilder::new(0, 999, 3).build(ui, screen);
+        let sb = SpinboxCfg::new(0, 999, 3).build(ui, screen);
         ui.set_value(sb, 42);
         self.spinbox = Some(sb);
         kids.push(sb);

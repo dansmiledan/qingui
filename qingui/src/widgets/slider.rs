@@ -1,14 +1,10 @@
-use alloc::vec::Vec;
-
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
-use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{WidgetCtx, WidgetKind};
 
 /// Slider widget state: value drawn as a filled track between `min` and `max` with a knob.
@@ -53,88 +49,46 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Draw
     d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
 }
 
-/// Slider builder: default 100x12 + theme_slider/focused, chainable overrides
-pub struct SliderBuilder {
+/// Builder for the Slider widget.
+pub type SliderBuilder = WidgetBuilder<SliderCfg>;
+
+/// Slider configuration: value range and initial value.
+pub struct SliderCfg {
     min: i32,
     max: i32,
     value: Option<i32>,
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    style_focused: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
 }
 
-impl SliderBuilder {
+impl SliderCfg {
     /// Creates a builder for the given range.
-    pub fn new(min: i32, max: i32) -> Self {
-        Self {
-            min, max,
-            value: None, size: None, style: None, style_focused: None,
-            sizing: None, transition: None, events: Vec::new(),
-        }
+    pub fn new(min: i32, max: i32) -> WidgetBuilder<SliderCfg> {
+        WidgetBuilder { common: CommonBuilder::default(), cfg: SliderCfg { min, max, value: None } }
     }
+}
+
+impl WidgetBuilder<SliderCfg> {
     /// Sets the initial value.
     pub fn value(mut self, v: i32) -> Self {
-        self.value = Some(v);
+        self.cfg.value = Some(v);
         self
     }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self {
-        self.size = Some((w, h));
-        self
-    }
-    /// Replaces the default style entirely
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Modifies on top of the default style
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_slider)));
-        self
-    }
-    /// Sets the focused style.
-    pub fn style_focused(mut self, s: Style) -> Self {
-        self.style_focused = Some(s);
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb));
-        self
+}
+
+impl WidgetCfg for SliderCfg {
+    fn default_style() -> Style {
+        crate::style::theme_slider()
     }
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((100, 12));
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or((100, 12));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
             WidgetKind::Slider(SliderState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
         );
-        ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_slider));
-        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_slider_focused));
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_slider));
+        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_slider_focused));
+        common.apply_tail(ui, r);
         r
     }
 }

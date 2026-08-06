@@ -1,10 +1,10 @@
 use qingui::display::Flush;
 use qingui::prelude::*;
-use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::list::ListBuilder;
-use qingui::widgets::slider::SliderBuilder;
-use qingui::widgets::switch::SwitchBuilder;
+use qingui::widgets::slider::SliderCfg;
+use qingui::widgets::switch::SwitchCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,7 +45,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 fn slider_value_and_indicator() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
     ui.set_value(s, 50);
     ui.render();
@@ -62,7 +62,7 @@ fn slider_value_and_indicator() {
 fn slider_value_clamped_to_range() {
     let (mut ui, _) = setup();
     let scr = ui.screen();
-    let s = SliderBuilder::new(10, 20).build(&mut ui, scr);
+    let s = SliderCfg::new(10, 20).build(&mut ui, scr);
     ui.set_value(s, 999);
     assert_eq!(ui.value(s), 20);
     ui.set_value(s, -5);
@@ -73,7 +73,7 @@ fn slider_value_clamped_to_range() {
 fn switch_toggle_visual() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let sw = SwitchBuilder::new().build(&mut ui, scr);
+    let sw = SwitchCfg::new().build(&mut ui, scr);
     ui.set_pos(sw, 10, 10);
     ui.render();
     // off: track gray, knob on the left (sampling interior points of the circle to avoid anti-aliased edges)
@@ -85,7 +85,7 @@ fn switch_toggle_visual() {
 fn bar_renders_progress() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let b = BarBuilder::new(0, 100).build(&mut ui, scr);
+    let b = BarCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(b, 10, 10);
     ui.set_value(b, 25);
     ui.render();
@@ -97,7 +97,7 @@ fn bar_renders_progress() {
 fn bar_small_value_keeps_left_semicircle() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let b = BarBuilder::new(0, 100).build(&mut ui, scr);
+    let b = BarCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(b, 10, 10); // default size 100x8, radius=4
     ui.set_value(b, 5); // indicator width iw=5
     ui.render();

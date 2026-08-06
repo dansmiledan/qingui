@@ -142,7 +142,7 @@ fn build_scene(tier: Tier) -> qingui::Ui {
     use qingui::widgets::itemlist::ItemListBuilder;
     use qingui::widgets::label::LabelCfg;
     use qingui::widgets::list::ListBuilder;
-    use qingui::widgets::slider::SliderBuilder;
+    use qingui::widgets::slider::SliderCfg;
     use qingui::{Color, Ui};
 
     let (n_items, n_chart_pts) = match tier {
@@ -172,7 +172,7 @@ fn build_scene(tier: Tier) -> qingui::Ui {
         ButtonCfg::new(&format!("btn{i}")).build(&mut ui, scr);
     }
     for _ in 0..n_items / 4 {
-        SliderBuilder::new(0, 100).build(&mut ui, scr);
+        SliderCfg::new(0, 100).build(&mut ui, scr);
     }
     let _chart = ChartBuilder::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
     let _il = ItemListBuilder::new().build(&mut ui, scr);

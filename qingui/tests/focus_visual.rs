@@ -2,8 +2,8 @@ use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::slider::SliderBuilder;
-use qingui::widgets::switch::SwitchBuilder;
+use qingui::widgets::slider::SliderCfg;
+use qingui::widgets::switch::SwitchCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,7 +45,7 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
 fn slider_shows_focus_border() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
     ui.group_add(s); // becomes focused
     ui.render();
@@ -78,7 +78,7 @@ fn moving_container_repaints_children_old_area() {
 fn moving_slider_repaints_knob_overflow() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
     ui.set_value(s, 0); // knob at the far left, overflowing into x 6..14
     ui.render();
@@ -92,7 +92,7 @@ fn moving_slider_repaints_knob_overflow() {
 fn switch_shows_focus_border() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let sw = SwitchBuilder::new().build(&mut ui, scr);
+    let sw = SwitchCfg::new().build(&mut ui, scr);
     ui.set_pos(sw, 10, 10);
     ui.group_add(sw);
     ui.render();
@@ -104,7 +104,7 @@ fn switch_shows_focus_border() {
 fn slider_knob_overflow_area_redrawn_on_move() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
     ui.render();
     // Initially the knob is at x 6..14, y 8..24 (overflows 2px above the track)

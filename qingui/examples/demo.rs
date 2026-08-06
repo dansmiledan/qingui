@@ -5,8 +5,8 @@ use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::prelude::*;
 use qingui::style::{Layout, Style};
-use qingui::widgets::arc::ArcBuilder;
-use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::arc::ArcCfg;
+use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::checkbox::CheckboxCfg;
@@ -20,10 +20,10 @@ use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerBuilder;
 use qingui::widgets::scrollview::ScrollViewBuilder;
-use qingui::widgets::slider::SliderBuilder;
-use qingui::widgets::spinbox::SpinboxBuilder;
+use qingui::widgets::slider::SliderCfg;
+use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::spinner::SpinnerBuilder;
-use qingui::widgets::switch::SwitchBuilder;
+use qingui::widgets::switch::SwitchCfg;
 use qingui::widgets::table::TableBuilder;
 use qingui::{Color, EventKind, ObjRef, Ui};
 use std::cell::RefCell;
@@ -101,17 +101,17 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_layout(page_settings, column());
     let l1 = LabelCfg::new("Brightness").build(ui, page_settings);
     let _ = l1;
-    let slider = SliderBuilder::new(0, 100)
+    let slider = SliderCfg::new(0, 100)
         .size(160, 12)
         .value(30)
         .build(ui, page_settings);
     let l2 = LabelCfg::new("Enabled").build(ui, page_settings);
     let _ = l2;
-    let sw = SwitchBuilder::new().build(ui, page_settings);
+    let sw = SwitchCfg::new().build(ui, page_settings);
     let cb = CheckboxCfg::new("Notify me").build(ui, page_settings);
     let l3 = LabelCfg::new("Preview").build(ui, page_settings);
     let _ = l3;
-    let preview = BarBuilder::new(0, 100)
+    let preview = BarCfg::new(0, 100)
         .size(160, 10)
         .value(30)
         .build(ui, page_settings);
@@ -166,7 +166,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_style(page_animate, transparent());
     ui.set_sizing(page_animate, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_animate, column());
-    let bar = BarBuilder::new(0, 100).build(ui, page_animate);
+    let bar = BarCfg::new(0, 100).build(ui, page_animate);
     ui.set_size(bar, 160, 10);
     ui.anim_start(
         Anim::new(bar, AnimProp::Value, 0, 100, 1200)
@@ -176,7 +176,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     );
 
     // Arc dial: driven by a value animation (infinite loop 0..360)
-    let arc = ArcBuilder::new(0, 360).build(ui, page_animate);
+    let arc = ArcCfg::new(0, 360).build(ui, page_animate);
     ui.set_sizing(arc, Some(Sizing::GROW), None);
     ui.set_aspect(arc, Some(1000)); // 1:1
     ui.anim_start(Anim::new(arc, AnimProp::Value, 0, 360, 2400).repeat(-1));
@@ -252,7 +252,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         .size(90, 56)
         .build(ui, page_p1);
     let dropdown = DropdownBuilder::new(&["Red", "Green", "Blue"]).build(ui, page_p1);
-    let spinbox = SpinboxBuilder::new(0, 999, 3).build(ui, page_p1);
+    let spinbox = SpinboxCfg::new(0, 999, 3).build(ui, page_p1);
     let led_row = ObjCfg::new().build(ui, page_p1);
     ui.set_style(led_row, transparent());
     ui.set_size(led_row, 120, 18);

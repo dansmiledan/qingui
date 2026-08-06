@@ -1,9 +1,9 @@
 use qingui::input::Key;
-use qingui::widgets::bar::BarBuilder;
+use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::slider::SliderBuilder;
-use qingui::widgets::switch::SwitchBuilder;
+use qingui::widgets::slider::SliderCfg;
+use qingui::widgets::switch::SwitchCfg;
 use qingui::{EventKind, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -65,7 +65,7 @@ fn slider_edit_mode() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let s = SliderBuilder::new(0, 100).build(&mut ui, scr);
+    let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.add_event_cb(s, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.group_add(s);
     ui.keypad_input(Key::Right);
@@ -87,7 +87,7 @@ fn switch_toggles_on_enter() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let sw = SwitchBuilder::new().build(&mut ui, scr);
+    let sw = SwitchCfg::new().build(&mut ui, scr);
     ui.add_event_cb(sw, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.group_add(sw);
     ui.keypad_input(Key::Enter);
@@ -102,7 +102,7 @@ fn set_value_fires_value_changed() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let b = BarBuilder::new(0, 100).build(&mut ui, scr);
+    let b = BarCfg::new(0, 100).build(&mut ui, scr);
     ui.add_event_cb(b, EventKind::ValueChanged, Box::new(logger(&log)));
     ui.set_value(b, 42);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);

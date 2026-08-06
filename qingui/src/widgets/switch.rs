@@ -1,14 +1,11 @@
-use alloc::vec::Vec;
-
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
+use crate::event::EventKind;
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
-use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{WidgetCtx, WidgetKind};
 
 /// Switch widget state.
@@ -32,82 +29,40 @@ pub(crate) fn draw(on: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     d.fill_rounded(Rect::new(kx, abs.y + 2, k, k), k / 2, Color::WHITE, ctx.ap(255), clip);
 }
 
-/// Switch builder: default 40x20 + theme_switch/focused
-pub struct SwitchBuilder {
+/// Builder for the Switch widget.
+pub type SwitchBuilder = WidgetBuilder<SwitchCfg>;
+
+/// Switch configuration: initial on/off state.
+pub struct SwitchCfg {
     on: bool,
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    style_focused: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
 }
 
-impl SwitchBuilder {
+impl SwitchCfg {
     /// Creates a builder with the switch initially off.
-    pub fn new() -> Self {
-        Self {
-            on: false,
-            size: None, style: None, style_focused: None,
-            sizing: None, transition: None, events: Vec::new(),
-        }
+    pub fn new() -> WidgetBuilder<SwitchCfg> {
+        WidgetBuilder { common: CommonBuilder::default(), cfg: SwitchCfg { on: false } }
     }
+}
+
+impl WidgetBuilder<SwitchCfg> {
     /// Sets the initial on/off state.
-    pub fn on(mut self, on: bool) -> Self {
-        self.on = on;
+    pub fn checked(mut self, on: bool) -> Self {
+        self.cfg.on = on;
         self
     }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self {
-        self.size = Some((w, h));
-        self
-    }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Modifies on top of the default style.
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_switch)));
-        self
-    }
-    /// Sets the focused style.
-    pub fn style_focused(mut self, s: Style) -> Self {
-        self.style_focused = Some(s);
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on_event(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb));
-        self
+}
+
+impl WidgetCfg for SwitchCfg {
+    fn default_style() -> Style {
+        crate::style::theme_switch()
     }
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((40, 20));
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or((40, 20));
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Switch(SwitchState { on: self.on }));
-        ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_switch));
-        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_switch_focused));
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_switch));
+        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_switch_focused));
+        common.apply_tail(ui, r);
         r
     }
 }

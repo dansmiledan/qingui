@@ -5,7 +5,7 @@ use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::led::LedBuilder;
 use qingui::prelude::*;
 use qingui::widgets::roller::RollerBuilder;
-use qingui::widgets::spinbox::SpinboxBuilder;
+use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::table::TableBuilder;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
@@ -83,7 +83,7 @@ fn spinbox_digit_edit() {
     let l2 = log.clone();
     let (mut ui, _) = setup();
     let scr = ui.screen();
-    let sb = SpinboxBuilder::new(0, 999, 3).build(&mut ui, scr);
+    let sb = SpinboxCfg::new(0, 999, 3).build(&mut ui, scr);
     let other = ButtonCfg::new("X").build(&mut ui, scr);
     ui.add_event_cb(sb, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(sb);
@@ -114,7 +114,7 @@ fn spinbox_digit_edit() {
 fn spinbox_cursor_highlight() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let sb = SpinboxBuilder::new(0, 999, 3).build(&mut ui, scr);
+    let sb = SpinboxCfg::new(0, 999, 3).build(&mut ui, scr);
     ui.set_pos(sb, 10, 10);
     ui.set_value(sb, 5);
     ui.set_state(sb, qingui::node::State::EDITED, true); // the cursor highlight only shows in edit mode
