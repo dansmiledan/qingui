@@ -1,0 +1,3 @@
+[target.thumbv7em-none-eabihf]
+runner = "qemu-system-arm -machine mps2-an386 -nographic -semihosting-config enable=on,target=native -kernel"
+rustflags = ["-C", "link-arg=-Tlink.x"]

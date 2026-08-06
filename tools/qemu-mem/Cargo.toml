@@ -1,0 +1,15 @@
+[package]
+name = "qemu-mem"
+version = "0.1.0"
+edition = "2021"
+description = "no_std memory bench for qingui, run on QEMU mps2-an386 (thumbv7em-none-eabihf)"
+publish = false
+
+[dependencies]
+qingui = { path = "../../qingui" }
+
+# Cortex-M runtime + semihosting are only needed for the bare-metal target;
+# host builds (cargo test / cargo build --workspace) get a stub main instead.
+[target.'cfg(target_arch = "arm")'.dependencies]
+cortex-m-rt = "0.7"
+cortex-m-semihosting = "0.5"
