@@ -5,6 +5,9 @@ use crate::style::ResolvedStyle;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
+pub(crate) mod builder;
+pub use builder::WidgetBuilder; // public return type (XxxCfg::new returns it)
+
 pub mod arc;
 pub mod bar;
 pub mod button;
