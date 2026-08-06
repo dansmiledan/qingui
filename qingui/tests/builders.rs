@@ -1,5 +1,6 @@
 use qingui::layout::Sizing;
 use qingui::prelude::*;
+use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::list::ListBuilder;
@@ -146,6 +147,26 @@ fn msgbox_builder_structure() {
     assert_eq!(ui.msgbox_selected(mb), -1);
     // Modal already set: focus is inside the msgbox subtree
     assert!(ui.focused().is_some());
+}
+
+#[test]
+fn generic_style_with_composes_with_prior_style() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    // .style_with(f) alone bases on the widget's default_style() (theme_button).
+    let a = ButtonCfg::new("A").style_with(|s| s.bg(Color::RED)).build(&mut ui, scr);
+    let st = ui.resolved_style(a);
+    assert_eq!(st.bg_color, Color::RED); // f applied
+    assert_eq!(st.radius, 6); // inherited from theme_button default
+    assert_eq!(st.border_width, 1); // inherited from theme_button default
+    // .style(s).style_with(f) composes: f(s), not f(default_style()).
+    let b = ButtonCfg::new("B")
+        .style(Style::new().bg(Color::GREEN).radius(9))
+        .style_with(|s| s.bg(Color::RED))
+        .build(&mut ui, scr);
+    let st = ui.resolved_style(b);
+    assert_eq!(st.bg_color, Color::RED); // f applied to s
+    assert_eq!(st.radius, 9); // preserved from s, not theme_button default's 6
 }
 
 #[test]

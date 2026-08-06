@@ -61,7 +61,7 @@ impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
     pub fn size(mut self, w: i32, h: i32) -> Self { self.common.size = Some((w, h)); self }
     pub fn style(mut self, s: Style) -> Self { self.common.style = Some(s); self }
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        self.common.style = Some(f(Cfg::default_style()));
+        self.common.style = Some(f(self.common.style.take().unwrap_or_else(Cfg::default_style)));
         self
     }
     pub fn style_pressed(mut self, s: Style) -> Self { self.common.style_pressed = Some(s); self }
