@@ -1,14 +1,14 @@
 use qingui::prelude::*;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListCfg;
-use qingui::widgets::spinner::SpinnerBuilder;
+use qingui::widgets::spinner::SpinnerCfg;
 use qingui::Ui;
 
 #[test]
 fn spinner_keeps_timer_awake() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    SpinnerBuilder::new().build(&mut ui, s);
+    SpinnerCfg::new().build(&mut ui, s);
     ui.tick_inc(16);
     assert_eq!(ui.timer_handler(), 0); // self-rotating widgets keep it awake
 }
@@ -18,7 +18,7 @@ fn hidden_parent_stops_spinner_dirty() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
     let panel = qingui::widgets::obj::ObjCfg::new().build(&mut ui, s);
-    SpinnerBuilder::new().build(&mut ui, panel);
+    SpinnerCfg::new().build(&mut ui, panel);
     ui.tick_inc(16);
     ui.timer_handler();
     ui.take_dirty();

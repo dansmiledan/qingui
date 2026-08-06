@@ -1,5 +1,5 @@
 use qingui::display::Flush;
-use qingui::widgets::image::{Frame, ImageBuilder, ImageData};
+use qingui::widgets::image::{Frame, ImageCfg, ImageData};
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -22,7 +22,7 @@ static ANIM: ImageData = ImageData {
 fn builder_default_size_is_first_frame() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    let im = ImageBuilder::new(&RED).build(&mut ui, s);
+    let im = ImageCfg::new(&RED).build(&mut ui, s);
     assert_eq!(ui.rect(im), Rect::new(0, 0, 2, 2));
 }
 
@@ -30,7 +30,7 @@ fn builder_default_size_is_first_frame() {
 fn static_image_sleeps() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    ImageBuilder::new(&RED).build(&mut ui, s);
+    ImageCfg::new(&RED).build(&mut ui, s);
     ui.tick_inc(16);
     ui.timer_handler();
     assert_eq!(ui.timer_handler(), u32::MAX); // single frame has no per-frame behavior
@@ -48,7 +48,7 @@ fn gif_advances_and_wraps() {
     let mut ui = Ui::new(64, 64, 16);
     ui.set_flush(Box::new(Shared(rec.clone())));
     let s = ui.screen();
-    let im = ImageBuilder::new(&ANIM).build(&mut ui, s);
+    let im = ImageCfg::new(&ANIM).build(&mut ui, s);
     ui.tick_inc(16);
     assert_eq!(ui.timer_handler(), 0); // the animation keeps it awake
     rec.borrow_mut().n = 0;

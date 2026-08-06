@@ -17,15 +17,15 @@ use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelCfg;
-use qingui::widgets::led::LedBuilder;
+use qingui::widgets::led::LedCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
-use qingui::widgets::spinner::SpinnerBuilder;
+use qingui::widgets::spinner::SpinnerCfg;
 use qingui::widgets::switch::SwitchCfg;
-use qingui::widgets::table::TableBuilder;
+use qingui::widgets::table::TableCfg;
 use qingui::{Color, ObjRef, Ui};
 
 fn main() {
@@ -132,11 +132,11 @@ impl Demo {
         ui.anim_start(Anim::new(arc, AnimProp::Value, 0, 100, 3000).repeat(-1));
         kids.push(arc);
 
-        let sp = SpinnerBuilder::new().build(ui, screen);
+        let sp = SpinnerCfg::new().build(ui, screen);
         ui.set_size(sp, 26, 26);
         kids.push(sp);
 
-        let led = LedBuilder::new(Color::rgb(60, 180, 90)).build(ui, screen);
+        let led = LedCfg::new(Color::rgb(60, 180, 90)).build(ui, screen);
         // LED breathing
         ui.anim_start(
             Anim::new(led, AnimProp::Value, 40, 255, 1200)
@@ -187,14 +187,14 @@ impl Demo {
                 gap: 6,
             }));
             ui.set_size(it, 140, 16);
-            LedBuilder::new(color).size(8, 8).build(ui, it);
+            LedCfg::new(color).size(8, 8).build(ui, it);
             LabelCfg::new(name).build(ui, it);
         }
         ui.group_add(menu);
         self.itemlist = Some(menu);
         kids.push(menu);
 
-        let table = TableBuilder::new(2, 2)
+        let table = TableCfg::new(2, 2)
             .cell(0, 0, "id")
             .cell(0, 1, "val")
             .cell(1, 0, "01")

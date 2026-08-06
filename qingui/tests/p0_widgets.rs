@@ -4,7 +4,7 @@ use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::prelude::*;
 use qingui::widgets::msgbox::MsgboxBuilder;
-use qingui::widgets::spinner::SpinnerBuilder;
+use qingui::widgets::spinner::SpinnerCfg;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -102,7 +102,7 @@ fn checkbox_toggles_on_enter() {
 fn spinner_keeps_timer_busy_and_draws_arc() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let s = SpinnerBuilder::new().build(&mut ui, scr);
+    let s = SpinnerCfg::new().build(&mut ui, scr);
     ui.set_pos(s, 10, 10);
     ui.render();
     assert_eq!(ui.timer_handler(), 0); // self-rotating: always awake

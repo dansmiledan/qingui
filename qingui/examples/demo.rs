@@ -11,10 +11,10 @@ use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownCfg;
-use qingui::widgets::image::ImageBuilder;
+use qingui::widgets::image::ImageCfg;
 use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelCfg;
-use qingui::widgets::led::LedBuilder;
+use qingui::widgets::led::LedCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::obj::ObjCfg;
@@ -22,9 +22,9 @@ use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::scrollview::ScrollViewBuilder;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
-use qingui::widgets::spinner::SpinnerBuilder;
+use qingui::widgets::spinner::SpinnerCfg;
 use qingui::widgets::switch::SwitchCfg;
-use qingui::widgets::table::TableBuilder;
+use qingui::widgets::table::TableCfg;
 use qingui::{Color, EventKind, ObjRef, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -158,8 +158,8 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     )
     .build(ui, sv_content);
     let _ = la;
-    let _logo = ImageBuilder::new(&images::HAIZEI).build(ui, sv_content);
-    let _anim = ImageBuilder::new(&images::MIAO).build(ui, sv_content);
+    let _logo = ImageCfg::new(&images::HAIZEI).build(ui, sv_content);
+    let _anim = ImageCfg::new(&images::MIAO).build(ui, sv_content);
 
     // ---- Animate page: infinitely ping-ponging Bar + arc gauge ----
     let page_animate = ObjCfg::new().build(ui, panel);
@@ -181,7 +181,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_aspect(arc, Some(1000)); // 1:1
     ui.anim_start(Anim::new(arc, AnimProp::Value, 0, 360, 2400).repeat(-1));
 
-    let spinner = SpinnerBuilder::new().build(ui, page_animate);
+    let spinner = SpinnerCfg::new().build(ui, page_animate);
     let _ = spinner;
 
     // ---- LongList page: 20-item long list + add/del buttons ----
@@ -260,14 +260,14 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Center, track: Align::Start, gap: 6,
     }));
-    let led = LedBuilder::new(Color::rgb(60, 180, 90)).build(ui, led_row);
+    let led = LedCfg::new(Color::rgb(60, 180, 90)).build(ui, led_row);
     let _led_lbl = LabelCfg::new("status").build(ui, led_row);
     // LED brightness follows the spinbox value (demonstrates widget linkage)
     ui.add_event_cb(spinbox, EventKind::ValueChanged, Box::new(move |ui, sb, _| {
         let v = ui.value(sb);
         ui.set_value(led, v * 255 / 999);
     }));
-    let _table = TableBuilder::new(3, 2)
+    let _table = TableCfg::new(3, 2)
         .cell(0, 0, "id")
         .cell(0, 1, "val")
         .cell(0, 2, "unit")
@@ -307,7 +307,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             dir: FlexDir::Row, wrap: false,
             main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
         }));
-        let led = LedBuilder::new(Color::rgb(60, 180, 90)).size(10, 10).build(ui, item);
+        let led = LedCfg::new(Color::rgb(60, 180, 90)).size(10, 10).build(ui, item);
         let _lbl = LabelCfg::new(&format!("Sensor {:02}", i + 1)).build(ui, item);
         let cb = CheckboxCfg::new("").build(ui, item);
         item_controls.borrow_mut().push((led, cb));

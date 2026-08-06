@@ -2,11 +2,11 @@ use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::dropdown::DropdownCfg;
-use qingui::widgets::led::LedBuilder;
+use qingui::widgets::led::LedCfg;
 use qingui::prelude::*;
 use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
-use qingui::widgets::table::TableBuilder;
+use qingui::widgets::table::TableCfg;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -47,7 +47,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 fn led_brightness() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let led = LedBuilder::new(Color::RED).build(&mut ui, scr);
+    let led = LedCfg::new(Color::RED).build(&mut ui, scr);
     ui.set_pos(led, 10, 10);
     ui.render();
     assert_eq!(px(&rec, 18, 18), Color::RED); // fully-lit center
@@ -62,7 +62,7 @@ fn led_brightness() {
 fn table_cells() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let t = TableBuilder::new(2, 2).build(&mut ui, scr);
+    let t = TableCfg::new(2, 2).build(&mut ui, scr);
     ui.set_pos(t, 10, 10);
     ui.table_set_cell(t, 0, 0, "A1");
     ui.table_set_cell(t, 1, 1, "B2");
