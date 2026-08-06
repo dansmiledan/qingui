@@ -1,6 +1,6 @@
 use qingui::prelude::*;
 use qingui::widgets::label::LabelCfg;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::spinner::SpinnerBuilder;
 use qingui::Ui;
 
@@ -43,7 +43,7 @@ fn static_ui_sleeps_after_first_frame() {
 fn list_fx_expires_and_sleeps() {
     let mut ui = Ui::new(160, 120, 120);
     let s = ui.screen();
-    let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, s);
+    let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, s);
     ui.list_select(l, 2); // triggers the highlight-slide fx (FX_DUR=200ms)
     ui.tick_inc(16);
     assert_eq!(ui.timer_handler(), 0); // fx active

@@ -3,7 +3,7 @@ use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::Layout;
 use qingui::widgets::label::LabelCfg;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, ObjRef, Rect, Ui};
 use std::cell::RefCell;
@@ -45,7 +45,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     ss.pad_top = Some(8);
     ui.set_style(screen, ss);
 
-    let menu = ListBuilder::new(&["Settings", "About"]).build(&mut ui, screen);
+    let menu = ListCfg::new(&["Settings", "About"]).build(&mut ui, screen);
     ui.set_grid_cell(menu, (0, 1), (1, 1));
     ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
 

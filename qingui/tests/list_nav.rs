@@ -1,7 +1,7 @@
 use qingui::input::Key;
 use qingui::prelude::*;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::{EventKind, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -10,7 +10,7 @@ use std::rc::Rc;
 fn up_down_navigates_items_not_focus() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     let btn = ButtonCfg::new("x").build(&mut ui, scr);
     ui.group_add(l);
     ui.group_add(btn);
@@ -33,7 +33,7 @@ fn enter_on_list_fires_clicked() {
     let l2 = log.clone();
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.add_event_cb(l, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(l);
     ui.keypad_input(Key::Down);
@@ -45,9 +45,9 @@ fn enter_on_list_fires_clicked() {
 #[test]
 fn selection_keeps_visible_with_scroll() {
     let mut ui = Ui::new(160, 120, 120);
-    // 8 items, 5 rows visible (ListBuilder default height cap is 5 rows = 88px)
+    // 8 items, 5 rows visible (ListCfg default height cap is 5 rows = 88px)
     let scr = ui.screen();
-    let l = ListBuilder::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
     ui.group_add(l);
     for _ in 0..7 {
         ui.keypad_input(Key::Down);

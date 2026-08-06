@@ -1,7 +1,7 @@
 // Regression: after rapid presses the Roller settles, and the render must match a fresh build (no ghosting/overlap)
 use qingui::display::Flush;
 use qingui::input::Key;
-use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::roller::RollerCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -39,7 +39,7 @@ fn repro_roller_rapid_press_ghost() {
     // Repro: rapid presses then settle
     let (mut ui, rec) = build();
     let scr = ui.screen();
-    let r = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui, scr);
+    let r = RollerCfg::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui, scr);
     ui.set_pos(r, 10, 10);
     ui.group_add(r);
     ui.tick_inc(1);
@@ -59,7 +59,7 @@ fn repro_roller_rapid_press_ghost() {
     // Reference: fresh build, directly selecting 3
     let (mut ui2, rec2) = build();
     let scr2 = ui2.screen();
-    let r2 = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui2, scr2);
+    let r2 = RollerCfg::new(&["One", "Two", "Three", "Four", "Five"]).build(&mut ui2, scr2);
     ui2.set_pos(r2, 10, 10);
     ui2.set_value(r2, 3);
     ui2.group_add(r2);

@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::prelude::*;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::switch::SwitchCfg;
@@ -121,7 +121,7 @@ fn slider_knob_overflow_area_redrawn_on_move() {
 fn list_highlight_respects_rounded_corner() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.set_pos(l, 10, 10);
     ui.render();
     // The first row highlight's top-left corner (inside the rounded-corner area) should not be the highlight color
@@ -134,7 +134,7 @@ fn list_highlight_respects_rounded_corner() {
 fn list_ghost_fully_cleared_after_fade() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.set_pos(l, 10, 10);
     ui.list_select(l, 2);
     ui.render();

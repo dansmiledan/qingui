@@ -14,13 +14,13 @@ use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::canvas::CanvasBuilder;
 use qingui::widgets::checkbox::CheckboxCfg;
-use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::led::LedBuilder;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::spinner::SpinnerBuilder;
@@ -151,18 +151,18 @@ impl Demo {
         self.spinbox = Some(sb);
         kids.push(sb);
 
-        let roller = RollerBuilder::new(&["A", "B", "C"])
+        let roller = RollerCfg::new(&["A", "B", "C"])
             .size(56, 56)
             .build(ui, screen);
         self.roller = Some(roller);
         kids.push(roller);
 
-        let dd = DropdownBuilder::new(&["Red", "Green"]).build(ui, screen);
+        let dd = DropdownCfg::new(&["Red", "Green"]).build(ui, screen);
         ui.set_size(dd, 80, 20);
         self.dropdown = Some(dd);
         kids.push(dd);
 
-        let list = ListBuilder::new(&["item 1", "item 2", "item 3"]).build(ui, screen);
+        let list = ListCfg::new(&["item 1", "item 2", "item 3"]).build(ui, screen);
         ui.set_size(list, 80, 50);
         self.list = Some(list);
         kids.push(list);

@@ -1,10 +1,10 @@
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::led::LedBuilder;
 use qingui::prelude::*;
-use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::table::TableBuilder;
 use qingui::{Color, EventKind, Rect, Ui};
@@ -131,7 +131,7 @@ fn spinbox_cursor_highlight() {
 fn roller_rapid_select_continues_from_visual_pos() {
     let (mut ui, _) = setup();
     let scr = ui.screen();
-    let r = RollerBuilder::new(&["One", "Two", "Three", "Four"]).build(&mut ui, scr);
+    let r = RollerCfg::new(&["One", "Two", "Three", "Four"]).build(&mut ui, scr);
     ui.group_add(r);
     ui.keypad_input(Key::Down); // 0 → 1 (animation starts)
     ui.tick_inc(50); // mid-animation (about 1/3)
@@ -148,7 +148,7 @@ fn roller_navigation_and_fx() {
     let l2 = log.clone();
     let (mut ui, _) = setup();
     let scr = ui.screen();
-    let r = RollerBuilder::new(&["One", "Two", "Three"]).build(&mut ui, scr);
+    let r = RollerCfg::new(&["One", "Two", "Three"]).build(&mut ui, scr);
     ui.add_event_cb(r, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(r);
     ui.keypad_input(Key::Down);
@@ -171,7 +171,7 @@ fn dropdown_open_select_close() {
     let l2 = log.clone();
     let (mut ui, _) = setup();
     let scr = ui.screen();
-    let dd = DropdownBuilder::new(&["Red", "Green", "Blue"]).build(&mut ui, scr);
+    let dd = DropdownCfg::new(&["Red", "Green", "Blue"]).build(&mut ui, scr);
     ui.add_event_cb(dd, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(dd);
     // Enter opens the overlay list (modal)

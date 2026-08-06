@@ -2,7 +2,7 @@ use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::switch::SwitchCfg;
 use qingui::{Color, Rect, Ui};
@@ -114,7 +114,7 @@ fn bar_small_value_keeps_left_semicircle() {
 fn list_selected_row_highlighted() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let l = ListBuilder::new(&["alpha", "beta", "gamma"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["alpha", "beta", "gamma"]).build(&mut ui, scr);
     ui.set_pos(l, 10, 10);
     ui.list_select(l, 1);
     assert_eq!(ui.list_selected(l), 1);

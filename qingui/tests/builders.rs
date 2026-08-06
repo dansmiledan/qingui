@@ -2,10 +2,10 @@ use qingui::layout::Sizing;
 use qingui::prelude::*;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::dropdown::DropdownBuilder;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::dropdown::DropdownCfg;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::msgbox::MsgboxBuilder;
-use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::{Color, EventKind, Ui};
 
@@ -84,7 +84,7 @@ fn button_builder_pressed_focused_styles() {
 fn list_builder_size_and_style() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let l = ListBuilder::new(&["x", "y", "z"]).build(&mut ui, scr);
+    let l = ListCfg::new(&["x", "y", "z"]).build(&mut ui, scr);
     // Default size: width 120, height min(5, n)*16 + 2
     let r = ui.rect(l);
     assert_eq!((r.w, r.h), (120, 3 * 16 + 2));
@@ -109,7 +109,7 @@ fn roller_dropdown_builders() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     // Roller default size: 80 x (min(3, n)*16 + 8)
-    let ro = RollerBuilder::new(&["A", "B"]).build(&mut ui, scr);
+    let ro = RollerCfg::new(&["A", "B"]).build(&mut ui, scr);
     let r = ui.rect(ro);
     assert_eq!((r.w, r.h), (80, 2 * 16 + 8));
     let st = ui.resolved_style(ro);
@@ -123,7 +123,7 @@ fn roller_dropdown_builders() {
     assert_eq!(st.border_width, 1);
     assert_eq!(st.bg_color, Color::rgb(34, 34, 44));
     // Dropdown default size: 100 x 20
-    let dd = DropdownBuilder::new(&["R", "G"]).build(&mut ui, scr);
+    let dd = DropdownCfg::new(&["R", "G"]).build(&mut ui, scr);
     let r = ui.rect(dd);
     assert_eq!((r.w, r.h), (100, 20));
     let st = ui.resolved_style(dd);

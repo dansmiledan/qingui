@@ -15,7 +15,7 @@ use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelCfg;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::{Color, Ui};
 
@@ -58,11 +58,11 @@ fn build_scene(tier: Tier) -> Ui {
     };
     let mut ui = Ui::new(320, 240, 24);
     let scr = ui.screen();
-    // ListBuilder::new takes &[&str]; build the label strings first (their
+    // ListCfg::new takes &[&str]; build the label strings first (their
     // allocation is counted, which is representative of real use).
     let texts: Vec<String> = (0..n_items).map(|i| format!("item{i}")).collect();
     let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-    let _list = ListBuilder::new(&refs).build(&mut ui, scr);
+    let _list = ListCfg::new(&refs).build(&mut ui, scr);
     for i in 0..n_items {
         ButtonCfg::new(&format!("btn{i}")).build(&mut ui, scr);
     }

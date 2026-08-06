@@ -10,15 +10,15 @@ use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::checkbox::CheckboxCfg;
-use qingui::widgets::dropdown::DropdownBuilder;
+use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::image::ImageBuilder;
 use qingui::widgets::itemlist::ItemListBuilder;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::led::LedBuilder;
-use qingui::widgets::list::ListBuilder;
+use qingui::widgets::list::ListCfg;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::roller::RollerBuilder;
+use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::scrollview::ScrollViewBuilder;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
@@ -83,7 +83,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let title = LabelCfg::new("qingui demo").build(ui, screen);
     ui.set_grid_cell(title, (0, 2), (0, 1));
 
-    let menu = ListBuilder::new(&["Settings", "About", "Animate", "LongList", "P1 Demo", "ItemList"])
+    let menu = ListCfg::new(&["Settings", "About", "Animate", "LongList", "P1 Demo", "ItemList"])
         .build(ui, screen);
     ui.set_grid_cell(menu, (0, 1), (1, 1));
     ui.set_sizing(menu, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -189,7 +189,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_style(page_longlist, transparent());
     ui.set_sizing(page_longlist, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_longlist, column());
-    let long_list = ListBuilder::new(&[
+    let long_list = ListCfg::new(&[
         "Item 01", "Item 02", "Item 03", "Item 04", "Item 05",
         "Item 06", "Item 07", "Item 08", "Item 09", "Item 10",
         "Item 11", "Item 12", "Item 13", "Item 14", "Item 15",
@@ -248,10 +248,10 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_style(page_p1, transparent());
     ui.set_sizing(page_p1, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_p1, column());
-    let roller = RollerBuilder::new(&["One", "Two", "Three", "Four", "Five"])
+    let roller = RollerCfg::new(&["One", "Two", "Three", "Four", "Five"])
         .size(90, 56)
         .build(ui, page_p1);
-    let dropdown = DropdownBuilder::new(&["Red", "Green", "Blue"]).build(ui, page_p1);
+    let dropdown = DropdownCfg::new(&["Red", "Green", "Blue"]).build(ui, page_p1);
     let spinbox = SpinboxCfg::new(0, 999, 3).build(ui, page_p1);
     let led_row = ObjCfg::new().build(ui, page_p1);
     ui.set_style(led_row, transparent());

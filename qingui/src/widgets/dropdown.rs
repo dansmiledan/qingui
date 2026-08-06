@@ -6,9 +6,9 @@ use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
-use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::list::UiListExt;
 use super::{WidgetCtx, WidgetKind};
 
@@ -93,108 +93,59 @@ pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut D
 }
 
 /// Dropdown builder: default 100x20, bg(40,40,52) r4 + white focused border
-pub struct DropdownBuilder {
+pub type DropdownBuilder = WidgetBuilder<DropdownCfg>;
+
+/// Dropdown configuration: items and the initially selected index.
+pub struct DropdownCfg {
     items: Vec<String>,
     selected: usize,
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    style_focused: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, crate::anim::Easing)>,
-    events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
 }
 
-impl DropdownBuilder {
+impl DropdownCfg {
     /// Creates a builder with the given items.
-    pub fn new(items: &[&str]) -> Self {
-        Self {
-            items: items.iter().map(|s| (*s).into()).collect(),
-            selected: 0,
-            size: None, style: None, style_focused: None,
-            sizing: None, transition: None, events: Vec::new(),
+    pub fn new(items: &[&str]) -> WidgetBuilder<DropdownCfg> {
+        WidgetBuilder {
+            common: CommonBuilder::default(),
+            cfg: DropdownCfg { items: items.iter().map(|s| (*s).into()).collect(), selected: 0 },
         }
     }
+}
+
+impl WidgetBuilder<DropdownCfg> {
     /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
-        self.selected = idx;
+        self.cfg.selected = idx;
         self
     }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self {
-        self.size = Some((w, h));
-        self
-    }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Modifies on top of the default style.
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        let base = self.style.take().unwrap_or_else(|| {
-            let mut s = Style::default();
-            s.bg_color = Some(Color::rgb(40, 40, 52));
-            s.radius = Some(4);
-            s.text_color = Some(Color::WHITE);
-            s
-        });
-        self.style = Some(f(base));
-        self
-    }
-    /// Sets the focused style.
-    pub fn style_focused(mut self, s: Style) -> Self {
-        self.style_focused = Some(s);
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: crate::anim::Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: crate::event::EventKind, cb: crate::event::EventCb) -> Self {
-        self.events.push((kind, cb));
-        self
+}
+
+impl WidgetCfg for DropdownCfg {
+    fn default_style() -> Style {
+        let mut s = Style::default();
+        s.bg_color = Some(Color::rgb(40, 40, 52));
+        s.radius = Some(4);
+        s.text_color = Some(Color::WHITE);
+        s
     }
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or((100, 20));
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or((100, 20));
         let selected = if self.items.is_empty() { 0 } else { self.selected.min(self.items.len() - 1) };
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
             WidgetKind::Dropdown(DropdownState { items: self.items, selected }),
         );
-        let base = self.style.unwrap_or_else(|| {
-            let mut s = Style::default();
-            s.bg_color = Some(Color::rgb(40, 40, 52));
-            s.radius = Some(4);
-            s.text_color = Some(Color::WHITE);
-            s
-        });
+        let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
-        let focused = self.style_focused.unwrap_or_else(|| {
+        let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
             s.border_color = Some(Color::WHITE);
             s.border_width = Some(1);
             s
         });
         ui.set_style_focused(r, focused);
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        common.apply_tail(ui, r);
         r
     }
 }
