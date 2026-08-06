@@ -51,7 +51,7 @@ impl WidgetCfg for LabelCfg {
             crate::font::text_size(font, &self.text)
         });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label(LabelState { text: self.text }));
-        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_label));
+        ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         common.apply_tail(ui, r);
         r
     }

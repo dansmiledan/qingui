@@ -91,12 +91,7 @@ impl WidgetCfg for CheckboxCfg {
             Rect::new(0, 0, w, h),
             WidgetKind::Checkbox(CheckboxState { text: self.text, checked: self.checked }),
         );
-        let base = common.style.take().unwrap_or_else(|| {
-            let mut s = Style::default();
-            s.bg_opa = Some(0);
-            s.text_color = Some(Color::WHITE);
-            s
-        });
+        let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;

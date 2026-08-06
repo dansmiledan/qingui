@@ -64,7 +64,7 @@ impl WidgetCfg for BarCfg {
             Rect::new(0, 0, w, h),
             WidgetKind::Bar(BarState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
         );
-        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_bar));
+        ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         common.apply_tail(ui, r);
         r
     }

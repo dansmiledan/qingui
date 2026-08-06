@@ -56,27 +56,37 @@ pub struct WidgetBuilder<Cfg> {
 
 #[allow(private_bounds)]
 impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
+    /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self { self.common.size = Some((w, h)); self }
+    /// Sets the style.
     pub fn style(mut self, s: Style) -> Self { self.common.style = Some(s); self }
+    /// Modifies on top of the default style.
     pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
         self.common.style = Some(f(self.common.style.take().unwrap_or_else(Cfg::default_style)));
         self
     }
+    /// Sets the pressed style. Only honored by widgets that have a pressed-state style (currently Button).
     pub fn style_pressed(mut self, s: Style) -> Self { self.common.style_pressed = Some(s); self }
+    /// Sets the focused style. Only honored by widgets that have a focused-state style (currently Button, Checkbox, Dropdown, ItemList, List, Roller, ScrollView, Slider, Spinbox, Switch).
     pub fn style_focused(mut self, s: Style) -> Self { self.common.style_focused = Some(s); self }
+    /// Sets the layout.
     pub fn layout(mut self, l: Layout) -> Self { self.common.layout = Some(l); self }
+    /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.common.sizing = Some((w, h));
         self
     }
+    /// Sets the transition duration and easing.
     pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
         self.common.transition = Some((dur, easing));
         self
     }
+    /// Registers an event callback.
     pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
         self.common.events.push((kind, cb));
         self
     }
+    /// Builds the widget into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         Cfg::build(self.cfg, ui, parent, self.common)
     }

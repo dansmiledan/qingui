@@ -88,6 +88,15 @@ impl WidgetBuilder<ItemListCfg> {
 }
 
 impl WidgetCfg for ItemListCfg {
+    fn default_style() -> Style {
+        let mut s = Style::default();
+        s.bg_color = Some(Color::rgb(34, 34, 44));
+        s.bg_opa = Some(255);
+        s.border_color = Some(Color::rgb(70, 70, 90));
+        s.border_width = Some(1);
+        s
+    }
+
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport node is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
@@ -104,14 +113,7 @@ impl WidgetCfg for ItemListCfg {
             n.kind = WidgetKind::ItemList(Box::new(ItemListState { selected: 0, content, sel_style }));
         }
         // Viewport style (defaults to theme_list's dark background + border)
-        let mut vs = common.style.take().unwrap_or_else(|| {
-            let mut s = Style::default();
-            s.bg_color = Some(Color::rgb(34, 34, 44));
-            s.bg_opa = Some(255);
-            s.border_color = Some(Color::rgb(70, 70, 90));
-            s.border_width = Some(1);
-            s
-        });
+        let mut vs = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, {
             if vs.bg_opa.is_none() { vs.bg_opa = Some(255); }
             vs

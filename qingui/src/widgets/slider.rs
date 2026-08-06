@@ -86,7 +86,7 @@ impl WidgetCfg for SliderCfg {
             Rect::new(0, 0, w, h),
             WidgetKind::Slider(SliderState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
         );
-        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_slider));
+        ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_slider_focused));
         common.apply_tail(ui, r);
         r
