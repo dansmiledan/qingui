@@ -4,7 +4,7 @@ use qingui::node::State;
 use qingui::prelude::*;
 use qingui::style::Style;
 use qingui::widgets::itemlist::ItemListBuilder;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::{Color, EventKind, ObjRef, Rect, Ui};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -37,7 +37,7 @@ fn build4() -> (Ui, ObjRef, Vec<ObjRef>) {
     let mut items = Vec::new();
     for t in ["a", "b", "c", "d"] {
         let it = ui.itemlist_add_item(il).expect("add_item on ItemList");
-        LabelBuilder::new(t).build(&mut ui, it);
+        LabelCfg::new(t).build(&mut ui, it);
         ui.set_size(it, 60, 20);
         items.push(it);
     }
@@ -146,7 +146,7 @@ fn direct_item_delete_does_not_panic_and_clamps_selection() {
     let mut items = Vec::new();
     for t in ["a", "b", "c"] {
         let it = ui.itemlist_add_item(il).expect("add_item on ItemList");
-        LabelBuilder::new(t).build(&mut ui, it);
+        LabelCfg::new(t).build(&mut ui, it);
         ui.set_size(it, 60, 20);
         items.push(it);
     }

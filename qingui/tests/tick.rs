@@ -1,5 +1,5 @@
 use qingui::prelude::*;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::spinner::SpinnerBuilder;
 use qingui::Ui;
@@ -33,7 +33,7 @@ fn hidden_parent_stops_spinner_dirty() {
 fn static_ui_sleeps_after_first_frame() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    LabelBuilder::new("hi").build(&mut ui, s);
+    LabelCfg::new("hi").build(&mut ui, s);
     ui.tick_inc(16);
     ui.timer_handler(); // first frame (renders the screen-creation dirty area)
     assert_eq!(ui.timer_handler(), u32::MAX); // no animation, no effects → sleeps

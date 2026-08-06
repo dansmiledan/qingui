@@ -1,7 +1,7 @@
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::bar::BarBuilder;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::widgets::switch::SwitchBuilder;
@@ -128,7 +128,7 @@ fn list_selected_row_highlighted() {
 fn button_renders_text_centered() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let b = ButtonBuilder::new("OK").build(&mut ui, scr);
+    let b = ButtonCfg::new("OK").build(&mut ui, scr);
     ui.set_pos(b, 10, 10);
     ui.render();
     let r = ui.rect(b);

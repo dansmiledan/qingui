@@ -1,6 +1,6 @@
 use qingui::input::Key;
 use qingui::widgets::bar::BarBuilder;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::widgets::switch::SwitchBuilder;
@@ -19,8 +19,8 @@ fn logger(log: &Log) -> impl FnMut(&mut Ui, qingui::ObjRef, EventKind) + 'static
 fn focus_cycles_with_next_prev() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = ButtonBuilder::new("A").build(&mut ui, scr);
-    let b = ButtonBuilder::new("B").build(&mut ui, scr);
+    let a = ButtonCfg::new("A").build(&mut ui, scr);
+    let b = ButtonCfg::new("B").build(&mut ui, scr);
     ui.group_add(a);
     ui.group_add(b);
     assert_eq!(ui.focused(), Some(a)); // the first object added to the group is auto-focused
@@ -37,8 +37,8 @@ fn focus_events_and_state_flag() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = ButtonBuilder::new("A").build(&mut ui, scr);
-    let b = ButtonBuilder::new("B").build(&mut ui, scr);
+    let a = ButtonCfg::new("A").build(&mut ui, scr);
+    let b = ButtonCfg::new("B").build(&mut ui, scr);
     ui.add_event_cb(a, EventKind::Defocused, Box::new(logger(&log)));
     ui.add_event_cb(b, EventKind::Focused, Box::new(logger(&log)));
     ui.group_add(a);
@@ -53,7 +53,7 @@ fn enter_clicks_button() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = ButtonBuilder::new("A").build(&mut ui, scr);
+    let a = ButtonCfg::new("A").build(&mut ui, scr);
     ui.add_event_cb(a, EventKind::Clicked, Box::new(logger(&log)));
     ui.group_add(a);
     ui.keypad_input(Key::Enter);
@@ -113,8 +113,8 @@ fn focus_skips_hidden_objects() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let page = ObjCfg::new().build(&mut ui, scr);
-    let a = ButtonBuilder::new("A").build(&mut ui, page); // hidden with page
-    let b = ButtonBuilder::new("B").build(&mut ui, scr);
+    let a = ButtonCfg::new("A").build(&mut ui, page); // hidden with page
+    let b = ButtonCfg::new("B").build(&mut ui, scr);
     ui.group_add(a);
     ui.group_add(b);
     ui.set_hidden(page, true);
@@ -132,9 +132,9 @@ fn focus_skips_hidden_objects() {
 fn modal_restricts_focus_navigation() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let a = ButtonBuilder::new("A").build(&mut ui, scr);
+    let a = ButtonCfg::new("A").build(&mut ui, scr);
     let dlg = ObjCfg::new().build(&mut ui, scr);
-    let ok = ButtonBuilder::new("OK").build(&mut ui, dlg);
+    let ok = ButtonCfg::new("OK").build(&mut ui, dlg);
     ui.group_add(a);
     ui.group_add(ok);
     // Before modal is set, focus can cycle between a/ok

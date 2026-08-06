@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::input::Key;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::led::LedBuilder;
 use qingui::prelude::*;
@@ -84,7 +84,7 @@ fn spinbox_digit_edit() {
     let (mut ui, _) = setup();
     let scr = ui.screen();
     let sb = SpinboxBuilder::new(0, 999, 3).build(&mut ui, scr);
-    let other = ButtonBuilder::new("X").build(&mut ui, scr);
+    let other = ButtonCfg::new("X").build(&mut ui, scr);
     ui.add_event_cb(sb, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(sb);
     ui.group_add(other);

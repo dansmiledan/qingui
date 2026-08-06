@@ -35,7 +35,7 @@ fn draw_text_origin_is_top_left() {
 fn default_font_and_override() {
     let mut ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    let l = qingui::widgets::label::LabelBuilder::new("hi").build(&mut ui, s);
+    let l = qingui::widgets::label::LabelCfg::new("hi").build(&mut ui, s);
     // Note: embedded-graphics fonts are const rather than static, so taking their address may yield different promoted instances,
     // so ptr::eq/PartialEq (including glyph_mapping pointer comparison) is unreliable; assert on the public metrics instead
     let metrics = |f: &embedded_graphics::mono_font::MonoFont| (f.character_size, f.character_spacing, f.baseline);
@@ -57,7 +57,7 @@ fn content_size_follows_default_and_style_font() {
     let mut ui = Ui::new(64, 64, 16);
     ui.set_default_font(&FONT_10X20);
     let s = ui.screen();
-    let l = qingui::widgets::label::LabelBuilder::new("hi").build(&mut ui, s);
+    let l = qingui::widgets::label::LabelCfg::new("hi").build(&mut ui, s);
     assert_eq!(ui.rect(l).h, 20); // FONT_10X20 line height 20, not FONT_6X10's 10
     // set_text re-measures and follows the global default too
     ui.set_text(l, "hi!");
@@ -65,12 +65,12 @@ fn content_size_follows_default_and_style_font() {
     // style.font overrides the global default (measured at build time)
     let mut st = qingui::style::Style::default();
     st.font = Some(&FONT_6X10);
-    let l2 = qingui::widgets::label::LabelBuilder::new("hi").style(st).build(&mut ui, s);
+    let l2 = qingui::widgets::label::LabelCfg::new("hi").style(st).build(&mut ui, s);
     assert_eq!(ui.rect(l2).h, 10);
     // At set_text time, the node's base style.font also takes precedence
     ui.set_text(l2, "hi!");
     assert_eq!(ui.rect(l2).h, 10);
     // Button default size also follows the default font (text height 20 + 12)
-    let b = qingui::widgets::button::ButtonBuilder::new("OK").build(&mut ui, s);
+    let b = qingui::widgets::button::ButtonCfg::new("OK").build(&mut ui, s);
     assert_eq!(ui.rect(b).h, 20 + 12);
 }

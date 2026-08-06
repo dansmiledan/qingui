@@ -11,12 +11,12 @@ use qingui::prelude::*;
 use qingui::style::Layout;
 use qingui::widgets::arc::ArcBuilder;
 use qingui::widgets::bar::BarBuilder;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::canvas::CanvasBuilder;
-use qingui::widgets::checkbox::CheckboxBuilder;
+use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::itemlist::ItemListBuilder;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::obj::ObjCfg;
@@ -99,12 +99,12 @@ impl Demo {
 
         let mut kids: Vec<ObjRef> = Vec::new();
 
-        let b = ButtonBuilder::new("OK").build(ui, screen);
+        let b = ButtonCfg::new("OK").build(ui, screen);
         kids.push(b);
-        let l = LabelBuilder::new("label").build(ui, screen);
+        let l = LabelCfg::new("label").build(ui, screen);
         kids.push(l);
 
-        let cb = CheckboxBuilder::new("check").build(ui, screen);
+        let cb = CheckboxCfg::new("check").build(ui, screen);
         self.checkbox = Some(cb);
         kids.push(cb);
 
@@ -188,7 +188,7 @@ impl Demo {
             }));
             ui.set_size(it, 140, 16);
             LedBuilder::new(color).size(8, 8).build(ui, it);
-            LabelBuilder::new(name).build(ui, it);
+            LabelCfg::new(name).build(ui, it);
         }
         ui.group_add(menu);
         self.itemlist = Some(menu);

@@ -7,13 +7,13 @@ use qingui::prelude::*;
 use qingui::style::{Layout, Style};
 use qingui::widgets::arc::ArcBuilder;
 use qingui::widgets::bar::BarBuilder;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::ChartBuilder;
-use qingui::widgets::checkbox::CheckboxBuilder;
+use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::image::ImageBuilder;
 use qingui::widgets::itemlist::ItemListBuilder;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::widgets::led::LedBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::msgbox::MsgboxBuilder;
@@ -80,7 +80,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     }));
     ui.set_style(screen, ss);
 
-    let title = LabelBuilder::new("qingui demo").build(ui, screen);
+    let title = LabelCfg::new("qingui demo").build(ui, screen);
     ui.set_grid_cell(title, (0, 2), (0, 1));
 
     let menu = ListBuilder::new(&["Settings", "About", "Animate", "LongList", "P1 Demo", "ItemList"])
@@ -99,17 +99,17 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_style(page_settings, transparent());
     ui.set_sizing(page_settings, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_layout(page_settings, column());
-    let l1 = LabelBuilder::new("Brightness").build(ui, page_settings);
+    let l1 = LabelCfg::new("Brightness").build(ui, page_settings);
     let _ = l1;
     let slider = SliderBuilder::new(0, 100)
         .size(160, 12)
         .value(30)
         .build(ui, page_settings);
-    let l2 = LabelBuilder::new("Enabled").build(ui, page_settings);
+    let l2 = LabelCfg::new("Enabled").build(ui, page_settings);
     let _ = l2;
     let sw = SwitchBuilder::new().build(ui, page_settings);
-    let cb = CheckboxBuilder::new("Notify me").build(ui, page_settings);
-    let l3 = LabelBuilder::new("Preview").build(ui, page_settings);
+    let cb = CheckboxCfg::new("Notify me").build(ui, page_settings);
+    let l3 = LabelCfg::new("Preview").build(ui, page_settings);
     let _ = l3;
     let preview = BarBuilder::new(0, 100)
         .size(160, 10)
@@ -129,7 +129,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_layout(page_about, column());
     // Layout transition demo: toggling the left menu column width smoothly re-lays out the UI
     let wide = std::cell::Cell::new(false);
-    let wide_btn = ButtonBuilder::new("Wide").build(ui, page_about);
+    let wide_btn = ButtonCfg::new("Wide").build(ui, page_about);
     ui.add_event_cb(wide_btn, EventKind::Clicked, Box::new(move |ui, _b, _| {
         let w = !wide.get();
         wide.set(w);
@@ -147,13 +147,13 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_sizing(sv, Some(Sizing::GROW), Some(Sizing::GROW));
     let sv_content = ui.scrollview_content(sv).unwrap();
     // Multi-font demo: default FONT_6X10 side by side with an overridden FONT_10X20
-    let small = LabelBuilder::new("FONT_6X10 small").build(ui, sv_content);
+    let small = LabelCfg::new("FONT_6X10 small").build(ui, sv_content);
     let mut big_style = qingui::style::Style::default();
     big_style.font = Some(&embedded_graphics::mono_font::ascii::FONT_10X20);
-    let big = LabelBuilder::new("FONT_10X20").build(ui, sv_content);
+    let big = LabelCfg::new("FONT_10X20").build(ui, sv_content);
     ui.set_style(big, big_style);
     let _ = small;
-    let la = LabelBuilder::new(
+    let la = LabelCfg::new(
         "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
     )
     .build(ui, sv_content);
@@ -205,8 +205,8 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
-    let add_btn = ButtonBuilder::new("Add").build(ui, btn_row);
-    let del_btn = ButtonBuilder::new("Del").build(ui, btn_row);
+    let add_btn = ButtonCfg::new("Add").build(ui, btn_row);
+    let del_btn = ButtonCfg::new("Del").build(ui, btn_row);
 
     // Add: insert below the selected item (fade in + items below slide down), the demo caps at 20 items
     let next_n = std::cell::Cell::new(21i32);
@@ -261,7 +261,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         main: Align::Start, cross: Align::Center, track: Align::Start, gap: 6,
     }));
     let led = LedBuilder::new(Color::rgb(60, 180, 90)).build(ui, led_row);
-    let _led_lbl = LabelBuilder::new("status").build(ui, led_row);
+    let _led_lbl = LabelCfg::new("status").build(ui, led_row);
     // LED brightness follows the spinbox value (demonstrates widget linkage)
     ui.add_event_cb(spinbox, EventKind::ValueChanged, Box::new(move |ui, sb, _| {
         let v = ui.value(sb);
@@ -308,8 +308,8 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
         }));
         let led = LedBuilder::new(Color::rgb(60, 180, 90)).size(10, 10).build(ui, item);
-        let _lbl = LabelBuilder::new(&format!("Sensor {:02}", i + 1)).build(ui, item);
-        let cb = CheckboxBuilder::new("").build(ui, item);
+        let _lbl = LabelCfg::new(&format!("Sensor {:02}", i + 1)).build(ui, item);
+        let cb = CheckboxCfg::new("").build(ui, item);
         item_controls.borrow_mut().push((led, cb));
     }
     // Enter triggers the itemlist's Clicked: toggles the selected item's checkbox, the LED follows on/off

@@ -1,7 +1,7 @@
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::Sizing;
 use qingui::style::Style;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, EventKind, Rect, Ui};
 use std::cell::RefCell;
@@ -45,7 +45,7 @@ fn widget_mut_chain() {
     let l2 = log.clone();
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let b = ButtonBuilder::new("OK").build(&mut ui, scr);
+    let b = ButtonCfg::new("OK").build(&mut ui, scr);
     ui.set_pos(b, 10, 20);
     ui.set_size(b, 60, 30);
     ui.set_sizing(b, Some(Sizing::GROW), None);

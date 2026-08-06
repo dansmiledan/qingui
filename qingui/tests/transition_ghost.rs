@@ -2,7 +2,7 @@
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::style::Layout;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, ObjRef, Rect, Ui};
@@ -67,7 +67,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
     }));
-    let _la = LabelBuilder::new(TEXT).build(&mut ui, page);
+    let _la = LabelCfg::new(TEXT).build(&mut ui, page);
 
     if with_transition {
         for &o in &[menu, panel, page] {

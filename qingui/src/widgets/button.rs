@@ -1,13 +1,9 @@
-use alloc::vec::Vec;
-
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
 use crate::geometry::{Point, Rect};
-use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{WidgetCtx, WidgetKind};
 
 /// Button widget state.
@@ -25,97 +21,46 @@ pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     d.draw_text_opa(p, ctx.resolved.font, text, ctx.resolved.text_color, ctx.ap(255), clip);
 }
 
-/// Button builder: default text size + padding, theme_button/pressed/focused
-pub struct ButtonBuilder {
+/// Builder for the Button widget.
+pub type ButtonBuilder = WidgetBuilder<ButtonCfg>;
+
+/// Button configuration: label text.
+pub struct ButtonCfg {
     text: alloc::string::String,
-    size: Option<(i32, i32)>,
-    style: Option<Style>,
-    style_pressed: Option<Style>,
-    style_focused: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
 }
 
-impl ButtonBuilder {
+impl ButtonCfg {
     /// Creates a builder with the given label text.
-    pub fn new(text: &str) -> Self {
-        Self {
-            text: text.into(),
-            size: None, style: None, style_pressed: None, style_focused: None,
-            sizing: None, transition: None, events: Vec::new(),
-        }
+    pub fn new(text: &str) -> WidgetBuilder<ButtonCfg> {
+        WidgetBuilder { common: CommonBuilder::default(), cfg: ButtonCfg { text: text.into() } }
     }
-    /// Sets the widget size.
-    pub fn size(mut self, w: i32, h: i32) -> Self {
-        self.size = Some((w, h));
-        self
-    }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Modifies on top of the default style.
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_button)));
-        self
-    }
-    /// Sets the pressed style.
-    pub fn style_pressed(mut self, s: Style) -> Self {
-        self.style_pressed = Some(s);
-        self
-    }
-    /// Sets the focused style.
-    pub fn style_focused(mut self, s: Style) -> Self {
-        self.style_focused = Some(s);
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb));
-        self
+}
+
+impl WidgetCfg for ButtonCfg {
+    fn default_style() -> Style {
+        crate::style::theme_button()
     }
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let (w, h) = self.size.unwrap_or_else(|| {
-            let font = crate::font::measure_font(self.style.as_ref(), ui);
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or_else(|| {
+            let font = crate::font::measure_font(common.style.as_ref(), ui);
             let (tw, th) = crate::font::text_size(font, &self.text);
             (tw + 24, th + 12)
         });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Button(ButtonState { text: self.text }));
-        ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_button));
-        ui.set_style_pressed(r, self.style_pressed.unwrap_or_else(crate::style::theme_button_pressed));
-        ui.set_style_focused(r, self.style_focused.unwrap_or_else(crate::style::theme_button_focused));
+        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_button));
+        ui.set_style_pressed(r, common.style_pressed.take().unwrap_or_else(crate::style::theme_button_pressed));
+        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_button_focused));
         if let Some(n) = ui.arena.get_mut(r) {
             n.flags |= crate::node::Flag::CLICKABLE;
         }
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        common.apply_tail(ui, r);
         r
     }
 }
 
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
-    ButtonBuilder::new(text).build(ui, parent)
+    ButtonCfg::new(text).build(ui, parent)
 }
 
 impl super::WidgetBehavior for ButtonState {

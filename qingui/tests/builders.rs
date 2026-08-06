@@ -1,6 +1,6 @@
 use qingui::layout::Sizing;
 use qingui::prelude::*;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::dropdown::DropdownBuilder;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::msgbox::MsgboxBuilder;
@@ -53,7 +53,7 @@ fn slider_builder_overrides() {
 fn button_builder_pressed_focused_styles() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let b = ButtonBuilder::new("OK").build(&mut ui, scr);
+    let b = ButtonCfg::new("OK").build(&mut ui, scr);
     // Default size = text size + (24, 12); "OK" is 2 FONT_6X10 glyphs (6x10)
     let r = ui.rect(b);
     assert_eq!((r.w, r.h), (2 * 6 + 24, 10 + 12));
@@ -156,7 +156,7 @@ fn builder_event_registration() {
     let l2 = log.clone();
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
-    let b = ButtonBuilder::new("OK")
+    let b = ButtonCfg::new("OK")
         .on(EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)))
         .build(&mut ui, scr);
     ui.group_add(b);

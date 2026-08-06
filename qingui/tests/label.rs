@@ -1,6 +1,6 @@
 use qingui::display::Flush;
 use qingui::prelude::*;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -46,7 +46,7 @@ fn label_renders_glyph_pixels() {
     bg.bg_color = Some(Color::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, bg);
-    let l = LabelBuilder::new("A").build(&mut ui, scr);
+    let l = LabelCfg::new("A").build(&mut ui, scr);
     ui.set_pos(l, 0, 0);
     ui.render();
     let chunks = &rec.borrow().chunks;
@@ -65,7 +65,7 @@ fn label_renders_glyph_pixels() {
 fn set_text_invalidates_and_resizes() {
     let mut ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
-    let l = LabelBuilder::new("A").build(&mut ui, scr);
+    let l = LabelCfg::new("A").build(&mut ui, scr);
     ui.set_pos(l, 10, 10);
     ui.take_dirty();
     ui.set_text(l, "ABCD");

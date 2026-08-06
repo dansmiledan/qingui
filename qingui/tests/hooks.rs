@@ -1,5 +1,5 @@
 use qingui::display::Flush;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::{Cell, RefCell};
@@ -31,7 +31,7 @@ fn draw_hook_overlays_builtin_widget() {
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
-    let btn = ButtonBuilder::new("ok").build(&mut ui, scr);
+    let btn = ButtonCfg::new("ok").build(&mut ui, scr);
     ui.set_pos(btn, 10, 10);
     ui.set_draw_hook(btn, Some(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, 255, clip);

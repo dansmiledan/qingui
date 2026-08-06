@@ -1,14 +1,11 @@
 use alloc::string::String;
-use alloc::vec::Vec;
 
-use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
-use crate::event::{EventCb, EventKind};
 use crate::geometry::{Point, Rect};
-use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
+use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{WidgetCtx, WidgetKind};
 
 /// Label widget state.
@@ -28,70 +25,40 @@ pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     );
 }
 
-/// Label builder: default text-measured size + theme_label
-pub struct LabelBuilder {
+/// Builder for the Label widget.
+pub type LabelBuilder = WidgetBuilder<LabelCfg>;
+
+/// Label configuration: text content.
+pub struct LabelCfg {
     text: String,
-    style: Option<Style>,
-    sizing: Option<(Option<Sizing>, Option<Sizing>)>,
-    transition: Option<(u32, Easing)>,
-    events: Vec<(EventKind, EventCb)>,
 }
 
-impl LabelBuilder {
+impl LabelCfg {
     /// Creates a builder with the given text.
-    pub fn new(text: &str) -> Self {
-        Self {
-            text: text.into(),
-            style: None, sizing: None, transition: None, events: Vec::new(),
-        }
+    pub fn new(text: &str) -> WidgetBuilder<LabelCfg> {
+        WidgetBuilder { common: CommonBuilder::default(), cfg: LabelCfg { text: text.into() } }
     }
-    /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self {
-        self.style = Some(s);
-        self
-    }
-    /// Modifies on top of the default style.
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
-        self.style = Some(f(self.style.unwrap_or_else(crate::style::theme_label)));
-        self
-    }
-    /// Sets the width/height sizing.
-    pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
-        self.sizing = Some((w, h));
-        self
-    }
-    /// Sets the transition duration and easing.
-    pub fn transition(mut self, dur: u32, easing: Easing) -> Self {
-        self.transition = Some((dur, easing));
-        self
-    }
-    /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
-        self.events.push((kind, cb));
-        self
+}
+
+impl WidgetCfg for LabelCfg {
+    fn default_style() -> Style {
+        crate::style::theme_label()
     }
 
-    /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
-        let font = crate::font::measure_font(self.style.as_ref(), ui);
-        let (w, h) = crate::font::text_size(font, &self.text);
+    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+        let (w, h) = common.size.unwrap_or_else(|| {
+            let font = crate::font::measure_font(common.style.as_ref(), ui);
+            crate::font::text_size(font, &self.text)
+        });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label(LabelState { text: self.text }));
-        ui.set_style(r, self.style.unwrap_or_else(crate::style::theme_label));
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        ui.set_style(r, common.style.take().unwrap_or_else(crate::style::theme_label));
+        common.apply_tail(ui, r);
         r
     }
 }
 
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
-    LabelBuilder::new(text).build(ui, parent)
+    LabelCfg::new(text).build(ui, parent)
 }
 
 pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {

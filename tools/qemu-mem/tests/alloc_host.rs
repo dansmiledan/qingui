@@ -13,10 +13,10 @@ extern crate alloc;
 
 use allocator::{current, peak};
 use qingui::prelude::*;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::ChartBuilder;
 use qingui::widgets::itemlist::ItemListBuilder;
-use qingui::widgets::label::LabelBuilder;
+use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListBuilder;
 use qingui::widgets::slider::SliderBuilder;
 use qingui::{Color, Ui};
@@ -26,8 +26,8 @@ fn build_scene(tier: Tier) -> Ui {
         Tier::Minimal => {
             let mut ui = Ui::new(160, 120, 8);
             let scr = ui.screen();
-            LabelBuilder::new("hello").build(&mut ui, scr);
-            ButtonBuilder::new("OK").build(&mut ui, scr);
+            LabelCfg::new("hello").build(&mut ui, scr);
+            ButtonCfg::new("OK").build(&mut ui, scr);
             ui.tick_inc(16);
             ui.timer_handler();
             return ui;
@@ -42,7 +42,7 @@ fn build_scene(tier: Tier) -> Ui {
     let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
     let _list = ListBuilder::new(&refs).build(&mut ui, scr);
     for i in 0..n_items {
-        ButtonBuilder::new(&format!("btn{i}")).build(&mut ui, scr);
+        ButtonCfg::new(&format!("btn{i}")).build(&mut ui, scr);
     }
     for _ in 0..n_items / 4 {
         SliderBuilder::new(0, 100).build(&mut ui, scr);

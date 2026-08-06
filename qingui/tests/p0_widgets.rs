@@ -1,7 +1,7 @@
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::arc::ArcBuilder;
-use qingui::widgets::checkbox::CheckboxBuilder;
+use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::prelude::*;
 use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::spinner::SpinnerBuilder;
@@ -80,7 +80,7 @@ fn checkbox_toggles_on_enter() {
     let l2 = log.clone();
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let cb = CheckboxBuilder::new("OK").build(&mut ui, scr);
+    let cb = CheckboxCfg::new("OK").build(&mut ui, scr);
     ui.set_pos(cb, 10, 10);
     ui.add_event_cb(cb, EventKind::ValueChanged, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(cb);

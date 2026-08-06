@@ -1,6 +1,6 @@
 use qingui::input::Key;
 use qingui::prelude::*;
-use qingui::widgets::button::ButtonBuilder;
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::list::ListBuilder;
 use qingui::{EventKind, Ui};
 use std::cell::RefCell;
@@ -11,7 +11,7 @@ fn up_down_navigates_items_not_focus() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListBuilder::new(&["a", "b", "c"]).build(&mut ui, scr);
-    let btn = ButtonBuilder::new("x").build(&mut ui, scr);
+    let btn = ButtonCfg::new("x").build(&mut ui, scr);
     ui.group_add(l);
     ui.group_add(btn);
     assert_eq!(ui.focused(), Some(l));
