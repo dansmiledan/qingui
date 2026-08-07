@@ -73,6 +73,64 @@ fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i
     n
 }
 
+/// 4x4 supersampling coverage of a thick line segment: subsample points are
+/// considered covered when they lie within `width/2` of the infinite line AND
+/// within the segment's extent (rounded caps at both ends).
+///
+/// All coordinates are in 1/16-pixel fixed-point units (subsample centers are
+/// `16*px - 6 + 4*{a,b}`, matching `circle_cov16`). Distances are therefore in
+/// (1/16 px)^2; the line half-width `width/2` must be scaled by 16 to compare
+/// in the same units: `r16 = width*16/2` and `r16^2` is the squared threshold.
+fn line_cov16(px: i32, py: i32, x0: i32, y0: i32, dx: i32, dy: i32, len2: i32, width: i32) -> i32 {
+    let r16 = width * 16 / 2;             // half-width in 1/16 px
+    let r2 = r16 * r16;                   // squared in (1/16 px)^2
+    let cap2 = r2;                        // round-cap radius^2 (= half-width)
+    let (ux, uy) = (16 * dx as i64, 16 * dy as i64);
+    let len2_64 = (len2 as i64).max(1) * 256; // |u|^2 in (1/16 px)^2
+    // Solid core: a pixel whose center lies inside the band (or the rounded end
+    // caps) is fully opaque. Without this, 4x4-subsampled thin lines (e.g. a 1px
+    // 45-degree diagonal, whose corner subsamples sit 0.53px off the centerline)
+    // would never reach 16/16 and the core would render translucent.
+    let (cx, cy) = ((16 * px - 16 * x0) as i64, (16 * py - 16 * y0) as i64);
+    let t = cx * ux + cy * uy;
+    let core = if t >= 0 && t <= len2_64 {
+        let c = cx * uy - cy * ux;
+        c * c / len2_64 <= r2 as i64
+    } else {
+        let (ex, ey) = if t < 0 { (cx, cy) } else { (cx - ux, cy - uy) };
+        ex * ex + ey * ey <= cap2 as i64
+    };
+    if core {
+        return 16;
+    }
+    let mut n = 0;
+    for a in 0..4 {
+        for b in 0..4 {
+            let sx = 16 * px - 6 + 4 * a;
+            let sy = 16 * py - 6 + 4 * b;
+            // Vector from segment start to subsample, in 1/16 px units.
+            let (vx, vy) = ((sx - 16 * x0) as i64, (sy - 16 * y0) as i64);
+            // Squared distance from the subsample to the infinite line, in (1/16 px)^2.
+            let cross = vx * uy - vy * ux;
+            let dist2 = cross * cross / len2_64;
+            // Projection t = (v . u) / |u|^2, in units of 1/256 of the segment length.
+            let t_num = vx * ux + vy * uy;
+            if t_num < 0 || t_num > len2_64 {
+                // Outside the segment extent: round-cap test.
+                let (ex, ey) = if t_num < 0 { (vx, vy) } else { (vx - ux, vy - uy) };
+                if ex * ex + ey * ey > cap2 as i64 {
+                    continue;
+                }
+            } else if dist2 > r2 as i64 {
+                // Within the segment extent but too far from the infinite line.
+                continue;
+            }
+            n += 1;
+        }
+    }
+    n
+}
+
 /// Rect → e-g Rectangle (x/y origin + size; negative sizes are defended to 0)
 fn eg_rect(r: Rect) -> embedded_graphics::primitives::Rectangle {
     embedded_graphics::primitives::Rectangle::new(
@@ -373,33 +431,36 @@ impl DrawBuf<'_> {
         .draw(&mut t);
     }
 
-    /// Line (Bresenham + a radius stamp for line width).
+    /// Line as a thick segment: for each scanline, the span covered by the line
+    /// (width `width`, 4x4-supersampled edge coverage) is computed from the
+    /// segment's implicit equation and painted once per pixel. Replaces the old
+    /// Bresenham + per-step `fill_circle` stamp (which repainted overlapping
+    /// pixels on thick lines).
     pub fn draw_line(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, width: i32, c: Color, opa: u8, clip: Rect) {
-        let (mut x0, mut y0) = (p1.x, p1.y);
+        let (x0, y0) = (p1.x, p1.y);
         let (x1, y1) = (p2.x, p2.y);
-        let dx = (x1 - x0).abs();
-        let dy = -(y1 - y0).abs();
-        let sx = if x0 < x1 { 1 } else { -1 };
-        let sy = if y0 < y1 { 1 } else { -1 };
-        let mut err = dx + dy;
+        if width <= 0 {
+            return;
+        }
+        // Segment vector (dx, dy) and its half-width normal radius.
+        let (dx, dy) = (x1 - x0, y1 - y0);
+        let len2 = dx * dx + dy * dy;
+        if len2 == 0 {
+            // Degenerate point: single stamped pixel.
+            self.put_clipped(x0, y0, c, opa, clip);
+            return;
+        }
         let r = width / 2;
-        loop {
-            if r > 0 {
-                self.fill_circle(crate::geometry::Point { x: x0, y: y0 }, r, c, opa, clip);
-            } else {
-                self.put_clipped(x0, y0, c, opa, clip);
-            }
-            if x0 == x1 && y0 == y1 {
-                break;
-            }
-            let e2 = 2 * err;
-            if e2 >= dy {
-                err += dy;
-                x0 += sx;
-            }
-            if e2 <= dx {
-                err += dx;
-                y0 += sy;
+        // Bounding box of the thick segment (with AA margin of 1).
+        let (minx, maxx) = (x0.min(x1) - r - 1, x0.max(x1) + r + 1);
+        let (miny, maxy) = (y0.min(y1) - r - 1, y0.max(y1) + r + 1);
+        for y in miny..=maxy {
+            for x in minx..=maxx {
+                let cov = line_cov16(x, y, x0, y0, dx, dy, len2, width);
+                if cov > 0 {
+                    let o = (opa as u32 * cov as u32 / 16) as u8;
+                    self.put_clipped(x, y, c, o, clip);
+                }
             }
         }
     }
