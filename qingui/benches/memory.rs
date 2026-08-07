@@ -1,14 +1,19 @@
 //! Memory benchmark: static type sizes + peak heap of representative scenes.
 //!
 //! NOTE: this runs on the host (64-bit, usize = 8B). The embedded thumbv7
-//! target is 32-bit (usize = 4B). On thumbv7 the usize-dependent parts
-//! (Vec/String/Box/pointers) roughly halve, but i32/u32-fixed parts (Rect,
-//! ObjRef, and Style's Option<i32> fields) do not — expect ~20-30% lower,
-//! not a full halving. Absolute embedded sizes come from
-//! `cargo size --target thumbv7em-none-eabihf`. This bench gives the
-//! RELATIVE cost shape and a regression gate.
+//! target is 32-bit (usize = 4B); absolute embedded numbers come from the
+//! QEMU tool (`tools/qemu-mem`). Both sides share the same scene builder
+//! (`tools/qemu-mem/src/scene.rs`, included here via `#[path]`), so this
+//! bench gives the RELATIVE cost shape and a regression gate.
+extern crate alloc;
+
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[path = "../../tools/qemu-mem/src/scene.rs"]
+mod scene;
+
+use scene::Tier;
 
 /// Counting allocator: tracks current live bytes and the running peak.
 struct Counting;
@@ -36,11 +41,6 @@ static G: Counting = Counting;
 
 fn current() -> usize { CURRENT.load(Ordering::Relaxed) }
 fn peak() -> usize { PEAK.load(Ordering::Relaxed) }
-/// Resets the counters before a measured segment (excludes std runtime noise).
-fn reset() {
-    CURRENT.store(0, Ordering::Relaxed);
-    PEAK.store(0, Ordering::Relaxed);
-}
 
 // Thresholds recalibrated 2026-08-05 after the memory optimization: new baseline x 2.
 // See spec docs/superpowers/specs/2026-08-05-memory-bench-design.md.
@@ -132,78 +132,16 @@ fn report_static_sizes() {
     assert!(size_of::<Node>() < LIMIT_NODE, "Node {} B exceeds limit", size_of::<Node>());
 }
 
-#[derive(Clone, Copy)]
-enum Tier { Minimal, Small, Medium, Large }
-
-fn build_scene(tier: Tier) -> qingui::Ui {
-    use qingui::prelude::*;
-    use qingui::widgets::button::ButtonCfg;
-    use qingui::widgets::chart::ChartCfg;
-    use qingui::widgets::itemlist::ItemListCfg;
-    use qingui::widgets::label::LabelCfg;
-    use qingui::widgets::list::ListCfg;
-    use qingui::widgets::slider::SliderCfg;
-    use qingui::{Color, Ui};
-
-    let (n_items, n_chart_pts) = match tier {
-        Tier::Minimal => {
-            let mut ui = Ui::new(160, 120, 8);
-            let scr = ui.screen();
-            LabelCfg::new("hello").build(&mut ui, scr);
-            ButtonCfg::new("OK").build(&mut ui, scr);
-            ui.tick_inc(16);
-            ui.timer_handler();
-            return ui;
-        }
-        Tier::Small => (5, 16),
-        Tier::Medium => (20, 64),
-        Tier::Large => (60, 256),
-    };
-    let mut ui = Ui::new(320, 240, 24);
-    let scr = ui.screen();
-    // ListCfg::new takes &[&str]; build the label strings first (their allocation
-    // is counted, which is representative of real use). Same pattern as dropdown.rs.
-    let texts: Vec<String> = (0..n_items).map(|i| format!("item{i}")).collect();
-    let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-    // Bind the ObjRef handles and label strings to silence unused-variable warnings;
-    // the tree itself stays resident in the Ui arena held by the caller.
-    let _list = ListCfg::new(&refs).build(&mut ui, scr);
-    for i in 0..n_items {
-        ButtonCfg::new(&format!("btn{i}")).build(&mut ui, scr);
-    }
-    for _ in 0..n_items / 4 {
-        SliderCfg::new(0, 100).build(&mut ui, scr);
-    }
-    let _chart = ChartCfg::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
-    let _il = ItemListCfg::new().build(&mut ui, scr);
-    for _ in 0..n_items {
-        ui.itemlist_add_item(_il);
-    }
-    // Force real allocations through layout / render / animation paths.
-    for _ in 0..5 {
-        ui.tick_inc(16);
-        ui.timer_handler();
-    }
-    ui
-}
-
-fn node_count(ui: &qingui::Ui) -> usize {
-    let mut n = 0;
-    let mut stack = vec![ui.screen()];
-    while let Some(o) = stack.pop() {
-        n += 1;
-        stack.extend(ui.children(o));
-    }
-    n
-}
-
 fn bench_scene(label: &str, tier: Tier) {
-    reset();
-    let ui = build_scene(tier);
-    let peak = peak();
-    let live = current();
-    let nodes = node_count(&ui);
-    drop(ui);
+    // Snapshot the counters instead of zeroing them: the std runtime may
+    // still hold allocations made before this point, and zeroing CURRENT
+    // would make their later dealloc underflow it (usize wrap).
+    let base = current();
+    let sc = scene::build_scene(tier);
+    let peak = peak() - base;
+    let live = current() - base;
+    let nodes = scene::node_count(&sc.ui);
+    drop(sc);
     println!("{label:<8} {nodes:>5} nodes  peak {peak:>9} B  live {live:>9} B");
     let (peak_limit, live_limit) = match tier {
         Tier::Minimal => (LIMIT_PEAK_MINIMAL, LIMIT_LIVE_MINIMAL),

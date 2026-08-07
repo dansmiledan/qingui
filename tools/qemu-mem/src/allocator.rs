@@ -40,11 +40,25 @@ pub fn peak() -> usize {
 
 /// Resets the counters before a measured segment (excludes runtime noise).
 /// Only valid when nothing else is live, i.e. on bare metal before the scenes.
-/// Used by scenes.rs; dead in the host test build.
+/// Used by main.rs; dead in the host test build.
 #[allow(dead_code)]
 pub fn reset() {
     CURRENT.store(0, Ordering::Relaxed);
     PEAK.store(0, Ordering::Relaxed);
+}
+
+/// Total bytes currently on the free list. Used by the host regression test
+/// (tests/alloc_host.rs) to detect arena bytes orphaned from the free list;
+/// dead in the bin.
+#[allow(dead_code)]
+pub fn free_bytes() -> usize {
+    let mut total = 0usize;
+    let mut cur = unsafe { FREE_HEAD };
+    while !cur.is_null() {
+        total += unsafe { *cur };
+        cur = unsafe { *cur.add(1) as *mut usize };
+    }
+    total
 }
 
 fn align_up(addr: usize, align: usize) -> usize {
@@ -130,7 +144,17 @@ unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
         debug_assert!(*cur <= ARENA_SIZE, "free block size {} > arena", *cur);
         let fb_start = cur as usize;
         let fb_end = fb_start + *cur;
-        let payload = align_up(fb_start + HEADER, align);
+        // Align the payload within the free block. The head fragment between
+        // the block start and the payload header must be either empty or
+        // large enough to live on as a free block — otherwise those bytes
+        // would be orphaned (leaked) from the arena on every aligned alloc.
+        // head is a multiple of HEADER and align >= HEADER, so a single
+        // align-step bump always turns a too-small fragment into MIN_FREE+.
+        let mut payload = align_up(fb_start + HEADER, align);
+        let head = payload - HEADER - fb_start;
+        if head > 0 && head < MIN_FREE {
+            payload += align;
+        }
         let block_end = payload + size;
         if block_end <= fb_end {
             let next_addr = *cur.add(1);
@@ -139,16 +163,24 @@ unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
             } else {
                 *prev.add(1) = next_addr;
             }
-            // Store the block size right before the payload so dealloc can
-            // recover it; the block includes this header plus the payload.
-            *(payload as *mut usize).sub(1) = size + HEADER;
+            // Return the head fragment (if any) to the free list.
+            let head = payload - HEADER - fb_start;
+            if head >= MIN_FREE {
+                insert_free(fb_start, head);
+            }
+            // Store the block span right before the payload so dealloc can
+            // recover it; the block starts at this header.
             // Split off the tail as a new free block. Its start must be
-            // aligned for a usize header, so round up past the payload end;
-            // if that lands beyond the free block the tail is just wasted.
+            // aligned for a usize header, so round up past the payload end.
+            // A tail too small for a free block is absorbed into this block
+            // (the stored span covers it) instead of being orphaned.
             let remain_start = align_up(block_end, HEADER);
             let remain = fb_end.saturating_sub(remain_start);
             if remain >= MIN_FREE {
+                *(payload as *mut usize).sub(1) = size + HEADER;
                 insert_free(remain_start, remain);
+            } else {
+                *(payload as *mut usize).sub(1) = fb_end - (payload - HEADER);
             }
             let cur_bytes = CURRENT.fetch_add(size, Ordering::Relaxed) + size;
             PEAK.fetch_max(cur_bytes, Ordering::Relaxed);

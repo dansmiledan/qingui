@@ -105,7 +105,17 @@ unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
         debug_assert!(*cur <= ARENA_SIZE, "free block size {} > arena", *cur);
         let fb_start = cur as usize;
         let fb_end = fb_start + *cur;
-        let payload = align_up(fb_start + HEADER, align);
+        // Align the payload within the free block. The head fragment between
+        // the block start and the payload header must be either empty or
+        // large enough to live on as a free block — otherwise those bytes
+        // would be orphaned (leaked) from the arena on every aligned alloc.
+        // head is a multiple of HEADER and align >= HEADER, so a single
+        // align-step bump always turns a too-small fragment into MIN_FREE+.
+        let mut payload = align_up(fb_start + HEADER, align);
+        let head = payload - HEADER - fb_start;
+        if head > 0 && head < MIN_FREE {
+            payload += align;
+        }
         let block_end = payload + size;
         if block_end <= fb_end {
             let next_addr = *cur.add(1);
@@ -114,16 +124,24 @@ unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
             } else {
                 *prev.add(1) = next_addr;
             }
-            // Store the block size right before the payload so dealloc can
-            // recover it; the block includes this header plus the payload.
-            *(payload as *mut usize).sub(1) = size + HEADER;
+            // Return the head fragment (if any) to the free list.
+            let head = payload - HEADER - fb_start;
+            if head >= MIN_FREE {
+                insert_free(fb_start, head);
+            }
+            // Store the block span right before the payload so dealloc can
+            // recover it; the block starts at this header.
             // Split off the tail as a new free block. Its start must be
-            // aligned for a usize header, so round up past the payload end;
-            // if that lands beyond the free block the tail is just wasted.
+            // aligned for a usize header, so round up past the payload end.
+            // A tail too small for a free block is absorbed into this block
+            // (the stored span covers it) instead of being orphaned.
             let remain_start = align_up(block_end, HEADER);
             let remain = fb_end.saturating_sub(remain_start);
             if remain >= MIN_FREE {
+                *(payload as *mut usize).sub(1) = size + HEADER;
                 insert_free(remain_start, remain);
+            } else {
+                *(payload as *mut usize).sub(1) = fb_end - (payload - HEADER);
             }
             return payload as *mut u8;
         }

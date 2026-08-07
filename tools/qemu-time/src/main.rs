@@ -26,17 +26,20 @@
 //! On host builds (workspace `cargo test`/`cargo build`) this compiles to a
 //! stub so the crate stays a clean workspace member.
 //!
-//! BASELINE 2026-08-07 (QEMU mps2-an386, `-icount shift=3`,
-//! thumbv7em-none-eabihf, RELEASE profile, SysTick ticks; deterministic,
-//! verified identical across 2 runs):
-//!   layout (40 children, 320x240)             =       8784
-//!   render full  Minimal  (3 nodes, 19200 px) =     72619  partial =  25126  frame = 72844
-//!   render full  Small    (16 nodes, 76800 px)=    339889  partial = 156030  frame = 340891
-//!   render full  Medium   (50 nodes, 76800 px)=    777823  partial = 535563  frame = 780024
-//!   render full  Large    (140 nodes, 76800px)=   1945304  partial = 1539392  frame = 1950620
+//! BASELINE 2026-08-07 (QEMU 11.0.0 mps2-an386, `-icount shift=3`,
+//! thumbv7em-none-eabihf, RELEASE profile, rustc 1.95.0-nightly 18d13b533,
+//! SysTick ticks; deterministic — identical across repeated runs IN THIS
+//! ENVIRONMENT. Across toolchains/QEMU versions the absolute numbers drift
+//! by a few percent (codegen differences), which the x2 thresholds absorb):
+//!   layout (40 children, 320x240)             =       8938
+//!   render full  Minimal  (3 nodes, 19200 px) =     74154  partial =  25258  frame = 74779
+//!   render full  Small    (16 nodes, 76800 px)=    341923  partial = 156325  frame = 343756
+//!   render full  Medium   (50 nodes, 76800 px)=    777980  partial = 535579  frame = 780209
+//!   render full  Large    (140 nodes, 76800px)=   1945377  partial = 1539405  frame = 1950700
 //!   fill_rect=215729 draw_line=190899 draw_line_many=36081 draw_circle=161012
 //!   fill_circle=166656 fill_rounded=226371 draw_border=60274 draw_arc=173846
-//!   draw_text=9733 blit565=9178
+//!   draw_text=9735 blit565=8418 (blit565 now excludes the source-image
+//!   allocation, which was previously timed inside the loop)
 
 #[cfg(target_arch = "arm")]
 extern crate alloc;
@@ -64,33 +67,34 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 }
 
 // Thresholds calibrated 2026-08-07: QEMU baseline x 2 (see spec
-// docs/superpowers/specs/2026-08-07-runtime-bench-design.md).
+// docs/superpowers/specs/2026-08-07-runtime-bench-design.md and the baseline
+// comment at the top of this file).
 #[cfg(target_arch = "arm")]
-const LIMIT_LAYOUT: u64 = 17_568; // 2 * 8784
+const LIMIT_LAYOUT: u64 = 17_876; // 2 * 8938
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_MINIMAL: u64 = 145_238; // 2 * 72619
+const LIMIT_RENDER_FULL_MINIMAL: u64 = 148_308; // 2 * 74154
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_MINIMAL: u64 = 50_252; // 2 * 25126
+const LIMIT_RENDER_PARTIAL_MINIMAL: u64 = 50_516; // 2 * 25258
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_MINIMAL: u64 = 145_688; // 2 * 72844
+const LIMIT_FRAME_MINIMAL: u64 = 149_558; // 2 * 74779
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_SMALL: u64 = 679_778; // 2 * 339889
+const LIMIT_RENDER_FULL_SMALL: u64 = 683_846; // 2 * 341923
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_SMALL: u64 = 312_060; // 2 * 156030
+const LIMIT_RENDER_PARTIAL_SMALL: u64 = 312_650; // 2 * 156325
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_SMALL: u64 = 681_782; // 2 * 340891
+const LIMIT_FRAME_SMALL: u64 = 687_512; // 2 * 343756
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_MEDIUM: u64 = 1_555_646; // 2 * 777823
+const LIMIT_RENDER_FULL_MEDIUM: u64 = 1_555_960; // 2 * 777980
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_MEDIUM: u64 = 1_071_126; // 2 * 535563
+const LIMIT_RENDER_PARTIAL_MEDIUM: u64 = 1_071_158; // 2 * 535579
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_MEDIUM: u64 = 1_560_048; // 2 * 780024
+const LIMIT_FRAME_MEDIUM: u64 = 1_560_418; // 2 * 780209
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_LARGE: u64 = 3_890_608; // 2 * 1945304
+const LIMIT_RENDER_FULL_LARGE: u64 = 3_890_754; // 2 * 1945377
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_LARGE: u64 = 3_078_784; // 2 * 1539392
+const LIMIT_RENDER_PARTIAL_LARGE: u64 = 3_078_810; // 2 * 1539405
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_LARGE: u64 = 3_901_240; // 2 * 1950620
+const LIMIT_FRAME_LARGE: u64 = 3_901_400; // 2 * 1950700
 #[cfg(target_arch = "arm")]
 const LIMIT_FILL_RECT: u64 = 431_458; // 2 * 215729
 #[cfg(target_arch = "arm")]
@@ -108,9 +112,9 @@ const LIMIT_DRAW_BORDER: u64 = 120_548; // 2 * 60274
 #[cfg(target_arch = "arm")]
 const LIMIT_DRAW_ARC: u64 = 347_692; // 2 * 173846
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_TEXT: u64 = 19_466; // 2 * 9733
+const LIMIT_DRAW_TEXT: u64 = 19_470; // 2 * 9735
 #[cfg(target_arch = "arm")]
-const LIMIT_BLIT565: u64 = 18_356; // 2 * 9178
+const LIMIT_BLIT565: u64 = 16_836; // 2 * 8418
 
 #[cfg(target_arch = "arm")]
 fn report_layout() {

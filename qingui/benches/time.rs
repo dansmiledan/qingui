@@ -72,18 +72,31 @@ fn main() {
 
     // ---- primitives ----
     println!("== primitives (DrawBuf 320x240, {} draws each) ==", scenes::PRIM_ITERS);
-    let report = |name: &str, f: &mut dyn FnMut(&mut dyn FnMut() -> u64) -> u64| {
-        let (min, med) = bench(f);
-        println!("  {name:<16} min {min:>8.1} us  median {med:>8.1} us");
-    };
-    report("fill_rect", &mut |now| scenes::run_primitives(now).fill_rect);
-    report("draw_line", &mut |now| scenes::run_primitives(now).draw_line);
-    report("draw_line_many", &mut |now| scenes::run_primitives(now).draw_line_many);
-    report("draw_circle", &mut |now| scenes::run_primitives(now).draw_circle);
-    report("fill_circle", &mut |now| scenes::run_primitives(now).fill_circle);
-    report("fill_rounded", &mut |now| scenes::run_primitives(now).fill_rounded);
-    report("draw_border", &mut |now| scenes::run_primitives(now).draw_border);
-    report("draw_arc", &mut |now| scenes::run_primitives(now).draw_arc);
-    report("draw_text", &mut |now| scenes::run_primitives(now).draw_text);
-    report("blit565", &mut |now| scenes::run_primitives(now).blit565);
+    // One run_primitives call measures ALL primitives; sample the whole
+    // struct instead of re-running every primitive per reported field.
+    let base = Instant::now();
+    let mut now = now_from(&base);
+    for _ in 0..WARMUP {
+        scenes::run_primitives(&mut now);
+    }
+    let samples: Vec<scenes::PrimResults> =
+        (0..SAMPLES).map(|_| scenes::run_primitives(&mut now)).collect();
+    let fields: [(&str, fn(&scenes::PrimResults) -> u64); 10] = [
+        ("fill_rect", |p| p.fill_rect),
+        ("draw_line", |p| p.draw_line),
+        ("draw_line_many", |p| p.draw_line_many),
+        ("draw_circle", |p| p.draw_circle),
+        ("fill_circle", |p| p.fill_circle),
+        ("fill_rounded", |p| p.fill_rounded),
+        ("draw_border", |p| p.draw_border),
+        ("draw_arc", |p| p.draw_arc),
+        ("draw_text", |p| p.draw_text),
+        ("blit565", |p| p.blit565),
+    ];
+    for (name, get) in fields {
+        let mut v: Vec<u64> = samples.iter().map(get).collect();
+        v.sort_unstable();
+        let (min, med) = (*v.first().unwrap(), v[v.len() / 2]);
+        println!("  {name:<16} min {:>8.1} us  median {:>8.1} us", min as f64 / 1000.0, med as f64 / 1000.0);
+    }
 }

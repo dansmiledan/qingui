@@ -2,40 +2,31 @@
 //! the host bench (`qingui/benches/time.rs` includes this via `#[path]`) and
 //! the QEMU tool (`tools/qemu-time` declares `mod scenes;`).
 //!
+//! The render scene itself comes from `tools/qemu-mem/src/scene.rs` (the same
+//! builder the memory benches use), so memory + runtime numbers stay
+//! comparable.
+//!
 //! no_std + alloc only; the clock is injected as `now: &mut dyn FnMut() -> u64`
 //! (host: ns since a base Instant; QEMU: `timer::elapsed()` SysTick ticks).
-//! Scene building follows `tools/qemu-mem/src/scenes.rs` so memory + runtime
-//! numbers stay comparable.
 
 extern crate alloc;
 
+#[path = "../../qemu-mem/src/scene.rs"]
+mod mem_scene;
+
 use alloc::format;
-use alloc::string::String;
 use alloc::vec;
-use alloc::vec::Vec;
 
 use qingui::geometry::{Color, Point, Rect};
-use qingui::prelude::*;
-use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::chart::ChartCfg;
-use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
-use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
-use qingui::widgets::slider::SliderCfg;
 use qingui::{ObjRef, Ui};
 
 /// How many times each primitive is drawn inside one `run_primitives` call
 /// (the reported value is the per-draw average).
 pub const PRIM_ITERS: u32 = 50;
 
-#[derive(Clone, Copy, Debug)]
-pub enum Tier {
-    Minimal,
-    Small,
-    Medium,
-    Large,
-}
+pub use mem_scene::Tier;
 
 /// A built render scene plus a leaf widget handle (for partial-dirty timing).
 pub struct RenderScene {
@@ -70,50 +61,11 @@ pub fn build_layout_scene(children: usize) -> Ui {
     ui
 }
 
-/// Render scene per tier (mirrors `tools/qemu-mem/src/scenes.rs`).
+/// Render scene per tier: the same builder the memory benches use
+/// (`tools/qemu-mem/src/scene.rs`), so both measure the same tree.
 pub fn build_render_scene(tier: Tier) -> RenderScene {
-    let (n_items, n_chart_pts) = match tier {
-        Tier::Minimal => {
-            let mut ui = Ui::new(160, 120, 8);
-            let scr = ui.screen();
-            LabelCfg::new("hello").build(&mut ui, scr);
-            let leaf = ButtonCfg::new("OK").build(&mut ui, scr);
-            ui.tick_inc(16);
-            ui.timer_handler();
-            return RenderScene { ui, leaf };
-        }
-        Tier::Small => (5, 16),
-        Tier::Medium => (20, 64),
-        Tier::Large => (60, 256),
-    };
-    let mut ui = Ui::new(320, 240, 24);
-    let scr = ui.screen();
-    // ListCfg takes &[&str]; build the label strings first (their allocation
-    // is counted, which is representative of real use).
-    let texts: Vec<String> = (0..n_items).map(|i| format!("item{i}")).collect();
-    let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-    let _list = ListCfg::new(&refs).build(&mut ui, scr);
-    let mut leaf = None;
-    for i in 0..n_items {
-        let b = ButtonCfg::new(&format!("btn{i}")).build(&mut ui, scr);
-        if leaf.is_none() {
-            leaf = Some(b);
-        }
-    }
-    for _ in 0..n_items / 4 {
-        SliderCfg::new(0, 100).build(&mut ui, scr);
-    }
-    let _chart = ChartCfg::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
-    let _il = ItemListCfg::new().build(&mut ui, scr);
-    for _ in 0..n_items {
-        ui.itemlist_add_item(_il);
-    }
-    // Force real allocations / layout / animation paths (same as memory bench).
-    for _ in 0..5 {
-        ui.tick_inc(16);
-        ui.timer_handler();
-    }
-    RenderScene { ui, leaf: leaf.unwrap() }
+    let mem_scene::Scene { ui, leaf } = mem_scene::build_scene(tier);
+    RenderScene { ui, leaf }
 }
 
 /// Counts nodes and returns (nodes, width*height) for report headers.
@@ -206,10 +158,12 @@ pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
         draw_text: bench(now, iters, &mut || {
             d.draw_text(Point { x: 10, y: 10 }, qingui::font::DEFAULT_FONT, "qingui bench", Color::WHITE, clip)
         }),
-        blit565: bench(now, iters, &mut || {
+        blit565: {
+            // Allocate the source image outside the timed loop: the bench
+            // measures blit, not the allocator (no other primitive allocs).
             let img = vec![0u8; 32 * 24 * 2];
-            d.blit565(10, 10, 32, 24, &img, 255, clip)
-        }),
+            bench(now, iters, &mut || d.blit565(10, 10, 32, 24, &img, 255, clip))
+        },
     }
 }
 

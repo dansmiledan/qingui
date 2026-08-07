@@ -24,7 +24,7 @@ extern crate alloc;
 #[cfg(target_arch = "arm")]
 mod allocator;
 #[cfg(target_arch = "arm")]
-mod scenes;
+mod scene;
 
 #[cfg(target_arch = "arm")]
 use core::mem::size_of;
@@ -120,19 +120,61 @@ fn report_static_sizes() {
     row!("ItemList", itemlist::ItemListState);
     row!("Custom", custom::CustomState);
     hprintln!("Ui            {:>6} B", size_of::<qingui::Ui>());
-    assert!(size_of::<WidgetKind>() < 80, "WidgetKind {} B exceeds limit", size_of::<WidgetKind>());
-    assert!(size_of::<Style>() < 336, "Style {} B exceeds limit", size_of::<Style>());
-    assert!(size_of::<Node>() < 752, "Node {} B exceeds limit", size_of::<Node>());
+    // Regression gates: QEMU 32-bit baselines x2 (see docs/BENCHMARK.md).
+    assert!(size_of::<WidgetKind>() < 48, "WidgetKind {} B exceeds limit", size_of::<WidgetKind>());
+    assert!(size_of::<Style>() < 280, "Style {} B exceeds limit", size_of::<Style>());
+    assert!(size_of::<Node>() < 560, "Node {} B exceeds limit", size_of::<Node>());
+}
+
+// Regression gates: QEMU 32-bit baselines x2, recalibrated 2026-08-07 to the
+// numbers this tool actually prints (they were previously copied from the
+// host 64-bit bench, leaving >2x slack). See docs/BENCHMARK.md and spec
+// docs/superpowers/specs/2026-08-05-memory-bench-design.md.
+#[cfg(target_arch = "arm")]
+const LIMIT_PEAK_MINIMAL: usize = 10_862; // 2 * 5431
+#[cfg(target_arch = "arm")]
+const LIMIT_LIVE_MINIMAL: usize = 10_622; // 2 * 5311
+#[cfg(target_arch = "arm")]
+const LIMIT_PEAK_SMALL: usize = 64_410; // 2 * 32205
+#[cfg(target_arch = "arm")]
+const LIMIT_LIVE_SMALL: usize = 61_698; // 2 * 30849
+#[cfg(target_arch = "arm")]
+const LIMIT_PEAK_MEDIUM: usize = 118_952; // 2 * 59476
+#[cfg(target_arch = "arm")]
+const LIMIT_LIVE_MEDIUM: usize = 104_760; // 2 * 52380
+#[cfg(target_arch = "arm")]
+const LIMIT_PEAK_LARGE: usize = 331_032; // 2 * 165516
+#[cfg(target_arch = "arm")]
+const LIMIT_LIVE_LARGE: usize = 257_176; // 2 * 128588
+
+#[cfg(target_arch = "arm")]
+fn bench_scene(label: &str, tier: scene::Tier) {
+    // reset() is valid here: bare metal, nothing else is live at this point.
+    allocator::reset();
+    let scene::Scene { ui, .. } = scene::build_scene(tier);
+    let peak = allocator::peak();
+    let live = allocator::current();
+    let nodes = scene::node_count(&ui);
+    drop(ui);
+    hprintln!("{:<8} {:>5} nodes  peak {:>9} B  live {:>9} B", label, nodes, peak, live);
+    let (peak_limit, live_limit) = match tier {
+        scene::Tier::Minimal => (LIMIT_PEAK_MINIMAL, LIMIT_LIVE_MINIMAL),
+        scene::Tier::Small => (LIMIT_PEAK_SMALL, LIMIT_LIVE_SMALL),
+        scene::Tier::Medium => (LIMIT_PEAK_MEDIUM, LIMIT_LIVE_MEDIUM),
+        scene::Tier::Large => (LIMIT_PEAK_LARGE, LIMIT_LIVE_LARGE),
+    };
+    assert!(peak < peak_limit, "{label}: peak {peak} B exceeds {peak_limit} B");
+    assert!(live < live_limit, "{label}: live {live} B exceeds {live_limit} B");
 }
 
 #[cfg(target_arch = "arm")]
 #[entry]
 fn main() -> ! {
     report_static_sizes();
-    scenes::bench_scene("minimal", scenes::Tier::Minimal);
-    scenes::bench_scene("small", scenes::Tier::Small);
-    scenes::bench_scene("medium", scenes::Tier::Medium);
-    scenes::bench_scene("large", scenes::Tier::Large);
+    bench_scene("minimal", scene::Tier::Minimal);
+    bench_scene("small", scene::Tier::Small);
+    bench_scene("medium", scene::Tier::Medium);
+    bench_scene("large", scene::Tier::Large);
     exit(EXIT_SUCCESS);
     loop {}
 }
