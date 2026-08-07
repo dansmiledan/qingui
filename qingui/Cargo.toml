@@ -10,7 +10,7 @@ categories = ["embedded", "graphics", "no-std"]
 readme = "README.md"
 # examples/ holds non-executable modules (sim/, images.rs); declare runnable examples explicitly
 autoexamples = false
-# benches/ holds a single explicitly-declared memory bench (harness = false -> custom main)
+# benches/ holds explicitly-declared memory + time benches (harness = false -> custom main)
 autobenches = false
 
 [[example]]
@@ -24,6 +24,11 @@ path = "examples/gallery.rs"
 [[bench]]
 name = "memory"
 path = "benches/memory.rs"
+harness = false
+
+[[bench]]
+name = "time"
+path = "benches/time.rs"
 harness = false
 
 [dependencies]
