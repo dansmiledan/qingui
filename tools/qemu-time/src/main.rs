@@ -8,11 +8,18 @@
 //! timing as deterministic SysTick ticks. Semihosting carries the output; the
 //! exit code reflects whether all asserts passed.
 //!
-//! Build/run for the target:
+//! Build/run for the target (must run from the package dir so the `-icount
+//! shift=3` runner in `.cargo/config.toml` applies):
 //!
 //! ```text
-//! cargo run -p qemu-time --target thumbv7em-none-eabihf
+//! (cd tools/qemu-time && cargo run --target thumbv7em-none-eabihf)
 //! ```
+//!
+//! The reported ticks are measured under the dev profile (what `cargo run`
+//! uses): debug assertions are on, so the allocator's `validate_free` free-list
+//! walk runs on every alloc/dealloc, and the numbers therefore include
+//! allocator overhead. Regression gates stay valid because baseline and current
+//! runs build the same way.
 //!
 //! On host builds (workspace `cargo test`/`cargo build`) this compiles to a
 //! stub so the crate stays a clean workspace member.
@@ -221,5 +228,5 @@ fn main() -> ! {
 #[cfg(not(target_arch = "arm"))]
 fn main() {
     println!("qemu-time targets the bare-metal Cortex-M4F; build and run it for the embedded target:");
-    println!("  cargo run -p qemu-time --target thumbv7em-none-eabihf");
+    println!("  (cd tools/qemu-time && cargo run --target thumbv7em-none-eabihf)");
 }

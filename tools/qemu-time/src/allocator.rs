@@ -1,17 +1,12 @@
-//! Counting first-fit free-list allocator over a static arena.
+//! First-fit free-list allocator over a static arena.
 //!
-//! Runs on bare metal, so it replaces `std::alloc::System`. Tracks current
-//! live bytes and the running peak, mirroring the host bench's counting
-//! allocator in `qingui/benches/memory.rs`. `dealloc` really reuses memory so
-//! the live/peak numbers are meaningful across repeated layout passes.
+//! Runs on bare metal, so it replaces `std::alloc::System`. This is the
+//! allocator qingui's heap usage relies on for the timing tool; it does no
+//! memory accounting (qemu-time never reports memory).
 
 use core::alloc::{GlobalAlloc, Layout};
-use core::sync::atomic::{AtomicUsize, Ordering};
 
 const ARENA_SIZE: usize = 1024 * 1024;
-// Used by the host regression test (tests/alloc_host.rs); dead in the bin.
-#[allow(dead_code)]
-pub const ARENA_LIMIT: usize = ARENA_SIZE;
 /// Header stored before every allocated payload and in every free block
 /// (first usize of a free block is its size, second its next pointer).
 const HEADER: usize = core::mem::size_of::<usize>();
@@ -24,28 +19,8 @@ struct Arena([u8; ARENA_SIZE]);
 // the arena would silently be ignored. `static mut` guarantees a writable slot.
 static mut ARENA: Arena = Arena([0; ARENA_SIZE]);
 
-static CURRENT: AtomicUsize = AtomicUsize::new(0);
-static PEAK: AtomicUsize = AtomicUsize::new(0);
-
 static mut FREE_HEAD: *mut usize = core::ptr::null_mut();
 static mut INIT: bool = false;
-
-pub fn current() -> usize {
-    CURRENT.load(Ordering::Relaxed)
-}
-
-pub fn peak() -> usize {
-    PEAK.load(Ordering::Relaxed)
-}
-
-/// Resets the counters before a measured segment (excludes runtime noise).
-/// Only valid when nothing else is live, i.e. on bare metal before the scenes.
-/// Used by scenes.rs; dead in the host test build.
-#[allow(dead_code)]
-pub fn reset() {
-    CURRENT.store(0, Ordering::Relaxed);
-    PEAK.store(0, Ordering::Relaxed);
-}
 
 fn align_up(addr: usize, align: usize) -> usize {
     (addr + align - 1) & !(align - 1)
@@ -150,8 +125,6 @@ unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
             if remain >= MIN_FREE {
                 insert_free(remain_start, remain);
             }
-            let cur_bytes = CURRENT.fetch_add(size, Ordering::Relaxed) + size;
-            PEAK.fetch_max(cur_bytes, Ordering::Relaxed);
             return payload as *mut u8;
         }
         prev = cur;
@@ -181,7 +154,6 @@ unsafe fn dealloc_impl(ptr: *mut u8, layout: Layout) {
     if layout.size() == 0 {
         return;
     }
-    CURRENT.fetch_sub(layout.size(), Ordering::Relaxed);
     let block = (ptr as usize) - HEADER;
     let size = *(block as *const usize);
     insert_free(block, size);

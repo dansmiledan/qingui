@@ -39,6 +39,10 @@ pub fn init() {
 
 /// Monotonic elapsed ticks since `init()` (or first call), wrap-aware:
 /// the 24-bit SysTick wraps back to RELOAD; we add the wrapped distance.
+/// The accumulator is correct for at most one wrap between reads: a double
+/// wrap (a measurement > ~33.5M ticks, 2 * RELOAD) would undercount. Today's
+/// largest measurement (~15.8M, render full Large) is ~94% of one reload,
+/// leaving ~2.1x headroom before a double-wrap undercount.
 pub fn elapsed() -> u64 {
     if !INIT.load(Ordering::Relaxed) {
         init();

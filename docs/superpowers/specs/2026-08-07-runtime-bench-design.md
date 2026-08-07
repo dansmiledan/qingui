@@ -157,6 +157,6 @@ N 分档：Small 10 / Medium 40 / Large 160。子控件含混合类型（Label/B
 
 - **QEMU ticks ≠ 真实硬件周期**：报告头注释说明相对形状 + 回归护栏定位，绝对数以真硬件 DWT 为准（同 memory bench）。
 - **原语耗时依赖参数**：参数固定于 spec 第 4 节场景表，改动需走 spec。
-- **SysTick 24 位回绕**（16.7M ticks 上限）：layout/render/原语单次测量远小于上限；timer.rs 用 wrap-aware 累计读取（CVR 回绕时 +RVR），无风险。
+- **SysTick 24 位回绕**（16.7M ticks 上限）：timer.rs 的 wrap-aware 累计读取（CVR 回绕时 +RVR）正确覆盖单次读取间至多一次回绕；当前最大单次测量（render full Large，~15.8M ticks）约为一个 reload 的 94%，在双回绕少计（>~33.5M ticks）之前约有 2.1× 余量。超出需把 timer 改为多回绕计数（或拆段测量），当前阈值内无风险。
 - **host 墙钟噪声**：warmup + 取 min + 只报告不断言，噪声不触发误报。
 - **双端场景漂移**：场景定义集中一处为源，host bench 与 QEMU tool 各自引入。方案：场景源码放 `tools/qemu-time/src/scenes.rs`（QEMU 端直接 `mod scenes`）；host bench 用 `#[path = "../../tools/qemu-time/src/scenes.rs"] mod scenes;` 引入同一文件（`tools/qemu-mem/tests/alloc_host.rs` 已用同款 `#[path]` 手法，先例可循）。单一来源，避免漂移。
