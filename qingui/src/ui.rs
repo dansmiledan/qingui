@@ -444,6 +444,16 @@ impl Ui {
         let screen = self.screen;
         self.layout_subtree(screen);
     }
+
+    /// Forces a full layout pass, bypassing the `layout_dirty` flag.
+    ///
+    /// Intended as a benchmark hook so tools can time the layout phase in
+    /// isolation (see `docs/superpowers/specs/2026-08-07-runtime-bench-design.md`).
+    #[doc(hidden)]
+    pub fn layout(&mut self) {
+        self.layout_pass();
+    }
+
     /// Floating-layer positioning (pre-order traversal so anchor chains resolve in tree order;
     /// no dirtying when the position is unchanged).
     fn layout_floating(&mut self, obj: ObjRef) {
@@ -1046,5 +1056,32 @@ fn stored_label(kind: crate::event::EventKind) -> crate::event::EventKind {
     match kind {
         crate::event::EventKind::Key(_) => crate::event::EventKind::Key(crate::input::Key::Enter),
         k => k,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layout_runs_flex_pass() {
+        use crate::layout::{Align, Flex, FlexDir};
+        use crate::style::Layout;
+        use crate::widgets::label::LabelCfg;
+        use crate::widgets::obj::ObjCfg;
+        let mut ui = Ui::new(320, 240, 24);
+        let scr = ui.screen();
+        let container = ObjCfg::new()
+            .size(320, 240)
+            .layout(Layout::Flex(Flex {
+                dir: FlexDir::Column, wrap: false,
+                main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
+            }))
+            .build(&mut ui, scr);
+        let a = LabelCfg::new("A").size(10, 10).build(&mut ui, container);
+        let b = LabelCfg::new("B").size(10, 10).build(&mut ui, container);
+        ui.layout();
+        let (ra, rb) = (ui.rect(a), ui.rect(b));
+        assert!(rb.y > ra.y, "B should be below A in a column flex (a.y={} b.y={})", ra.y, rb.y);
     }
 }
