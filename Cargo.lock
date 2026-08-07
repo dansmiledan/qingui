@@ -651,6 +651,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qemu-time"
+version = "0.1.0"
+dependencies = [
+ "cortex-m-rt",
+ "cortex-m-semihosting",
+ "qingui",
+]
+
+[[package]]
 name = "qingui"
 version = "0.1.0"
 dependencies = [
