@@ -658,3 +658,20 @@ fn draw_line_width1_single_pixel_path() {
         assert_eq!(d.pixels[i * 8 + i], Color::WHITE, "diagonal (x={i}) must be covered");
     }
 }
+
+#[test]
+fn fill_rounded_radius_clamp_and_corners() {
+    // Radius larger than half the smaller side clamps; corners are cut, edges filled.
+    // Non-square rect (16x10) so the clamped radius (min(99, 8, 5) = 5) leaves a
+    // straight top edge; on a square rect the radius consumes the whole width and the
+    // edge apex is an anti-aliased arc, not a filled straight edge.
+    let (mut px, area) = buf(16, 10);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 16 };
+    d.fill_rounded(Rect::new(0, 0, 16, 10), 99, Color::WHITE, 255, area);
+    // Top-left corner pixel must be empty (radius clamps to 5, cutting the corner).
+    assert_eq!(d.pixels[0], Color::BLACK, "corner must be cut");
+    // Center must be filled.
+    assert_eq!(d.pixels[5 * 16 + 8], Color::WHITE);
+    // Edge midpoint (top edge, x=8) must be filled.
+    assert_eq!(d.pixels[0 * 16 + 8], Color::WHITE);
+}
