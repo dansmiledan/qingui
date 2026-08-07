@@ -90,7 +90,7 @@ pub enum Align {
 }
 
 /// Flex layout parameters applied to a container.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Flex {
     /// Main axis direction.
     pub dir: FlexDir,
@@ -106,17 +106,31 @@ pub struct Flex {
     pub gap: i32,
 }
 
+/// Per-child flex inputs, gathered in one pass (a single allocation instead
+/// of five parallel Vecs).
+struct Kid {
+    main_sz: i32,
+    cross_sz: i32,
+    sizing_m: Option<Sizing>,
+    sizing_c: Option<Sizing>,
+    aspect: Option<u32>,
+}
+
 /// Runs one flex layout pass on `container` (directly modifies the x/y of child rects).
 pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
-    let kids: Vec<ObjRef> = ui
-        .children(container)
-        .into_iter()
-        .filter(|&k| !ui.is_hidden(k) && !ui.is_ignore_layout(k))
-        .collect();
-    if kids.is_empty() {
+    // Filtered child list, gathered without cloning the children Vec.
+    let mut order: Vec<ObjRef> = Vec::new();
+    if let Some(n) = ui.arena.get(container) {
+        for &k in &n.children {
+            if !ui.is_hidden(k) && !ui.is_ignore_layout(k) {
+                order.push(k);
+            }
+        }
+    }
+    if order.is_empty() {
         return;
     }
-    let style = ui.resolved_style(container);
+    let style = ui.layout_style(container);
     let origin_x = style.pad_left;
     let origin_y = style.pad_top;
     let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
@@ -124,7 +138,6 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
 
     let is_row = matches!(f.dir, FlexDir::Row | FlexDir::RowReverse);
     let reverse = matches!(f.dir, FlexDir::RowReverse | FlexDir::ColumnReverse);
-    let mut order = kids.clone();
     if reverse {
         order.reverse();
     }
@@ -132,91 +145,89 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     // Basis sizes (with sizing strategy; Grow first takes min, remaining space is allocated later)
     let area_main = if is_row { area_w } else { area_h };
     let area_cross_total = if is_row { area_h } else { area_w };
-    let mut main_sz: Vec<i32> = Vec::with_capacity(order.len());
-    let mut cross_sz: Vec<i32> = Vec::with_capacity(order.len());
-    let mut main_grow: Vec<Option<Sizing>> = Vec::with_capacity(order.len());
-    let mut cross_grow: Vec<Option<Sizing>> = Vec::with_capacity(order.len());
-    let mut aspect: Vec<Option<u32>> = Vec::with_capacity(order.len());
+    let mut info: Vec<Kid> = Vec::with_capacity(order.len());
     for &k in &order {
-        let st = ui.resolved_style(k);
         let r = ui.rect(k);
+        let ls = ui.layout_style(k);
         let (content_m, content_c) = if is_row { (r.w, r.h) } else { (r.h, r.w) };
-        let (sm, sc) = if is_row { (st.sizing_w, st.sizing_h) } else { (st.sizing_h, st.sizing_w) };
-        main_sz.push(axis_basis(sm, content_m, area_main));
-        cross_sz.push(axis_basis(sc, content_c, area_cross_total));
-        main_grow.push(sm);
-        cross_grow.push(sc);
-        aspect.push(st.aspect_ratio);
+        let (sm, sc) = if is_row { (ls.sizing_w, ls.sizing_h) } else { (ls.sizing_h, ls.sizing_w) };
+        info.push(Kid {
+            main_sz: axis_basis(sm, content_m, area_main),
+            cross_sz: axis_basis(sc, content_c, area_cross_total),
+            sizing_m: sm,
+            sizing_c: sc,
+            aspect: ls.aspect_ratio,
+        });
     }
 
-    // Split into lines
-    let mut lines: Vec<Vec<usize>> = Vec::new();
-    let mut cur: Vec<usize> = Vec::new();
+    // Split into lines as index ranges into `order` (no per-line Vec allocs).
+    let mut lines: Vec<(usize, usize)> = Vec::new();
+    let mut cur_start = 0usize;
     let mut cur_main = 0i32;
     for i in 0..order.len() {
-        let m = main_sz[i];
-        let need = if cur.is_empty() { m } else { cur_main + f.gap + m };
-        if f.wrap && !cur.is_empty() && need > area_main {
-            lines.push(core::mem::take(&mut cur));
-            cur_main = 0;
+        let m = info[i].main_sz;
+        let empty = cur_start == i;
+        let need = if empty { m } else { cur_main + f.gap + m };
+        if f.wrap && !empty && need > area_main {
+            lines.push((cur_start, i));
+            cur_main = m;
+            cur_start = i;
+        } else {
+            cur_main = need;
         }
-        cur_main = if cur.is_empty() { m } else { cur_main + f.gap + m };
-        cur.push(i);
     }
-    if !cur.is_empty() {
-        lines.push(cur);
+    if cur_start < order.len() {
+        lines.push((cur_start, order.len()));
     }
 
     // Line heights (cross-axis sizes)
     let line_cross: Vec<i32> = lines
         .iter()
-        .map(|l| l.iter().map(|&i| cross_sz[i]).max().unwrap_or(0))
+        .map(|&(s, e)| info[s..e].iter().map(|k| k.cross_sz).max().unwrap_or(0))
         .collect();
     let total_cross: i32 = line_cross.iter().sum::<i32>() + f.gap * (lines.len() as i32 - 1).max(0);
 
     // track alignment: cross-axis distribution between lines
     let (mut cross_pos, track_gap) = distribute(total_cross, area_cross_total, f.track, lines.len() as i32, f.gap);
 
-    for (li, line) in lines.iter().enumerate() {
+    for (li, &(ls, le)) in lines.iter().enumerate() {
+        let line = &info[ls..le];
         // Grow children split the main-axis space remaining on the line
-        let grow_idx: Vec<usize> = line
-            .iter()
-            .copied()
-            .filter(|&i| matches!(main_grow[i], Some(Sizing::Grow { .. })))
-            .collect();
-        if !grow_idx.is_empty() {
-            let used: i32 = line.iter().map(|&i| main_sz[i]).sum::<i32>()
+        let grow_count = line.iter().filter(|k| matches!(k.sizing_m, Some(Sizing::Grow { .. }))).count();
+        if grow_count > 0 {
+            let used: i32 = line.iter().map(|k| k.main_sz).sum::<i32>()
                 + f.gap * (line.len() as i32 - 1).max(0);
             let free = (area_main - used).max(0);
-            let share = free / grow_idx.len() as i32;
-            for &i in &grow_idx {
-                if let Some(Sizing::Grow { min, max }) = main_grow[i] {
-                    main_sz[i] = (main_sz[i] + share).clamp(min, max);
+            let share = free / grow_count as i32;
+            for k in &mut info[ls..le] {
+                if let Some(Sizing::Grow { min, max }) = k.sizing_m {
+                    k.main_sz = (k.main_sz + share).clamp(min, max);
                 }
             }
         }
         // Cross-axis Grow fills the container's cross axis
-        for &i in line {
-            if let Some(Sizing::Grow { min, max }) = cross_grow[i] {
-                cross_sz[i] = area_cross_total.clamp(min, max);
+        for k in &mut info[ls..le] {
+            if let Some(Sizing::Grow { min, max }) = k.sizing_c {
+                k.cross_sz = area_cross_total.clamp(min, max);
             }
         }
         // Aspect ratio: derive the cross size from the final main size (takes priority over cross-axis sizing)
-        for &i in line {
-            if let Some(ratio) = aspect[i] {
+        for k in &mut info[ls..le] {
+            if let Some(ratio) = k.aspect {
                 if ratio > 0 {
-                    cross_sz[i] = (main_sz[i] as i64 * 1000 / ratio as i64) as i32;
+                    k.cross_sz = (k.main_sz as i64 * 1000 / ratio as i64) as i32;
                 }
             }
         }
+        let line = &info[ls..le];
         let line_main: i32 = {
-            let sum: i32 = line.iter().map(|&i| main_sz[i]).sum();
+            let sum: i32 = line.iter().map(|k| k.main_sz).sum();
             sum + f.gap * (line.len() as i32 - 1).max(0)
         };
         let (mut main_pos, item_gap) = distribute(line_main, area_main, f.main, line.len() as i32, f.gap);
-        for &i in line {
-            let m = main_sz[i];
-            let c = cross_sz[i];
+        for (i, k) in line.iter().enumerate() {
+            let m = k.main_sz;
+            let c = k.cross_sz;
             let lc = line_cross[li];
             let cross_off = align_offset(c, lc, f.cross);
             let (x, y) = if is_row {
@@ -226,8 +237,8 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
             };
             // Write back when sizing changes the size (transition animations are handled by layout_resize/layout_move)
             let (fw, fh) = if is_row { (m, c) } else { (c, m) };
-            ui.layout_resize(order[i], fw, fh);
-            ui.layout_move(order[i], x, y);
+            ui.layout_resize(order[ls + i], fw, fh);
+            ui.layout_move(order[ls + i], x, y);
             main_pos += m + item_gap;
         }
         cross_pos += line_cross[li] + track_gap;
@@ -344,10 +355,17 @@ fn track_offset(sizes: &[i32], idx: u8, gap: i32) -> i32 {
 
 /// Runs one grid layout pass on `container`: positions every child in its grid cell.
 pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
-    let style = ui.resolved_style(container);
+    let style = ui.layout_style(container);
     let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
     let area_h = ui.rect(container).h - style.pad_top - style.pad_bottom;
-    let kids: Vec<ObjRef> = ui.children(container).into_iter().filter(|&k| !ui.is_hidden(k) && !ui.is_ignore_layout(k)).collect();
+    let mut kids: Vec<ObjRef> = Vec::new();
+    if let Some(n) = ui.arena.get(container) {
+        for &k in &n.children {
+            if !ui.is_hidden(k) && !ui.is_ignore_layout(k) {
+                kids.push(k);
+            }
+        }
+    }
 
     let col_sizes_in: Vec<(u8, u8, i32)> = kids
         .iter()
@@ -386,7 +404,7 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
         };
         let (cw, ch) = (span_w(ci, cs), span_h(ri, rs));
         // The sizing strategy decides each child's size inside its cell
-        let st = ui.resolved_style(k);
+        let st = ui.layout_style(k);
         let cur = ui.rect(k);
         let mut fw = axis_in_cell(st.sizing_w, cur.w, cw);
         let mut fh = axis_in_cell(st.sizing_h, cur.h, ch);

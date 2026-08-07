@@ -23,7 +23,51 @@ pub struct Ui {
     default_font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
+/// The handful of style fields the layout hot path needs, resolved with the
+/// same overlay precedence as `resolved_style` but without building a full
+/// `ResolvedStyle` (which showed up in the layout profile: three full
+/// resolves per child per pass).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct LayoutStyle {
+    pub pad_left: i32,
+    pub pad_right: i32,
+    pub pad_top: i32,
+    pub pad_bottom: i32,
+    pub sizing_w: Option<crate::layout::Sizing>,
+    pub sizing_h: Option<crate::layout::Sizing>,
+    pub aspect_ratio: Option<u32>,
+    pub transition: Option<(u32, crate::anim::Easing)>,
+}
+
 impl Ui {
+    /// Resolves the layout-relevant style fields of `obj` (pressed > focused
+    /// > selected > base, matching `render::resolved_style`).
+    pub(crate) fn layout_style(&self, obj: ObjRef) -> LayoutStyle {
+        let Some(n) = self.arena.get(obj) else {
+            return LayoutStyle::default();
+        };
+        let overlay = if n.state.contains(State::PRESSED) {
+            n.style_pressed.as_deref()
+        } else if n.state.contains(State::FOCUSED) {
+            n.style_focused.as_deref()
+        } else if n.state.contains(State::SELECTED) {
+            n.style_selected.as_deref()
+        } else {
+            None
+        };
+        let b = &n.style;
+        LayoutStyle {
+            pad_left: overlay.and_then(|s| s.pad_left).or(b.pad_left).unwrap_or(0),
+            pad_right: overlay.and_then(|s| s.pad_right).or(b.pad_right).unwrap_or(0),
+            pad_top: overlay.and_then(|s| s.pad_top).or(b.pad_top).unwrap_or(0),
+            pad_bottom: overlay.and_then(|s| s.pad_bottom).or(b.pad_bottom).unwrap_or(0),
+            sizing_w: overlay.and_then(|s| s.sizing_w).or(b.sizing_w),
+            sizing_h: overlay.and_then(|s| s.sizing_h).or(b.sizing_h),
+            aspect_ratio: overlay.and_then(|s| s.aspect_ratio).or(b.aspect_ratio),
+            transition: overlay.and_then(|s| s.transition).or(b.transition),
+        }
+    }
+
     /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
     /// scanlines (used for chunked rendering).
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
@@ -478,18 +522,29 @@ impl Ui {
                 self.set_pos(obj, nx, ny);
             }
         }
-        for c in self.children(obj) {
+        let nkids = self.arena.get(obj).map(|n| n.children.len()).unwrap_or(0);
+        for i in 0..nkids {
+            let Some(c) = self.arena.get(obj).and_then(|n| n.children.get(i).copied()) else { break };
             self.layout_floating(c);
         }
     }
     fn layout_subtree(&mut self, obj: ObjRef) {
-        let layout = self.arena.get(obj).and_then(|n| n.style.layout.clone());
+        // Flex is Copy, so the common case copies the config out without
+        // cloning; only Grid (with its track Vecs) allocates here.
+        let layout = self.arena.get(obj).and_then(|n| match &n.style.layout {
+            Some(crate::style::Layout::Flex(f)) => Some(crate::style::Layout::Flex(*f)),
+            other => other.clone(),
+        });
         match layout {
             Some(crate::style::Layout::Flex(f)) => crate::layout::layout_flex(self, obj, &f),
             Some(crate::style::Layout::Grid(g)) => crate::layout::layout_grid(self, obj, &g),
             _ => {}
         }
-        for c in self.children(obj) {
+        // Iterate children by index: cloning the child Vec per node per pass
+        // showed up in the layout profile.
+        let nkids = self.arena.get(obj).map(|n| n.children.len()).unwrap_or(0);
+        for i in 0..nkids {
+            let Some(c) = self.arena.get(obj).and_then(|n| n.children.get(i).copied()) else { break };
             self.layout_subtree(c);
         }
     }
@@ -553,7 +608,7 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
         let cur = n.rect;
-        let tr = self.resolved_style(obj).transition;
+        let tr = self.layout_style(obj).transition;
         let mut animated = false;
         if laid && (cur.x != x || cur.y != y) {
             if let Some((dur, easing)) = tr {
@@ -587,7 +642,7 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
         let cur = n.rect;
-        let tr = self.resolved_style(obj).transition;
+        let tr = self.layout_style(obj).transition;
         let mut animated = false;
         if laid && (cur.w != w || cur.h != h) {
             if let Some((dur, easing)) = tr {

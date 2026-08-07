@@ -287,3 +287,21 @@ layout flex 40 children：min 2.2 / median 2.2。
 | fill_circle | 166,656 | 24,705 | **-85%** |
 | draw_circle | 161,012 | 62,618 | **-61%** |
 | draw_arc | 173,846 | 93,663 | **-46%** |
+
+---
+
+## 2026-08-07 — layout 优化（消减分配与样式解析）
+
+> 优化内容：layout 热路径不再每次构建完整 `ResolvedStyle`（此前每个子节点每轮
+> 布局解析 3 次），改为按 overlay 优先级只取所需字段（`Ui::layout_style`）；
+> `layout_flex` 的 ~9 次堆分配收敛为 4 次（子节点信息单 Vec、行用索引区间、
+> 不 clone 子节点列表）；`layout_subtree`/`layout_floating` 按索引遍历子节点
+> （不再逐节点 clone children Vec）；`Flex` 改为 `Copy`（Flex 容器不再 clone 配置）。
+> 行为完全不变（overlay 优先级与 `resolved_style` 一致；memory 两端逐字节不变）。
+> 对比基线：上方"圆/弧原语优化"记录。
+
+| 指标 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| layout host（flex 40 children，min/median µs） | 2.2 / 2.2 | 1.5 / 1.6 | **-32%** |
+| layout QEMU（ticks，--release） | 8,938 | 5,669 | **-37%** |
+| render/frame/partial、memory | — | 不变（±0.1% codegen 噪声内） | — |
