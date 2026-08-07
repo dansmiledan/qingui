@@ -157,3 +157,32 @@
 - **host 端**：`draw_arc`(330µs) 明显最贵，`fill_rounded`/`fill_rect`(~52µs) 次之。
 - **完整帧**：host Large frame ≈ 307µs（约 3.2k FPS 上限），QEMU Large frame ≈ 1.95M ticks。
 - **内存**：大场景 live 堆 host 160KB / QEMU 129KB；每节点 Node 376B（64 位）/ 280B（32 位）。
+
+---
+
+## 2026-08-07 — 绘制原语优化（SDF 最终版）
+
+> 本条目取代本节上方"绘制原语优化后（commit `858f54f`）"的记录：那一版 draw_line
+> 按原计划代码做了全 AABB 扫描 × 16 子采样，host 回退 70×；复审后改为
+> **逐行 span 扫描 + 像素中心 SDF 距离场覆盖（1px 线性 AA 过渡）**，width=1 保持
+> Bresenham 直画（与基线逐像素一致）。视觉对比图经用户确认（粗斜线更实是修复旧
+> stamp 重叠混合的缺陷）。
+> 对比基线：main 的"bench 修复后复测"记录。
+
+### Runtime — host（µs，min/median）
+
+| 原语 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| fill_rect | 50.3 / 50.7 | 24.1 / 24.1 | **-52%** |
+| draw_line | 18.1 / 18.1 | 11.8 / 11.8 | **-35%** |
+| draw_line_many | 6.6 / 6.6 | 6.6 / 6.6 | 持平（width=1 走 Bresenham 原路径） |
+| fill_rounded | 51.6 / 51.8 | 25.5 / 25.6 | **-51%**（主体 fill_rect 受益） |
+
+### Runtime — QEMU（ticks，--release）
+
+| 原语 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| fill_rect | 215,729 | 77,583 | **-64%** |
+| draw_line | 190,899 | 68,898 | **-64%** |
+| draw_line_many | 36,081 | 38,017 | +5.4%（codegen 差异，逻辑与基线相同，<10% 门内） |
+| fill_rounded | 226,371 | 88,861 | **-61%** |

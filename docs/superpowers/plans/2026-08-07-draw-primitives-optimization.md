@@ -481,3 +481,9 @@ git commit -m "bench: recalibrate qemu-time thresholds after draw primitive opti
    不保证全部子采样在带内，细线略粗、AA 略弱），用于修复 1px 对角线半透明问题。
 5. **视觉对比形式**：改为输出新旧算法对比图片（PPM），由用户肉眼确认。
 6. **调试残留**：首轮遗留的 `line_cov16` 恒 16 stub（未提交，会导致 9 个测试失败）已丢弃。
+
+7. **SDF 覆盖（二次修订，用户确认）**：第一版 span 扫描保留 4×4 子采样 `line_cov16`，
+   视觉对比后用户认为粗线观感不如旧 stamp（w=2 边界全实心、偏粗）。改为像素中心
+   **SDF 距离场**覆盖（1px 线性 AA 过渡，每线预计算 `inv_len`，热路径无除法无子采样
+   循环），w=2 水平线边缘 143 vs 旧 142，观感对齐；粗斜线更实更亮为修复旧 stamp
+   重叠混合缺陷，用户已确认。`line_cov16` 移除；最终 host draw_line -35%、QEMU -64%。
