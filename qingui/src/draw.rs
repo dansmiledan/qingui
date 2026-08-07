@@ -19,6 +19,14 @@ fn circle_cov16(dx: i32, dy: i32, r: i32) -> i32 {
     n
 }
 
+/// Conservative subsample-reach margin in 1/16 px: `circle_cov16`/`arc_cov16`
+/// subsamples sit at most sqrt(6^2+6^2) ~= 8.49 sixteenths from the pixel
+/// center. A pixel whose center is more than this margin inside (outside)
+/// every boundary is therefore definitely fully covered (uncovered), so the
+/// scanline loops below only evaluate the exact coverage functions on the
+/// boundary fringe — output stays pixel-identical.
+const COV_MARGIN: i64 = 9;
+
 /// sin(0°..=90°), 256 fixed-point (sin(d°) * 256 rounded)
 #[rustfmt::skip]
 const SIN90: [i32; 91] = [
@@ -386,33 +394,144 @@ impl DrawBuf<'_> {
     }
 
     /// Filled disc (solid circle), 4x4 supersampling anti-aliased.
+    /// Filled circle: per-scanline chord span (one `isqrt` per row). Only the
+    /// boundary fringe gets the exact `circle_cov16` evaluation; the solid
+    /// interior is batch-written. Output is pixel-identical to evaluating
+    /// every bounding-box pixel (see `COV_MARGIN`).
     pub fn fill_circle(&mut self, center: crate::geometry::Point, radius: i32, c: Color, opa: u8, clip: Rect) {
         if radius <= 0 {
             return;
         }
+        let Some(vis) = clip.intersect(&self.area) else {
+            return;
+        };
+        let r16 = 16 * radius as i64;
+        let out_zero2 = (r16 + COV_MARGIN) * (r16 + COV_MARGIN);
+        let out_full2 = (r16 - COV_MARGIN) * (r16 - COV_MARGIN);
         for dy in -radius - 1..=radius + 1 {
-            for dx in -radius - 1..=radius + 1 {
+            let y = center.y + dy;
+            if y < vis.y || y >= vis.bottom() {
+                continue;
+            }
+            let dy16 = 16 * dy as i64;
+            let dy2 = dy16 * dy16;
+            let zero2 = out_zero2 - dy2;
+            if zero2 < 0 {
+                continue;
+            }
+            // Pixels past this half-chord are definitely uncovered.
+            let hz = isqrt(zero2 as u64) as i64;
+            let dx_lo = div_ceil_pos(-hz, 16) as i32;
+            let dx_hi = div_floor_pos(hz, 16) as i32;
+            // Pixels inside this half-chord are definitely fully covered.
+            let full2 = out_full2 - dy2;
+            let (f_lo, f_hi) = if full2 >= 0 {
+                let hf = isqrt(full2 as u64) as i64;
+                (div_ceil_pos(-hf, 16) as i32, div_floor_pos(hf, 16) as i32)
+            } else {
+                (1, 0) // empty run
+            };
+            // Clamp everything to the visible x-range (put_fast has no checks).
+            let vx_lo = vis.x - center.x;
+            let vx_hi = vis.right() - 1 - center.x;
+            let dx_lo = dx_lo.max(vx_lo);
+            let dx_hi = dx_hi.min(vx_hi);
+            let fl = f_lo.max(dx_lo).min(dx_hi + 1);
+            let fh = f_hi.min(dx_hi).max(dx_lo - 1);
+            for dx in dx_lo..fl {
                 let cov = circle_cov16(dx, dy, radius);
                 if cov > 0 {
                     let o = (opa as u32 * cov as u32 / 16) as u8;
-                    self.put_clipped(center.x + dx, center.y + dy, c, o, clip);
+                    self.put_fast(center.x + dx, y, c, o);
+                }
+            }
+            if fl <= fh {
+                if opa >= 255 {
+                    let row = ((y - self.area.y) * self.stride + (center.x + fl - self.area.x)) as usize;
+                    self.pixels[row..row + (fh - fl + 1) as usize].fill(c);
+                } else {
+                    for dx in fl..=fh {
+                        self.put_fast(center.x + dx, y, c, opa);
+                    }
+                }
+            }
+            for dx in fh + 1..=dx_hi {
+                let cov = circle_cov16(dx, dy, radius);
+                if cov > 0 {
+                    let o = (opa as u32 * cov as u32 / 16) as u8;
+                    self.put_fast(center.x + dx, y, c, o);
                 }
             }
         }
     }
 
     /// Ring (a `width`-thick circle edge, inset inward), 4x4 supersampling anti-aliased.
+    /// Ring (circle outline): per-scanline chord spans; only pixels near the
+    /// outer/inner boundary get the exact `circle_cov16` difference, the
+    /// solid band and the hollow interior are decided by squared-distance
+    /// comparisons. Pixel-identical output (see `COV_MARGIN`).
     pub fn draw_circle(&mut self, center: crate::geometry::Point, radius: i32, width: i32, c: Color, opa: u8, clip: Rect) {
         if radius <= 0 || width <= 0 {
             return;
         }
+        let Some(vis) = clip.intersect(&self.area) else {
+            return;
+        };
         let inner = radius - width;
+        let r16 = 16 * radius as i64;
+        let in16 = 16 * inner as i64;
+        let out_zero2 = (r16 + COV_MARGIN) * (r16 + COV_MARGIN);
+        // Per-pixel classification runs in whole-px units so it stays i32
+        // (hot on 32-bit cores). Dividing the (1/16 px)^2 thresholds by 256
+        // is exact against integer dx^2+dy^2: floor for the "full"/"hole"
+        // thresholds, ceil for the "full condition" lower bound.
+        let out_full2 = ((r16 - COV_MARGIN) * (r16 - COV_MARGIN) >> 8) as i32;
+        let in_zero2 = (((in16 + COV_MARGIN) * (in16 + COV_MARGIN) + 255) >> 8) as i32;
+        let in_full2 = ((in16 - COV_MARGIN) * (in16 - COV_MARGIN) >> 8) as i32;
         for dy in -radius - 1..=radius + 1 {
-            for dx in -radius - 1..=radius + 1 {
-                let cov = circle_cov16(dx, dy, radius) - circle_cov16(dx, dy, inner);
-                if cov > 0 {
-                    let o = (opa as u32 * cov as u32 / 16) as u8;
-                    self.put_clipped(center.x + dx, center.y + dy, c, o, clip);
+            let y = center.y + dy;
+            if y < vis.y || y >= vis.bottom() {
+                continue;
+            }
+            let dy16 = 16 * dy as i64;
+            let zero2 = out_zero2 - dy16 * dy16;
+            if zero2 < 0 {
+                continue;
+            }
+            let hz = isqrt(zero2 as u64) as i64;
+            let dx_lo = (div_ceil_pos(-hz, 16) as i32).max(vis.x - center.x);
+            let dx_hi = (div_floor_pos(hz, 16) as i32).min(vis.right() - 1 - center.x);
+            let dy2 = dy * dy;
+            // Pixels with d2 <= in_full2 are deep inside the hole (both
+            // coverages 16, difference 0): skip that run without per-pixel
+            // work — it is the bulk of a thin ring's bounding rows.
+            let skip2 = if inner > 0 { in_full2 - dy2 } else { -1 };
+            let hs = if skip2 >= 0 { isqrt(skip2 as u64) as i32 } else { -1 };
+            let mut process = |dx: i32| {
+                let d2 = dx * dx + dy2;
+                if d2 <= out_full2 && (inner <= 0 || d2 >= in_zero2) {
+                    // Deep inside the band: cov16(outer)=16, cov16(inner)=0.
+                    self.put_fast(center.x + dx, y, c, opa);
+                } else if inner > 0 && d2 <= in_full2 {
+                    // Deep inside the hole: both coverages are 16, difference 0.
+                } else {
+                    let cov = circle_cov16(dx, dy, radius) - circle_cov16(dx, dy, inner);
+                    if cov > 0 {
+                        let o = (opa as u32 * cov as u32 / 16) as u8;
+                        self.put_fast(center.x + dx, y, c, o);
+                    }
+                }
+            };
+            if hs < 0 {
+                for dx in dx_lo..=dx_hi {
+                    process(dx);
+                }
+            } else {
+                for dx in dx_lo..=(-hs - 1).min(dx_hi) {
+                    process(dx);
+                }
+                for dx in (hs + 1).max(dx_lo)..=dx_hi {
+                    process(dx);
                 }
             }
         }
@@ -420,6 +539,11 @@ impl DrawBuf<'_> {
 
     /// Arc/pie sector: sweeps clockwise from `start_deg` to `end_deg` (screen coordinates, 0° = +x rightward).
     /// `width` = ring thickness (a pie chart when equal to `radius`). Full-edge 4x4 supersampling anti-aliasing.
+    /// Arc (ring sector): per-scanline chord spans; pixels are classified by
+    /// squared distance to the ring boundaries and by the wedge half-plane
+    /// signs at the pixel center, with a conservative margin — only pixels
+    /// near a boundary (ring or wedge ray) get the exact `arc_cov16`
+    /// evaluation. Pixel-identical output (see `COV_MARGIN`).
     pub fn draw_arc(
         &mut self,
         center: crate::geometry::Point,
@@ -443,16 +567,66 @@ impl DrawBuf<'_> {
             self.draw_circle(center, radius, width, c, opa, clip);
             return;
         }
+        let Some(vis) = clip.intersect(&self.area) else {
+            return;
+        };
         let s = dir_vec(start_deg);
         let e = dir_vec(end);
         let and_mode = sweep <= 180;
         let inner = radius - width;
+        let r16 = 16 * radius as i64;
+        let in16 = 16 * inner as i64;
+        let out_zero2 = (r16 + COV_MARGIN) * (r16 + COV_MARGIN);
+        // Per-pixel classification runs in whole-px units so it stays i32
+        // (hot on 32-bit cores); see draw_circle for the exact /256 folding.
+        let out_full2 = ((r16 - COV_MARGIN) * (r16 - COV_MARGIN) >> 8) as i32;
+        let in_zero2 = (((in16 + COV_MARGIN) * (in16 + COV_MARGIN) + 255) >> 8) as i32;
+        let in_full2 = ((in16 - COV_MARGIN) * (in16 - COV_MARGIN) >> 8) as i32;
+        // Wedge margin in z-units (z = dir x p, |dir| = 256 per 1/16 px).
+        const MW: i64 = COV_MARGIN * 256;
+        let (sx, sy) = (s.0 as i64, s.1 as i64);
+        let (ex, ey) = (e.0 as i64, e.1 as i64);
         for dy in -radius - 1..=radius + 1 {
-            for dx in -radius - 1..=radius + 1 {
-                let cov = arc_cov16(dx, dy, radius, inner, s, e, and_mode);
-                if cov > 0 {
-                    let o = (opa as u32 * cov as u32 / 16) as u8;
-                    self.put_clipped(center.x + dx, center.y + dy, c, o, clip);
+            let y = center.y + dy;
+            if y < vis.y || y >= vis.bottom() {
+                continue;
+            }
+            let dy16 = 16 * dy as i64;
+            let zero2 = out_zero2 - dy16 * dy16;
+            if zero2 < 0 {
+                continue;
+            }
+            let hz = isqrt(zero2 as u64) as i64;
+            let dx_lo = (div_ceil_pos(-hz, 16) as i32).max(vis.x - center.x);
+            let dx_hi = (div_floor_pos(hz, 16) as i32).min(vis.right() - 1 - center.x);
+            let dy2 = dy * dy;
+            // Wedge half-plane signs at the pixel center, stepped
+            // incrementally along the row: z(dx+1) = z(dx) - 16*dir.y.
+            let mut z1 = sx * dy16 - sy * (16 * dx_lo as i64);
+            let mut z2 = ex * dy16 - ey * (16 * dx_lo as i64);
+            let dz1 = -16 * sy;
+            let dz2 = -16 * ey;
+            for dx in dx_lo..=dx_hi {
+                let d2 = dx * dx + dy2;
+                let ring_full = d2 <= out_full2 && (inner <= 0 || d2 >= in_zero2);
+                let ring_zero = inner > 0 && d2 <= in_full2;
+                let (w_full, w_zero) = if and_mode {
+                    (z1 >= MW && z2 <= -MW, z1 <= -MW || z2 >= MW)
+                } else {
+                    (z1 >= MW || z2 <= -MW, z1 <= -MW && z2 >= MW)
+                };
+                z1 += dz1;
+                z2 += dz2;
+                if ring_full && w_full {
+                    self.put_fast(center.x + dx, y, c, opa);
+                } else if ring_zero || w_zero {
+                    continue;
+                } else {
+                    let cov = arc_cov16(dx, dy, radius, inner, s, e, and_mode);
+                    if cov > 0 {
+                        let o = (opa as u32 * cov as u32 / 16) as u8;
+                        self.put_fast(center.x + dx, y, c, o);
+                    }
                 }
             }
         }
