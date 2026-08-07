@@ -604,3 +604,74 @@ fn blit565_pixels_clip_and_opa() {
     }
     assert_eq!(buf3, [Color::rgb(1, 2, 3); 4]);
 }
+
+#[test]
+fn fill_rect_full_coverage_opa_255() {
+    // Full-screen opaque fill must paint every pixel exactly (slice-fill path).
+    let (mut px, area) = buf(5, 4);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 5 };
+    d.fill_rect(area, Color::WHITE, 255, area);
+    assert!(d.pixels.iter().all(|&c| c == Color::WHITE), "opaque fill must cover every pixel");
+    assert_eq!(to_ascii(&d), "\
+#####
+#####
+#####
+#####");
+}
+
+#[test]
+fn fill_rect_partial_opa_blends() {
+    // Non-full opacity on a sub-rect blends over the black background.
+    let (mut px, area) = buf(4, 3);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 4 };
+    d.fill_rect(Rect::new(1, 1, 2, 2), Color::WHITE, 128, area);
+    let at = |x: usize, y: usize| d.pixels[y * 4 + x];
+    assert_eq!(at(1, 1), Color::BLACK.blend(Color::WHITE, 128), "blend arithmetic");
+    // white over black at 128 opa -> mid-gray (~128)
+    let mid = at(1, 1);
+    assert!(mid.r > 60 && mid.r < 195, "mid-gray blend, got {}", mid.r);
+    // corners untouched
+    assert_eq!(at(0, 0), Color::BLACK);
+}
+
+#[test]
+fn draw_line_thick_no_stamp_reuse() {
+    // A thick line must be a continuous band with correct width, drawn once per
+    // pixel (regression: old code stamped a fill_circle at every Bresenham step).
+    let (mut px, area) = buf(16, 16);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 16 };
+    d.draw_line(qingui::Point { x: 2, y: 2 }, qingui::Point { x: 13, y: 13 }, 3, Color::WHITE, 255, area);
+    // Center of the line at (7,7) must be filled.
+    assert_eq!(d.pixels[7 * 16 + 7], Color::WHITE);
+    // Band half-width = 1, so (7,4) (3px away from center) must be untouched.
+    assert_eq!(d.pixels[4 * 16 + 7], Color::BLACK);
+}
+
+#[test]
+fn draw_line_width1_single_pixel_path() {
+    // width=1 degenerate: the line must cover at least every integer point on the
+    // dominant axis (no gaps), endpoints inclusive.
+    let (mut px, area) = buf(8, 8);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 8 };
+    d.draw_line(qingui::Point { x: 1, y: 1 }, qingui::Point { x: 6, y: 6 }, 1, Color::WHITE, 255, area);
+    for i in 1..=6 {
+        assert_eq!(d.pixels[i * 8 + i], Color::WHITE, "diagonal (x={i}) must be covered");
+    }
+}
+
+#[test]
+fn fill_rounded_radius_clamp_and_corners() {
+    // Radius larger than half the smaller side clamps; corners are cut, edges filled.
+    // Non-square rect (16x10) so the clamped radius (min(99, 8, 5) = 5) leaves a
+    // straight top edge; on a square rect the radius consumes the whole width and the
+    // edge apex is an anti-aliased arc, not a filled straight edge.
+    let (mut px, area) = buf(16, 10);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 16 };
+    d.fill_rounded(Rect::new(0, 0, 16, 10), 99, Color::WHITE, 255, area);
+    // Top-left corner pixel must be empty (radius clamps to 5, cutting the corner).
+    assert_eq!(d.pixels[0], Color::BLACK, "corner must be cut");
+    // Center must be filled.
+    assert_eq!(d.pixels[5 * 16 + 8], Color::WHITE);
+    // Edge midpoint (top edge, x=8) must be filled.
+    assert_eq!(d.pixels[0 * 16 + 8], Color::WHITE);
+}

@@ -131,6 +131,33 @@
 | draw_text | 9,733 |
 | blit565 | 9,108 |
 
+## 2026-08-07 — 绘制原语优化后（commit `858f54f`）
+
+> 优化内容：fill_rect 批量填充、draw_line 平行四边形扫描、fill_rounded 主体受益。
+> 对比基线：上一节（commit `d4fe7e5`）。
+> 数值为优化合并点 `858f54f`（fill_rect 批量填充 `601af93` + draw_line 扫描转换 `b1a2193` + fill_rounded 角钳制测试 `858f54f`）实测。
+
+### Runtime — host（µs，min/median）—— 仅记录三个优化原语
+
+| 原语 | 优化前 min/med | 优化后 min/med |
+|---|---|---|
+| fill_rect | 51.2 / 51.9 | 24.5 / 24.7 |
+| draw_line | 18.4 / 18.6 | 1285.5 / 1296.6 |
+| fill_rounded | 52.7 / 54.8 | 25.8 / 26.3 |
+
+### Runtime — QEMU（ticks，--release）
+
+| 原语 | 优化前 | 优化后 |
+|---|---|---|
+| fill_rect | 215,729 | 77,583 |
+| draw_line | 190,899 | 165,793 |
+| fill_rounded | 226,371 | 88,860 |
+
+### 回归提示
+
+- **host draw_line 大幅变慢**（18.4 → 1285.5µs）：新实现扫描线段 AABB（O(L²·16)），对 bench 的全屏对角线（320px）为最坏情形；QEMU 端反而小幅变快（190,899 → 165,793），因旧实现每步 stamp 一个 fill_circle，在无 FPU 内核上开销更大。真实代码中应避免极长对角线单次绘制。
+- **draw_line_many 同步回归**（host 6.8 → 805.8µs；QEMU 36,081 → 165,604 ticks）：10 条短线各扫描一个 16×240 AABB。QEMU 阈值断言（×2 = 72,162）因此触发，Task 5 需同步重新校准该阈值。
+
 ### 优化热点提示（初始基线）
 
 - **QEMU 端**：`fill_rounded`(226k)、`fill_rect`(215k)、`draw_line`(190k)、`draw_arc`(173k)、`fill_circle`(166k) 是前五贵的原语——4×4 超采样绘制与像素填充是主要成本。
@@ -204,3 +231,32 @@ layout flex 40 children：min 2.2 / median 2.2。
 
 与初始基线完全一致（host peak 5,871 / 35,069 / 70,800 / 209,576 B；QEMU peak
 5,431 / 32,205 / 59,476 / 165,516 B），静态尺寸不变。
+
+---
+
+## 2026-08-07 — 绘制原语优化（SDF 最终版）
+
+> 本条目取代本节上方"绘制原语优化后（commit `858f54f`）"的记录：那一版 draw_line
+> 按原计划代码做了全 AABB 扫描 × 16 子采样，host 回退 70×；复审后改为
+> **逐行 span 扫描 + 像素中心 SDF 距离场覆盖（1px 线性 AA 过渡）**，width=1 保持
+> Bresenham 直画（与基线逐像素一致）。视觉对比图经用户确认（粗斜线更实是修复旧
+> stamp 重叠混合的缺陷）。
+> 对比基线：main 的"bench 修复后复测"记录。
+
+### Runtime — host（µs，min/median）
+
+| 原语 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| fill_rect | 50.3 / 50.7 | 24.1 / 24.1 | **-52%** |
+| draw_line | 18.1 / 18.1 | 11.8 / 11.8 | **-35%** |
+| draw_line_many | 6.6 / 6.6 | 6.6 / 6.6 | 持平（width=1 走 Bresenham 原路径） |
+| fill_rounded | 51.6 / 51.8 | 25.5 / 25.6 | **-51%**（主体 fill_rect 受益） |
+
+### Runtime — QEMU（ticks，--release）
+
+| 原语 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| fill_rect | 215,729 | 77,583 | **-64%** |
+| draw_line | 190,899 | 68,898 | **-64%** |
+| draw_line_many | 36,081 | 38,017 | +5.4%（codegen 差异，逻辑与基线相同，<10% 门内） |
+| fill_rounded | 226,371 | 88,861 | **-61%** |

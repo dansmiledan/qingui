@@ -73,6 +73,135 @@ fn arc_cov16(dx: i32, dy: i32, outer: i32, inner: i32, s: (i32, i32), e: (i32, i
     n
 }
 
+/// Signed-distance-field coverage of a thick line segment, evaluated at the
+/// pixel CENTER: perpendicular distance to the segment while inside its
+/// extent, Euclidean distance to the nearer endpoint at the round caps.
+/// Coverage is a 1px-wide linear ramp: full (16/16) at distance <= r16 - 8,
+/// falling to 0 at r16 + 8 — cheap analytic AA in the same 0..=16 scale as
+/// `circle_cov16`, without a 16x subsample loop per pixel.
+///
+/// All coordinates are in 1/16-pixel fixed-point units (the pixel center is
+/// `16*px`, matching `circle_cov16`'s subsample average). `ux`/`uy` are the
+/// segment vector scaled by 16; `inv_len` is `(1<<32) / length_in_1/16px`,
+/// precomputed once per line so the hot path has no division.
+#[allow(clippy::too_many_arguments)]
+fn line_sdf_cov16(px: i32, py: i32, x0: i32, y0: i32, ux: i64, uy: i64, len2_64: i64, inv_len: i64, r16: i64) -> i32 {
+    let cx = (16 * px - 16 * x0) as i64;
+    let cy = (16 * py - 16 * y0) as i64;
+    let t = cx * ux + cy * uy;
+    let d16 = if t >= 0 && t <= len2_64 {
+        // Perpendicular distance to the infinite line: |cross(u, v)| / |u|.
+        let cross = (cx * uy - cy * ux).abs();
+        (cross * inv_len) >> 32
+    } else {
+        // Round cap: distance to the nearer endpoint (few pixels, isqrt ok).
+        let (ex, ey) = if t < 0 { (cx, cy) } else { (cx - ux, cy - uy) };
+        isqrt((ex * ex + ey * ey) as u64) as i64
+    };
+    (r16 + 8 - d16).clamp(0, 16) as i32
+}
+
+/// Integer square root (floor), bit-by-bit method; no_std-friendly.
+fn isqrt(n: u64) -> u64 {
+    let mut x = n;
+    let mut c = 0u64;
+    let mut d = 1u64 << 62; // largest power of four <= u64::MAX
+    while d > n {
+        d >>= 2;
+    }
+    while d != 0 {
+        if x >= c + d {
+            x -= c + d;
+            c = (c >> 1) + d;
+        } else {
+            c >>= 1;
+        }
+        d >>= 2;
+    }
+    c
+}
+
+/// Floor/ceil division with a positive divisor (`div_floor`/`div_ceil` are
+/// unstable on this toolchain). Rust's `/` truncates toward zero, so only
+/// the non-exact cases with the "wrong" sign need a one-step adjustment.
+fn div_floor_pos(a: i64, b: i64) -> i64 {
+    debug_assert!(b > 0);
+    let q = a / b;
+    if a < 0 && a % b != 0 { q - 1 } else { q }
+}
+
+fn div_ceil_pos(a: i64, b: i64) -> i64 {
+    debug_assert!(b > 0);
+    let q = a / b;
+    if a > 0 && a % b != 0 { q + 1 } else { q }
+}
+
+/// Inclusive x-span covered by the thick segment (capsule: segment swept with
+/// a disk of radius `rm` = half-width + 1px AA margin) on scanline `y`, or
+/// None when the row misses it. The capsule is convex, so each row's
+/// intersection is a single interval: strip (|cross| <= rm*len) intersected
+/// with the slab between the endpoint planes, unioned with the two round-cap
+/// disks. All integer math; divisions are per-row, not per-pixel.
+///
+/// The +1px margin guarantees every pixel with nonzero coverage lies inside
+/// the returned span (the AA ramp reaches at most half-width + 0.5px from the
+/// segment), so scanning only the span misses no covered pixel.
+#[allow(clippy::too_many_arguments)]
+fn line_row_span(y: i32, x0: i32, y0: i32, x1: i32, y1: i32, dx: i32, dy: i32, len2: i32, rm: i64) -> Option<(i32, i32)> {
+    let len = isqrt(len2 as u64) as i64;
+    let strip = rm * len;
+    let yy = (y - y0) as i64;
+    let mut span: Option<(i64, i64)> = None;
+
+    // Row-level checks for the degenerate axis-aligned forms of strip/slab.
+    let in_strip = dy != 0 || (yy * dx as i64).abs() <= strip;
+    let t_row = yy * dy as i64;
+    let in_slab = dx != 0 || (0..=len2 as i64).contains(&t_row);
+    if in_strip && in_slab {
+        let mut lo = i64::MIN / 2;
+        let mut hi = i64::MAX / 2;
+        // Strip: c - strip <= (x-x0)*dy <= c + strip, with c = yy*dx.
+        if dy != 0 {
+            let c = yy * dx as i64;
+            // Normalize to a positive divisor so ceil/floor division apply.
+            let (a, b, d) = if dy > 0 {
+                (c - strip, c + strip, dy as i64)
+            } else {
+                (-(c + strip), -(c - strip), -(dy as i64))
+            };
+            lo = x0 as i64 + div_ceil_pos(a, d);
+            hi = x0 as i64 + div_floor_pos(b, d);
+        }
+        // Slab: 0 <= (x-x0)*dx + yy*dy <= len2.
+        if dx != 0 {
+            let (a, b, d) = if dx > 0 {
+                (-t_row, len2 as i64 - t_row, dx as i64)
+            } else {
+                (t_row - len2 as i64, t_row, -(dx as i64))
+            };
+            lo = lo.max(x0 as i64 + div_ceil_pos(a, d));
+            hi = hi.min(x0 as i64 + div_floor_pos(b, d));
+        }
+        if lo <= hi {
+            span = Some((lo, hi));
+        }
+    }
+    // Round caps: disk of radius rm around each endpoint.
+    for (cx, cy) in [(x0, y0), (x1, y1)] {
+        let dyc = (y - cy) as i64;
+        let rem = rm * rm - dyc * dyc;
+        if rem >= 0 {
+            let half = isqrt(rem as u64) as i64;
+            span = Some(match span {
+                Some((lo, hi)) => (lo.min(cx as i64 - half), hi.max(cx as i64 + half)),
+                None => (cx as i64 - half, cx as i64 + half),
+            });
+        }
+    }
+    let (lo, hi) = span?;
+    Some((lo as i32, hi as i32))
+}
+
 /// Rect → e-g Rectangle (x/y origin + size; negative sizes are defended to 0)
 fn eg_rect(r: Rect) -> embedded_graphics::primitives::Rectangle {
     embedded_graphics::primitives::Rectangle::new(
@@ -118,14 +247,42 @@ impl DrawBuf<'_> {
         }
     }
 
+    /// Writes a pixel without bounds checking. The caller must ensure `(x, y)`
+    /// lies inside the buffer area — used by internal paths that already
+    /// clipped the region (e.g. `fill_rect` after intersecting with the area).
+    fn put_fast(&mut self, x: i32, y: i32, c: Color, opa: u8) {
+        let lx = x - self.area.x;
+        let ly = y - self.area.y;
+        let idx = (ly * self.stride + lx) as usize;
+        if opa >= 255 {
+            self.pixels[idx] = c;
+        } else if opa > 0 {
+            self.pixels[idx] = self.pixels[idx].blend(c, opa);
+        }
+    }
+
     /// Fills `r` with `c` at opacity `opa` (0..=255), clipped to `clip` and the buffer area.
     pub fn fill_rect(&mut self, r: Rect, c: Color, opa: u8, clip: Rect) {
         let Some(r) = r.intersect(&clip).and_then(|r| r.intersect(&self.area)) else {
             return;
         };
-        for y in r.y..r.bottom() {
-            for x in r.x..r.right() {
-                self.put(x, y, c, opa);
+        if opa >= 255 {
+            // Opaque fast path: batch-fill whole rows (no per-pixel bounds check,
+            // no per-pixel blending).
+            let area_x = self.area.x;
+            let area_y = self.area.y;
+            let stride = self.stride;
+            let w = r.w as usize;
+            for y in r.y..r.bottom() {
+                let row = ((y - area_y) * stride + (r.x - area_x)) as usize;
+                self.pixels[row..row + w].fill(c);
+            }
+        } else {
+            // Translucent: per-pixel blend on the already-clipped region.
+            for y in r.y..r.bottom() {
+                for x in r.x..r.right() {
+                    self.put_fast(x, y, c, opa);
+                }
             }
         }
     }
@@ -345,33 +502,99 @@ impl DrawBuf<'_> {
         .draw(&mut t);
     }
 
-    /// Line (Bresenham + a radius stamp for line width).
+    /// Line as a thick segment (`width >= 2`): for each scanline, the span
+    /// covered by the capsule (segment + round caps of radius `width/2`) is
+    /// computed analytically (`line_row_span`), and only span pixels get a
+    /// signed-distance coverage evaluation (`line_sdf_cov16`, 1px linear AA
+    /// ramp). Replaces the old Bresenham + per-step `fill_circle` stamp
+    /// (which repainted overlapping pixels on thick lines) — and avoids
+    /// scanning the full bounding box, which made long diagonals quadratic.
+    ///
+    /// `width == 1` keeps the old plain Bresenham walk: it has no AA in the
+    /// baseline either, and a coverage-evaluated 1px line is ~15x slower for
+    /// no visual requirement (see the plan's review amendment).
+    ///
+    /// The width branches live in separate methods so this small dispatcher
+    /// stays inlinable — with a constant `width` at the call site (the common
+    /// case) the compiler specializes straight to the relevant path.
     pub fn draw_line(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, width: i32, c: Color, opa: u8, clip: Rect) {
-        let (mut x0, mut y0) = (p1.x, p1.y);
+        if width <= 0 {
+            return;
+        }
+        if width == 1 {
+            self.draw_line_width1(p1, p2, c, opa, clip);
+        } else {
+            self.draw_line_thick(p1, p2, width, c, opa, clip);
+        }
+    }
+
+    /// 1px fast path: Bresenham walk, one put per step, no AA (same output
+    /// as the pre-optimization baseline).
+    fn draw_line_width1(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, c: Color, opa: u8, clip: Rect) {
+        let (mut x, mut y) = (p1.x, p1.y);
         let (x1, y1) = (p2.x, p2.y);
-        let dx = (x1 - x0).abs();
-        let dy = -(y1 - y0).abs();
-        let sx = if x0 < x1 { 1 } else { -1 };
-        let sy = if y0 < y1 { 1 } else { -1 };
+        let dx = (x1 - x).abs();
+        let dy = -(y1 - y).abs();
+        let sx = if x < x1 { 1 } else { -1 };
+        let sy = if y < y1 { 1 } else { -1 };
         let mut err = dx + dy;
-        let r = width / 2;
         loop {
-            if r > 0 {
-                self.fill_circle(crate::geometry::Point { x: x0, y: y0 }, r, c, opa, clip);
-            } else {
-                self.put_clipped(x0, y0, c, opa, clip);
-            }
-            if x0 == x1 && y0 == y1 {
+            self.put_clipped(x, y, c, opa, clip);
+            if x == x1 && y == y1 {
                 break;
             }
             let e2 = 2 * err;
             if e2 >= dy {
                 err += dy;
-                x0 += sx;
+                x += sx;
             }
             if e2 <= dx {
                 err += dx;
-                y0 += sy;
+                y += sy;
+            }
+        }
+    }
+
+    /// Thick line (`width >= 2`): per-scanline capsule span + signed-distance
+    /// coverage at pixel centers; see `draw_line`.
+    fn draw_line_thick(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, width: i32, c: Color, opa: u8, clip: Rect) {
+        let (x0, y0) = (p1.x, p1.y);
+        let (x1, y1) = (p2.x, p2.y);
+        // Segment vector (dx, dy) and its half-width normal radius.
+        let (dx, dy) = (x1 - x0, y1 - y0);
+        let len2 = dx * dx + dy * dy;
+        if len2 == 0 {
+            // Degenerate point: single stamped pixel.
+            self.put_clipped(x0, y0, c, opa, clip);
+            return;
+        }
+        let r = width / 2;
+        let rm = (r + 1) as i64; // half-width + 1px AA margin
+        // Per-line invariants for the SDF coverage (1/16 px fixed point).
+        let r16 = (width * 16 / 2) as i64;
+        let (ux, uy) = (16 * dx as i64, 16 * dy as i64);
+        let len2_64 = len2 as i64 * 256;
+        let inv_len = (1i64 << 32) / isqrt(len2_64 as u64) as i64;
+        // Visible region: clip once, then the span loop needs no per-pixel
+        // bounds checks (put_fast).
+        let Some(vis) = clip.intersect(&self.area) else {
+            return;
+        };
+        // Scanline range of the capsule, clamped to the visible rows.
+        let miny = (y0.min(y1) - r - 1).max(vis.y);
+        let maxy = (y0.max(y1) + r + 1).min(vis.bottom() - 1);
+        for y in miny..=maxy {
+            let Some((lo, hi)) = line_row_span(y, x0, y0, x1, y1, dx, dy, len2, rm) else {
+                continue;
+            };
+            let lo = lo.max(vis.x);
+            let hi = hi.min(vis.right() - 1);
+            for x in lo..=hi {
+                let cov = line_sdf_cov16(x, y, x0, y0, ux, uy, len2_64, inv_len, r16);
+                if cov > 0 {
+                    let o = (opa as u32 * cov as u32 / 16) as u8;
+                    self.put_fast(x, y, c, o);
+                }
             }
         }
     }

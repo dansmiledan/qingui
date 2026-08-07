@@ -461,3 +461,29 @@ git commit -m "bench: recalibrate qemu-time thresholds after draw primitive opti
 - 测试辅助 `buf`/`to_ascii`/`ascii_buf` 沿用现有 tests/draw.rs 顶部函数，签名不变。
 - `Color::blend(self, over, opa)` 按 geometry.rs:123 签名使用。
 - `fill_rounded` 在 Task 1 后主体 `fill_rect` 自动走新路径，无签名变化。
+
+---
+
+## 复审修订（2026-08-07，执行后复审）
+
+> 首轮执行（601af93..6c9e0dc）后发现以下问题，经与用户逐条确认，按以下决议修订：
+
+1. **Task 2 原代码缺陷**：原计划 Step 3 给的是全 AABB 扫描 × 16 子采样，与 Architecture 的
+   "逐行求 span" 矛盾，实测 host draw_line 回退 70×（18.4→1285.5µs）、draw_line_many
+   QEMU 超 ×2 阈值。**修订**：draw_line 改为真正的逐行 span 扫描——利用胶囊形（线段+圆帽）
+   的凸性，每行用整数运算解析求 x 交集（strip ∩ slab，加圆帽半弦），只在 span（+1px AA
+   余量）内评估 `line_cov16`。`line_cov16` 语义不变（含 solid-core），像素输出与首轮一致。
+2. **验收仲裁原则**（解决验收标准与 Task 5 的矛盾）：任一原语在 host 或 QEMU 回退 >10%
+   即视为未完成，**不得**用"新值×2 重校准"掩盖；阈值只向下校准（变快才更新 LIMIT）。
+3. **圆帽语义**：`cap2 = r2`（帽半径=半宽，与旧 stamp 行为一致）。原计划 `cap2 = r2*4`
+   会让线段两端各延长约 width/2，为计划错误，首轮实现已自行修正，予以追认。
+4. **solid-core 快捷路径**（首轮实现新增，计划外）：保留。已知其为近似（像素中心在带内
+   不保证全部子采样在带内，细线略粗、AA 略弱），用于修复 1px 对角线半透明问题。
+5. **视觉对比形式**：改为输出新旧算法对比图片（PPM），由用户肉眼确认。
+6. **调试残留**：首轮遗留的 `line_cov16` 恒 16 stub（未提交，会导致 9 个测试失败）已丢弃。
+
+7. **SDF 覆盖（二次修订，用户确认）**：第一版 span 扫描保留 4×4 子采样 `line_cov16`，
+   视觉对比后用户认为粗线观感不如旧 stamp（w=2 边界全实心、偏粗）。改为像素中心
+   **SDF 距离场**覆盖（1px 线性 AA 过渡，每线预计算 `inv_len`，热路径无除法无子采样
+   循环），w=2 水平线边缘 143 vs 旧 142，观感对齐；粗斜线更实更亮为修复旧 stamp
+   重叠混合缺陷，用户已确认。`line_cov16` 移除；最终 host draw_line -35%、QEMU -64%。
