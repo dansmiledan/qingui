@@ -124,6 +124,33 @@
 | draw_text | 9,733 |
 | blit565 | 9,108 |
 
+## 2026-08-07 — 绘制原语优化后（commit `858f54f`）
+
+> 优化内容：fill_rect 批量填充、draw_line 平行四边形扫描、fill_rounded 主体受益。
+> 对比基线：上一节（commit `d4fe7e5`）。
+> 数值为优化合并点 `858f54f`（fill_rect 批量填充 `601af93` + draw_line 扫描转换 `b1a2193` + fill_rounded 角钳制测试 `858f54f`）实测。
+
+### Runtime — host（µs，min/median）—— 仅记录三个优化原语
+
+| 原语 | 优化前 min/med | 优化后 min/med |
+|---|---|---|
+| fill_rect | 51.2 / 51.9 | 24.5 / 24.7 |
+| draw_line | 18.4 / 18.6 | 1285.5 / 1296.6 |
+| fill_rounded | 52.7 / 54.8 | 25.8 / 26.3 |
+
+### Runtime — QEMU（ticks，--release）
+
+| 原语 | 优化前 | 优化后 |
+|---|---|---|
+| fill_rect | 215,729 | 77,583 |
+| draw_line | 190,899 | 165,793 |
+| fill_rounded | 226,371 | 88,860 |
+
+### 回归提示
+
+- **host draw_line 大幅变慢**（18.4 → 1285.5µs）：新实现扫描线段 AABB（O(L²·16)），对 bench 的全屏对角线（320px）为最坏情形；QEMU 端反而小幅变快（190,899 → 165,793），因旧实现每步 stamp 一个 fill_circle，在无 FPU 内核上开销更大。真实代码中应避免极长对角线单次绘制。
+- **draw_line_many 同步回归**（host 6.8 → 805.8µs；QEMU 36,081 → 165,604 ticks）：10 条短线各扫描一个 16×240 AABB。QEMU 阈值断言（×2 = 72,162）因此触发，Task 5 需同步重新校准该阈值。
+
 ### 优化热点提示（初始基线）
 
 - **QEMU 端**：`fill_rounded`(226k)、`fill_rect`(215k)、`draw_line`(190k)、`draw_arc`(173k)、`fill_circle`(166k) 是前五贵的原语——4×4 超采样绘制与像素填充是主要成本。
