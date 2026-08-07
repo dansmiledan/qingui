@@ -12,29 +12,31 @@
 //! shift=3` runner in `.cargo/config.toml` applies):
 //!
 //! ```text
-//! (cd tools/qemu-time && cargo run --target thumbv7em-none-eabihf)
+//! (cd tools/qemu-time && cargo run --release --target thumbv7em-none-eabihf)
 //! ```
 //!
-//! The reported ticks are measured under the dev profile (what `cargo run`
-//! uses): debug assertions are on, so the allocator's `validate_free` free-list
-//! walk runs on every alloc/dealloc, and the numbers therefore include
-//! allocator overhead. Regression gates stay valid because baseline and current
-//! runs build the same way.
+//! IMPORTANT: run with `--release`. The dev profile (plain `cargo run`)
+//! produces distorted numbers — unoptimized code + `debug_assertions` skew
+//! the relative primitive costs (e.g. dev showed `draw_border`/`draw_circle`
+//! more expensive than `draw_arc`, and `fill_rounded` cheaper than
+//! `fill_rect`, which is impossible; release reverses both). The threshold
+//! asserts below are calibrated against the release baselines, so a dev run
+//! will (correctly) fail them.
 //!
 //! On host builds (workspace `cargo test`/`cargo build`) this compiles to a
 //! stub so the crate stays a clean workspace member.
 //!
 //! BASELINE 2026-08-07 (QEMU mps2-an386, `-icount shift=3`,
-//! thumbv7em-none-eabihf, dev profile, SysTick ticks; deterministic, verified
-//! identical across 2 runs):
-//!   layout (40 children, 320x240)             =      95667
-//!   render full  Minimal  (3 nodes, 19200 px) =    2029561  partial =   678765  frame = 2042022
-//!   render full  Small    (16 nodes, 76800 px)=    7488230  partial =  4261180  frame = 7517158
-//!   render full  Medium   (50 nodes, 76800 px)=    2140347  partial = 15166486  frame = 2170896
-//!   render full  Large    (140 nodes, 76800px)=   15776983  partial = 10606006  frame = 15846535
-//!   fill_rect=64015 draw_line=67425 draw_line_many=160474 draw_circle=209946
-//!   fill_circle=54871 fill_rounded=24960 draw_border=213775 draw_arc=152215
-//!   draw_text=141124 blit565=68643
+//! thumbv7em-none-eabihf, RELEASE profile, SysTick ticks; deterministic,
+//! verified identical across 2 runs):
+//!   layout (40 children, 320x240)             =       8784
+//!   render full  Minimal  (3 nodes, 19200 px) =     72619  partial =  25126  frame = 72844
+//!   render full  Small    (16 nodes, 76800 px)=    339889  partial = 156030  frame = 340891
+//!   render full  Medium   (50 nodes, 76800 px)=    777823  partial = 535563  frame = 780024
+//!   render full  Large    (140 nodes, 76800px)=   1945304  partial = 1539392  frame = 1950620
+//!   fill_rect=215729 draw_line=190899 draw_line_many=36081 draw_circle=161012
+//!   fill_circle=166656 fill_rounded=226371 draw_border=60274 draw_arc=173846
+//!   draw_text=9733 blit565=9178
 
 #[cfg(target_arch = "arm")]
 extern crate alloc;
@@ -64,51 +66,51 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 // Thresholds calibrated 2026-08-07: QEMU baseline x 2 (see spec
 // docs/superpowers/specs/2026-08-07-runtime-bench-design.md).
 #[cfg(target_arch = "arm")]
-const LIMIT_LAYOUT: u64 = 191_334; // 2 * 95667
+const LIMIT_LAYOUT: u64 = 17_568; // 2 * 8784
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_MINIMAL: u64 = 4_059_122; // 2 * 2029561
+const LIMIT_RENDER_FULL_MINIMAL: u64 = 145_238; // 2 * 72619
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_MINIMAL: u64 = 1_357_530; // 2 * 678765
+const LIMIT_RENDER_PARTIAL_MINIMAL: u64 = 50_252; // 2 * 25126
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_MINIMAL: u64 = 4_084_044; // 2 * 2042022
+const LIMIT_FRAME_MINIMAL: u64 = 145_688; // 2 * 72844
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_SMALL: u64 = 14_976_460; // 2 * 7488230
+const LIMIT_RENDER_FULL_SMALL: u64 = 679_778; // 2 * 339889
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_SMALL: u64 = 8_522_360; // 2 * 4261180
+const LIMIT_RENDER_PARTIAL_SMALL: u64 = 312_060; // 2 * 156030
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_SMALL: u64 = 15_034_316; // 2 * 7517158
+const LIMIT_FRAME_SMALL: u64 = 681_782; // 2 * 340891
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_MEDIUM: u64 = 4_280_694; // 2 * 2140347
+const LIMIT_RENDER_FULL_MEDIUM: u64 = 1_555_646; // 2 * 777823
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_MEDIUM: u64 = 30_332_972; // 2 * 15166486
+const LIMIT_RENDER_PARTIAL_MEDIUM: u64 = 1_071_126; // 2 * 535563
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_MEDIUM: u64 = 4_341_792; // 2 * 2170896
+const LIMIT_FRAME_MEDIUM: u64 = 1_560_048; // 2 * 780024
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_FULL_LARGE: u64 = 31_553_966; // 2 * 15776983
+const LIMIT_RENDER_FULL_LARGE: u64 = 3_890_608; // 2 * 1945304
 #[cfg(target_arch = "arm")]
-const LIMIT_RENDER_PARTIAL_LARGE: u64 = 21_212_012; // 2 * 10606006
+const LIMIT_RENDER_PARTIAL_LARGE: u64 = 3_078_784; // 2 * 1539392
 #[cfg(target_arch = "arm")]
-const LIMIT_FRAME_LARGE: u64 = 31_693_070; // 2 * 15846535
+const LIMIT_FRAME_LARGE: u64 = 3_901_240; // 2 * 1950620
 #[cfg(target_arch = "arm")]
-const LIMIT_FILL_RECT: u64 = 128_030; // 2 * 64015
+const LIMIT_FILL_RECT: u64 = 431_458; // 2 * 215729
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_LINE: u64 = 134_850; // 2 * 67425
+const LIMIT_DRAW_LINE: u64 = 381_798; // 2 * 190899
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_LINE_MANY: u64 = 320_948; // 2 * 160474
+const LIMIT_DRAW_LINE_MANY: u64 = 72_162; // 2 * 36081
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_CIRCLE: u64 = 419_892; // 2 * 209946
+const LIMIT_DRAW_CIRCLE: u64 = 322_024; // 2 * 161012
 #[cfg(target_arch = "arm")]
-const LIMIT_FILL_CIRCLE: u64 = 109_742; // 2 * 54871
+const LIMIT_FILL_CIRCLE: u64 = 333_312; // 2 * 166656
 #[cfg(target_arch = "arm")]
-const LIMIT_FILL_ROUNDED: u64 = 49_920; // 2 * 24960
+const LIMIT_FILL_ROUNDED: u64 = 452_742; // 2 * 226371
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_BORDER: u64 = 427_550; // 2 * 213775
+const LIMIT_DRAW_BORDER: u64 = 120_548; // 2 * 60274
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_ARC: u64 = 304_430; // 2 * 152215
+const LIMIT_DRAW_ARC: u64 = 347_692; // 2 * 173846
 #[cfg(target_arch = "arm")]
-const LIMIT_DRAW_TEXT: u64 = 282_248; // 2 * 141124
+const LIMIT_DRAW_TEXT: u64 = 19_466; // 2 * 9733
 #[cfg(target_arch = "arm")]
-const LIMIT_BLIT565: u64 = 137_286; // 2 * 68643
+const LIMIT_BLIT565: u64 = 18_356; // 2 * 9178
 
 #[cfg(target_arch = "arm")]
 fn report_layout() {
@@ -228,5 +230,5 @@ fn main() -> ! {
 #[cfg(not(target_arch = "arm"))]
 fn main() {
     println!("qemu-time targets the bare-metal Cortex-M4F; build and run it for the embedded target:");
-    println!("  (cd tools/qemu-time && cargo run --target thumbv7em-none-eabihf)");
+    println!("  (cd tools/qemu-time && cargo run --release --target thumbv7em-none-eabihf)");
 }

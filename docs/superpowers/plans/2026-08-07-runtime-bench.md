@@ -17,7 +17,7 @@
 - **阈值程序**：Task 3 只打印测基线；Task 5 按 `基线 × 2` 填入常量并启用断言。
 - **`cargo test -p qingui`、`cargo test -p qemu-time` 必须全绿**。
 - **git**：只本地 commit，不 push；Commit message 英文（Conventional Commits）。
-- **验证命令**：`cargo test -p qingui`、`cargo test -p qemu-time`、`cargo bench -p qingui --bench time`、`cargo run -p qemu-time --target thumbv7em-none-eabihf`。
+- **验证命令**：`cargo test -p qingui`、`cargo test -p qemu-time`、`cargo bench -p qingui --bench time`、`(cd tools/qemu-time && cargo run --release --target thumbv7em-none-eabihf)`。**QEMU 工具必须用 `--release`**（dev profile 指令计数失真，实测 fill_rounded < fill_rect 等不可能结果；阈值按 release 基线校准，见 spec §2）。
 
 ---
 

@@ -59,10 +59,12 @@ tools/qemu-time/          ← QEMU 端：SysTick + -icount shift=3，确定性�
 | SysTick（无 `-icount`） | 不走（虚拟时钟只在宿主墙钟到点才跳变） |
 | **SysTick + `-icount shift=3`** | **可用**：确定性、随指令数线性推进 |
 
-**运行方式**（写入 `.cargo/config.toml` runner）：
+**运行方式**（写入 `.cargo/config.toml` runner；工具必须用 `--release` 构建运行）：
 ```
 qemu-system-arm -machine mps2-an386 -icount shift=3 -nographic -semihosting-config enable=on,target=native -kernel
 ```
+
+**profile 要求（重要）**：QEMU 工具必须用 `--release` 构建。dev profile（opt-level 0 + debug_assertions 全开）会让 SysTick 指令计数严重失真——实测 dev 下 `draw_border`/`draw_circle` 比 `draw_arc` 贵、`fill_rounded` 比 `fill_rect` 便宜（后者数学上不可能，fill_rounded 做严格更多工作），而 release 下两者反转且与 host 排序一致（arc > circle > border）。阈值断言按 release 基线 ×2 校准，dev 运行会（正确地）断言失败。
 
 **语义边界**：`ticks` 是 QEMU 确定性虚拟周期（1 tick = 2^shift = 8 虚拟 ns），非真实硬件周期。绝对数以真硬件 DWT 为准；本工具价值在相对成本形状 + 回归护栏——与 memory bench 完全一致的定位（README 已记录同样措辞）。
 
@@ -139,7 +141,7 @@ N 分档：Small 10 / Medium 40 / Large 160。子控件含混合类型（Label/B
 ## 验收标准
 
 1. `cargo bench -p qingui --bench time` 运行成功，打印完整报告（layout/render 全屏/局部/帧/原语），host 端退出码 0。
-2. QEMU 端 `cargo run --target thumbv7em-none-eabihf`（tools/qemu-time）运行成功，打印同结构报告，断言全过，退出码 0。
+2. QEMU 端 `cargo run --release --target thumbv7em-none-eabihf`（tools/qemu-time，**必须 `--release`**）运行成功，打印同结构报告，断言全过，退出码 0。
 3. `cargo test -p qingui` 全绿（bench 不影响测试）。
 4. `cargo test -p qemu-time` 全绿（host stub + timer 逻辑测试）。
 5. 零新增第三方依赖（复用 workspace 已有依赖）。
