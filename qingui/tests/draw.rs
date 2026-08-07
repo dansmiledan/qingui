@@ -573,6 +573,35 @@ fn rgb565_roundtrip() {
 }
 
 #[test]
+fn fill_rect_full_coverage_opa_255() {
+    // Full-screen opaque fill must paint every pixel exactly (slice-fill path).
+    let (mut px, area) = buf(5, 4);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 5 };
+    d.fill_rect(area, Color::WHITE, 255, area);
+    assert!(d.pixels.iter().all(|&c| c == Color::WHITE), "opaque fill must cover every pixel");
+    assert_eq!(to_ascii(&d), "\
+#####
+#####
+#####
+#####");
+}
+
+#[test]
+fn fill_rect_partial_opa_blends() {
+    // Non-full opacity on a sub-rect blends over the black background.
+    let (mut px, area) = buf(4, 3);
+    let mut d = DrawBuf { pixels: &mut px, area, stride: 4 };
+    d.fill_rect(Rect::new(1, 1, 2, 2), Color::WHITE, 128, area);
+    let at = |x: usize, y: usize| d.pixels[y * 4 + x];
+    assert_eq!(at(1, 1), Color::BLACK.blend(Color::WHITE, 128), "blend arithmetic");
+    // white over black at 128 opa -> mid-gray (~128)
+    let mid = at(1, 1);
+    assert!(mid.r > 60 && mid.r < 195, "mid-gray blend, got {}", mid.r);
+    // corners untouched
+    assert_eq!(at(0, 0), Color::BLACK);
+}
+
+#[test]
 fn blit565_pixels_clip_and_opa() {
     use qingui::draw::DrawBuf;
     use qingui::{Color, Rect};

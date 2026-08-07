@@ -118,14 +118,42 @@ impl DrawBuf<'_> {
         }
     }
 
+    /// Writes a pixel without bounds checking. The caller must ensure `(x, y)`
+    /// lies inside the buffer area — used by internal paths that already
+    /// clipped the region (e.g. `fill_rect` after intersecting with the area).
+    fn put_fast(&mut self, x: i32, y: i32, c: Color, opa: u8) {
+        let lx = x - self.area.x;
+        let ly = y - self.area.y;
+        let idx = (ly * self.stride + lx) as usize;
+        if opa >= 255 {
+            self.pixels[idx] = c;
+        } else if opa > 0 {
+            self.pixels[idx] = self.pixels[idx].blend(c, opa);
+        }
+    }
+
     /// Fills `r` with `c` at opacity `opa` (0..=255), clipped to `clip` and the buffer area.
     pub fn fill_rect(&mut self, r: Rect, c: Color, opa: u8, clip: Rect) {
         let Some(r) = r.intersect(&clip).and_then(|r| r.intersect(&self.area)) else {
             return;
         };
-        for y in r.y..r.bottom() {
-            for x in r.x..r.right() {
-                self.put(x, y, c, opa);
+        if opa >= 255 {
+            // Opaque fast path: batch-fill whole rows (no per-pixel bounds check,
+            // no per-pixel blending).
+            let area_x = self.area.x;
+            let area_y = self.area.y;
+            let stride = self.stride;
+            let w = r.w as usize;
+            for y in r.y..r.bottom() {
+                let row = ((y - area_y) * stride + (r.x - area_x)) as usize;
+                self.pixels[row..row + w].fill(c);
+            }
+        } else {
+            // Translucent: per-pixel blend on the already-clipped region.
+            for y in r.y..r.bottom() {
+                for x in r.x..r.right() {
+                    self.put_fast(x, y, c, opa);
+                }
             }
         }
     }
