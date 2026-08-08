@@ -250,7 +250,6 @@ macro_rules! define_widgets {
 
 define_widgets! {
     Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
-    Roller(roller::RollerState, as_roller, as_roller_mut, boxed),
     Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut, inline),
     Custom(custom::CustomState, as_custom_state, as_custom_state_mut, inline),
 }

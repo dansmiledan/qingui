@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -9,7 +8,7 @@ use crate::input::Key;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Row height in pixels.
 pub const ROW_H: i32 = 16;
@@ -22,30 +21,6 @@ pub struct RollerState {
     pub items: Vec<String>,
     pub selected: usize,
     pub sel_from: Option<(f32, u64)>,
-}
-
-impl RollerState {
-    pub(crate) fn tick(&mut self, now: u64) -> super::TickOut {
-        let had_fx = self.sel_from.is_some();
-        let active = fx_active(self.sel_from, now);
-        if !active {
-            self.sel_from = None;
-        }
-        // Redraw if there was fx (including a frame whose fx just expired): the completing frame must render the final settle
-        super::TickOut { redraw: had_fx, active }
-    }
-
-    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
-        match key {
-            Key::Up | Key::Down => {
-                let dir = if key == Key::Up { -1 } else { 1 };
-                let next = (self.selected as i32 + dir).clamp(0, self.items.len().saturating_sub(1) as i32);
-                select(&self.items, &mut self.selected, &mut self.sel_from, next as usize, ctx.now);
-                super::KeyOutcome::Consumed
-            }
-            _ => super::KeyOutcome::Pass,
-        }
-    }
 }
 
 /// Scroll position: smoothly transitions from `from` to `selected`
@@ -147,7 +122,7 @@ impl WidgetCfg for RollerCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Roller(Box::new(RollerState { items: self.items, selected, sel_from: None }))),
+            alloc::boxed::Box::new(RollerState { items: self.items, selected, sel_from: None }),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
@@ -163,12 +138,32 @@ impl WidgetCfg for RollerCfg {
     }
 }
 
-impl super::WidgetBehavior for RollerState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.items, self.selected, self.sel_from, ctx, d, clip) }
-    fn tick(&mut self, now: u64) -> super::TickOut { self.tick(now) }
-    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for RollerState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, self.sel_from, ctx, c, clip) }
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {
+        let had_fx = self.sel_from.is_some();
+        let active = fx_active(self.sel_from, now);
+        if !active {
+            self.sel_from = None;
+        }
+        // Redraw if there was fx (including a frame whose fx just expired): the completing frame must render the final settle
+        super::TickOut { redraw: had_fx, active }
+    }
+    fn on_key(&mut self, ui: &mut Ui, _obj: ObjRef, key: Key) -> super::KeyOutcome {
+        match key {
+            Key::Up | Key::Down => {
+                let dir = if key == Key::Up { -1 } else { 1 };
+                let next = (self.selected as i32 + dir).clamp(0, self.items.len().saturating_sub(1) as i32);
+                select(&self.items, &mut self.selected, &mut self.sel_from, next as usize, ui.time());
+                super::KeyOutcome::Consumed
+            }
+            _ => super::KeyOutcome::Pass,
+        }
+    }
     fn value(&self) -> i32 { self.selected as i32 }
     fn set_value(&mut self, v: i32) -> bool { super::select_clamp(self.items.len(), &mut self.selected, v) }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// Roller-specific API (brought in via prelude or an explicit use)
@@ -179,6 +174,6 @@ pub trait UiRollerExt {
 
 impl UiRollerExt for Ui {
     fn roller_selected(&self, obj: ObjRef) -> usize {
-        self.kind(obj).and_then(|k| k.as_kind()?.as_roller()).map(|s| s.selected).unwrap_or(0)
+        self.widget::<RollerState>(obj).map(|s| s.selected).unwrap_or(0)
     }
 }
