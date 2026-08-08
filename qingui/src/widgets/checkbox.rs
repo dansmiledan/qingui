@@ -6,7 +6,7 @@ use crate::input::Key;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 const BOX: i32 = 12;
 
@@ -15,12 +15,6 @@ const BOX: i32 = 12;
 pub struct CheckboxState {
     pub text: alloc::string::String,
     pub checked: bool,
-}
-
-impl CheckboxState {
-    pub(crate) fn on_key(&mut self, key: Key, _ctx: super::KeyCtx) -> super::KeyOutcome {
-        if key == Key::Enter { self.checked = !self.checked; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
-    }
 }
 
 pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
@@ -89,7 +83,7 @@ impl WidgetCfg for CheckboxCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Checkbox(CheckboxState { text: self.text, checked: self.checked })),
+            alloc::boxed::Box::new(CheckboxState { text: self.text, checked: self.checked }),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
@@ -114,17 +108,17 @@ pub trait UiCheckboxExt {
 impl UiCheckboxExt for Ui {
     fn toggle_checkbox(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
-        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()?.as_checkbox_mut()) {
-            s.checked = !s.checked;
-        }
+        self.update::<CheckboxState, _>(obj, |s| { s.checked = !s.checked; });
         self.invalidate_obj(obj);
         self.send_event(obj, EventKind::ValueChanged);
     }
 }
 
-impl super::WidgetBehavior for CheckboxState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, self.checked, ctx, d, clip) }
-    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for CheckboxState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.text, self.checked, ctx, c, clip) }
+    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, key: Key) -> super::KeyOutcome {
+        if key == Key::Enter { self.checked = !self.checked; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
+    }
     fn value(&self) -> i32 { self.checked as i32 }
     fn set_value(&mut self, v: i32) -> bool {
         let nv = v != 0;
@@ -132,4 +126,6 @@ impl super::WidgetBehavior for CheckboxState {
         self.checked = nv;
         c
     }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

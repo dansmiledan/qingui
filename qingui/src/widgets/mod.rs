@@ -250,13 +250,10 @@ macro_rules! define_widgets {
 
 define_widgets! {
     ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
-    Switch(switch::SwitchState, as_switch, as_switch_mut, inline),
     List(list::ListState, as_list, as_list_mut, boxed),
-    Checkbox(checkbox::CheckboxState, as_checkbox, as_checkbox_mut, inline),
     Chart(chart::ChartState, as_chart, as_chart_mut, inline),
     Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut, inline),
     Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
-    Led(led::LedState, as_led, as_led_mut, inline),
     Table(table::TableState, as_table, as_table_mut, inline),
     Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut, inline),
     Roller(roller::RollerState, as_roller, as_roller_mut, boxed),

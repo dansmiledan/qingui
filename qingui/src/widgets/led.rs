@@ -4,7 +4,7 @@ use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Led widget state.
 #[derive(Clone)]
@@ -62,7 +62,7 @@ impl WidgetCfg for LedCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Led(LedState { color: self.color, bright: self.bright.unwrap_or(255) })),
+            alloc::boxed::Box::new(LedState { color: self.color, bright: self.bright.unwrap_or(255) }),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
@@ -74,8 +74,8 @@ impl WidgetCfg for LedCfg {
     }
 }
 
-impl super::WidgetBehavior for LedState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.color, self.bright, ctx, d, clip) }
+impl super::Widget for LedState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.color, self.bright, ctx, c, clip) }
     fn value(&self) -> i32 { self.bright as i32 }
     fn set_value(&mut self, v: i32) -> bool {
         let nv = v.clamp(0, 255) as u8;
@@ -83,4 +83,6 @@ impl super::WidgetBehavior for LedState {
         self.bright = nv;
         c
     }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

@@ -6,18 +6,12 @@ use crate::input::Key;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Switch widget state.
 #[derive(Clone)]
 pub struct SwitchState {
     pub on: bool,
-}
-
-impl SwitchState {
-    pub(crate) fn on_key(&mut self, key: Key, _ctx: super::KeyCtx) -> super::KeyOutcome {
-        if key == Key::Enter { self.on = !self.on; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
-    }
 }
 
 pub(crate) fn draw(on: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
@@ -59,7 +53,7 @@ impl WidgetCfg for SwitchCfg {
 
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((40, 20));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Switch(SwitchState { on: self.on })));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(SwitchState { on: self.on }));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_switch_focused));
         common.apply_tail(ui, r);
@@ -76,16 +70,18 @@ pub trait UiSwitchExt {
 impl UiSwitchExt for Ui {
     fn toggle_switch(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
-        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()?.as_switch_mut()) {
-            s.on = !s.on;
-        }
+        self.update::<SwitchState, _>(obj, |s| { s.on = !s.on; });
         self.invalidate_obj(obj);
         self.send_event(obj, EventKind::ValueChanged);
     }
 }
 
-impl super::WidgetBehavior for SwitchState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.on, ctx, d, clip) }
-    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for SwitchState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.on, ctx, c, clip) }
+    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, key: Key) -> super::KeyOutcome {
+        if key == Key::Enter { self.on = !self.on; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
+    }
     fn value(&self) -> i32 { self.on as i32 }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
