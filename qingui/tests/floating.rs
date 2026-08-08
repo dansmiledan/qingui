@@ -81,7 +81,7 @@ fn floating_follows_target_move() {
 }
 
 #[test]
-fn z_index_changes_draw_order() {
+fn move_to_back_changes_draw_order() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 48);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
@@ -98,8 +98,8 @@ fn z_index_changes_draw_order() {
     ui.render();
     // Later-created b is on top
     assert_eq!(px(&rec, 15, 15), Color::GREEN);
-    // b lowered to -1 → a is on top
-    ui.set_z_index(b, -1);
+    // b moved to the back → a is on top
+    ui.move_to_back(b);
     ui.render();
     assert_eq!(px(&rec, 15, 15), Color::RED);
 }

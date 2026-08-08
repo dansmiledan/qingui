@@ -39,6 +39,7 @@ pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
     let screen = ui.screen();
     let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
     let lst = crate::widgets::list::create(ui, screen, &refs);
+    ui.move_to_front(lst); // popups draw on top (children order is the stacking order)
     ui.set_size(lst, w.max(80), (items.len().min(5) * 16 + 2) as i32);
     ui.list_select(lst, sel);
     ui.set_floating(lst, obj, crate::layout::Attach::Bottom);

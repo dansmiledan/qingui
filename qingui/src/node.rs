@@ -94,8 +94,6 @@ pub struct Node {
     pub translate: crate::geometry::Point,
     /// Floating anchor: (target object, attach mode). Setting this also marks the object as IGNORE_LAYOUT.
     pub floating: Option<(ObjRef, crate::layout::Attach)>,
-    /// Stacking order (Task 2 deletes this field together with `Ui::set_z_index`).
-    pub z_index: i16,
     /// Whether the node has been through one layout pass (the first layout does not animate transitions).
     pub laid_out: bool,
 }
@@ -126,7 +124,6 @@ impl Node {
             item_props: ItemProps::None,
             translate: crate::geometry::Point::default(),
             floating: None,
-            z_index: 0,
             laid_out: false,
         }
     }

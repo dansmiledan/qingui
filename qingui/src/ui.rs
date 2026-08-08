@@ -678,10 +678,26 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    /// Sets the stacking order (siblings are stably sorted by z_index at render time, larger = on top).
-    pub fn set_z_index(&mut self, obj: ObjRef, z: i16) {
-        if let Some(n) = self.arena.get_mut(obj) {
-            n.z_index = z;
+    /// Moves `obj` to the end of its parent's children (drawn last = on top).
+    pub fn move_to_front(&mut self, obj: ObjRef) {
+        let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
+        if let Some(p) = self.arena.get_mut(parent) {
+            if let Some(pos) = p.children.iter().position(|&c| c == obj) {
+                let c = p.children.remove(pos);
+                p.children.push(c);
+            }
+        }
+        self.invalidate_obj(obj);
+    }
+
+    /// Moves `obj` to the start of its parent's children (drawn first = bottom).
+    pub fn move_to_back(&mut self, obj: ObjRef) {
+        let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
+        if let Some(p) = self.arena.get_mut(parent) {
+            if let Some(pos) = p.children.iter().position(|&c| c == obj) {
+                let c = p.children.remove(pos);
+                p.children.insert(0, c);
+            }
         }
         self.invalidate_obj(obj);
     }

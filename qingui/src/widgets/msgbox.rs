@@ -48,6 +48,7 @@ impl MsgboxBuilder {
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
     let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), WidgetKind::Msgbox(MsgboxState { selected: -1 }));
     ui.set_floating(root, parent, Attach::Center);
+    ui.move_to_front(root); // popups draw on top (children order is the stacking order)
     // Style: dialog + column layout
     ui.set_style(root,
         crate::style::theme_obj()

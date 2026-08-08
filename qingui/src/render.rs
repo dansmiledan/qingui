@@ -1,4 +1,3 @@
-use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::dirty::DirtyQueue;
 use crate::display::Flush;
@@ -65,9 +64,10 @@ fn render_chunk(
         d.clear(screen_style.bg_color);
     }
     // 2) Draw the object tree in pre-order (the screen itself is not drawn; its background was handled above)
-    let roots = children_z_sorted(arena, screen);
-    for r in roots {
-        draw_node(arena, buf, r, chunk, chunk, len, font, time_ms);
+    let nkids = arena.get(screen).map(|n| n.children.len()).unwrap_or(0);
+    for i in 0..nkids {
+        let Some(c) = arena.get(screen).and_then(|n| n.children.get(i).copied()) else { break };
+        draw_node(arena, buf, c, chunk, chunk, len, font, time_ms);
     }
     // 3) Flush
     if let Some(f) = flush.as_mut() {
@@ -130,16 +130,11 @@ fn draw_node(
     } else {
         clip
     };
-    for c in children_z_sorted(arena, obj) {
+    let nkids = arena.get(obj).map(|n| n.children.len()).unwrap_or(0);
+    for i in 0..nkids {
+        let Some(c) = arena.get(obj).and_then(|n| n.children.get(i).copied()) else { break };
         draw_node(arena, buf, c, frame, child_clip, len, font, time_ms);
     }
-}
-
-/// Sorts children by z_index stably (smaller drawn first, larger on top).
-fn children_z_sorted(arena: &Arena<Node>, obj: ObjRef) -> Vec<ObjRef> {
-    let mut kids = kids(arena, obj);
-    kids.sort_by_key(|&c| arena.get(c).map(|n| n.z_index).unwrap_or(0));
-    kids
 }
 
 fn node_draw_info(
@@ -187,10 +182,6 @@ pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static Mo
     crate::style::resolve(&n.style, overlay, font)
 }
 
-fn kids(arena: &Arena<Node>, obj: ObjRef) -> Vec<ObjRef> {
-    arena.get(obj).map(|n| n.children.clone()).unwrap_or_default()
-}
-
 fn node_state(arena: &Arena<Node>, obj: ObjRef) -> State {
     arena.get(obj).map(|n| n.state).unwrap_or_default()
 }
@@ -202,6 +193,7 @@ mod tests {
     use crate::widgets::WidgetKind;
     use alloc::boxed::Box;
     use alloc::rc::Rc;
+    use alloc::vec::Vec;
     use core::cell::RefCell;
 
     const FONT: &'static MonoFont<'static> = crate::font::DEFAULT_FONT;

@@ -18,6 +18,36 @@ impl Flush for SharedFlush {
     }
 }
 
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+    let chunks = &rec.borrow().chunks;
+    for (area, buf) in chunks.iter().rev() {
+        if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
+            return buf[((y - area.y) * area.w + (x - area.x)) as usize];
+        }
+    }
+    panic!("pixel not flushed");
+}
+
+#[test]
+fn move_to_front_raises_stacking() {
+    // Two overlapping siblings: the later-created B covers A; after move_to_front(A), A covers B
+    let rec = Rc::new(RefCell::new(RecFlush::default()));
+    let mut ui = Ui::new(20, 20, 20);
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
+    let scr = ui.screen();
+    let a = ObjCfg::new().size(10, 10).build(&mut ui, scr);
+    let b = ObjCfg::new().size(10, 10).build(&mut ui, scr);
+    ui.set_style(a, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(255, 0, 0)); s.bg_opa = Some(255); s });
+    ui.set_style(b, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(0, 0, 255)); s.bg_opa = Some(255); s });
+    ui.render();
+    // Initially B is on top → (5,5) is blue
+    assert_eq!(px(&rec, 5, 5), Color::rgb(0, 0, 255));
+    ui.move_to_front(a);
+    ui.render();
+    // Now A is on top → (5,5) is red
+    assert_eq!(px(&rec, 5, 5), Color::rgb(255, 0, 0));
+}
+
 #[test]
 fn chunked_render_covers_dirty_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));

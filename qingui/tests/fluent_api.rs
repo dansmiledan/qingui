@@ -55,7 +55,7 @@ fn widget_mut_chain() {
     ui.set_pos(b, 10, 20);
     ui.set_size(b, 60, 30);
     ui.set_sizing(b, Some(Sizing::GROW), None);
-    ui.set_z_index(b, 2);
+    ui.move_to_front(b);
     ui.group_add(b);
     ui.add_event_cb(b, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     assert_eq!(ui.rect(b), Rect::new(10, 20, 60, 30));
