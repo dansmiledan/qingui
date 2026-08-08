@@ -4,7 +4,7 @@ use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Dial start angle and sweep range (LVGL style: gap left at the bottom)
 pub const START_DEG: i32 = 135;
@@ -77,7 +77,7 @@ impl WidgetCfg for ArcCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Arc(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) })),
+            alloc::boxed::Box::new(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
@@ -89,10 +89,12 @@ impl WidgetCfg for ArcCfg {
     }
 }
 
-impl super::WidgetBehavior for ArcState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.min, self.max, self.value, ctx, d, clip) }
+impl super::Widget for ArcState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, ctx, c, clip) }
     fn value(&self) -> i32 { self.value }
     fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
     // Arc knob extends ~3px past the edge
     fn overflow(&self) -> i32 { 4 }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

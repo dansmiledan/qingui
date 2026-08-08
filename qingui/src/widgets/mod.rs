@@ -250,11 +250,8 @@ macro_rules! define_widgets {
 
 define_widgets! {
     ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
-    Slider(slider::SliderState, as_slider, as_slider_mut, inline),
     Switch(switch::SwitchState, as_switch, as_switch_mut, inline),
-    Bar(bar::BarState, as_bar, as_bar_mut, inline),
     List(list::ListState, as_list, as_list_mut, boxed),
-    Arc(arc::ArcState, as_arc, as_arc_mut, inline),
     Checkbox(checkbox::CheckboxState, as_checkbox, as_checkbox_mut, inline),
     Chart(chart::ChartState, as_chart, as_chart_mut, inline),
     Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut, inline),
