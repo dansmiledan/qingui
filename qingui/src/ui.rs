@@ -550,16 +550,15 @@ impl Ui {
         }
     }
     fn layout_subtree(&mut self, obj: ObjRef) {
-        // Flex is Copy, so the common case copies the config out without
-        // cloning; only Grid (with its track Vecs) allocates here.
-        let layout = self.arena.get(obj).and_then(|n| match &n.layout {
-            Some(crate::layout::Layout::Flex(f)) => Some(crate::layout::Layout::Flex(*f)),
-            other => other.clone(),
-        });
-        match layout {
-            Some(crate::layout::Layout::Flex(f)) => crate::layout::layout_flex(self, obj, &f),
-            Some(crate::layout::Layout::Grid(g)) => crate::layout::layout_grid(self, obj, &g),
-            _ => {}
+        let mut kind = match self.arena.get_mut(obj) {
+            Some(n) => core::mem::replace(&mut n.kind, alloc::boxed::Box::new(crate::widgets::NoopWidget)),
+            None => return,
+        };
+        kind.layout(self, obj);
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.kind = kind;
+        } else {
+            return; // node deleted during layout
         }
         // Iterate children by index: cloning the child Vec per node per pass
         // showed up in the layout profile.

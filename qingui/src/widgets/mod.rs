@@ -300,6 +300,18 @@ impl Widget for WidgetKind {
         }
         WidgetKind::on_key(self, key, ctx)
     }
+    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
+        // Bridge: read the container layout config from the node (Task 1 bridge field).
+        let layout = ui.arena.get(obj).and_then(|n| match &n.layout {
+            Some(crate::layout::Layout::Flex(f)) => Some(crate::layout::Layout::Flex(*f)),
+            other => other.clone(),
+        });
+        match layout {
+            Some(crate::layout::Layout::Flex(f)) => crate::layout::layout_flex(ui, obj, &f),
+            Some(crate::layout::Layout::Grid(g)) => crate::layout::layout_grid(ui, obj, &g),
+            _ => {}
+        }
+    }
     fn value(&self) -> i32 { WidgetKind::value(self) }
     fn set_value(&mut self, v: i32) -> bool { WidgetKind::set_value(self, v) }
     fn set_range(&mut self, min: i32, max: i32) { WidgetKind::set_range(self, min, max) }
