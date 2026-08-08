@@ -305,3 +305,63 @@ layout flex 40 children：min 2.2 / median 2.2。
 | layout host（flex 40 children，min/median µs） | 2.2 / 2.2 | 1.5 / 1.6 | **-32%** |
 | layout QEMU（ticks，--release） | 8,938 | 5,669 | **-37%** |
 | render/frame/partial、memory | — | 不变（±0.1% codegen 噪声内） | — |
+
+---
+
+## 2026-08-08 — trait-object migration, batch 1 (8d079bd)
+
+> 变更内容（Batch 0/1）：Node 布局属性从 Style 移到 Node、opa 移入 Style、删除
+> z_index；Node 的 kind 从内联 `WidgetKind` 枚举改为 `Box<dyn Widget>`（每节点一次
+> 堆分配，Node 变小）；Obj/Label/Button 迁移到 Widget trait（其余 kind 仍为枚举
+> 变体，`WidgetKind` 尺寸暂不变）。
+> 对比基线：上方"bench 修复后复测"记录（memory 与初始基线一致）+ "layout 优化"
+> 记录（layout 1.5/1.6 µs）。环境：macOS aarch64，rustc 1.95.0-nightly。
+> 两端 bench 自带阈值断言全部通过（exit 0）。
+
+### Memory — host（64 位）
+
+**静态尺寸（字节）**
+
+| 类型 | 迁移前 | 迁移后 | 变化 |
+|---|---|---|---|
+| Node | 376 | 328 | **-12.8%** |
+| WidgetKind | 40 | 40 | 持平（Batch 1 仅迁出 Obj/Label/Button） |
+| Style | 168 | 40 | **-76.2%**（布局属性移到 Node，剩余字段瘦身） |
+| ResolvedStyle | 144 | 32 | **-77.8%** |
+| 4 × Style | 672 | 160 | -76.2% |
+| Ui | 248 | 248 | 持平 |
+
+**场景峰值堆（B）**
+
+| 档位 | 节点 | peak 前 → 后 | Δ | live 前 → 后 | Δ |
+|---|---|---|---|---|---|
+| minimal | 3 | 5,871 → 5,471 | **-6.8%** | 5,751 → 5,351 | -7.0% |
+| small | 16 | 35,069 → 32,621 | **-7.0%** | 33,045 → 30,125 | -8.8% |
+| medium | 50 | 70,800 → 60,592 | **-14.4%** | 60,736 → 49,760 | -18.1% |
+| large | 140 | 209,576 → 169,496 | **-19.1%** | 159,496 → 124,024 | **-22.2%** |
+
+红线判定：三档峰值堆全部下降（无 >+15% 增长），不触发 small-kind 内联预案。
+
+### Runtime — host（µs，100 采样 min/median）
+
+| 指标 | 迁移前 | 迁移后 | 变化 |
+|---|---|---|---|
+| layout（flex 40 children） | 1.5 / 1.6 | 1.2 / 1.3 | **-17%** |
+| Minimal full | 14.3 / 14.4 | 14.3 / 14.4 | 持平 |
+| Minimal partial | 3.8 / 3.9 | 3.8 / 3.8 | 持平 |
+| Minimal frame | 14.5 / 15.2 | 14.5 / 14.5 | 持平 |
+| Small full | 77.7 / 78.0 | 62.2 / 63.2 | **-20%** |
+| Small partial | 22.8 / 22.9 | 19.0 / 19.4 | **-16%** |
+| Small frame | 78.0 / 78.3 | 61.3 / 61.5 | **-21%** |
+| Medium full | 138.2 / 138.6 | 111.8 / 112.0 | **-19%** |
+| Medium partial | 74.2 / 74.4 | 63.3 / 63.5 | **-15%** |
+| Medium frame | 138.9 / 139.3 | 112.5 / 112.7 | **-19%** |
+| Large full | 300.2 / 300.7 | 246.9 / 247.3 | **-18%** |
+| Large partial | 210.5 / 210.9 | 181.0 / 181.4 | **-14%** |
+| Large frame | 302.1 / 303.5 | 248.9 / 249.9 | **-18%** |
+
+绘制原语与"圆/弧原语优化"记录逐项一致（±0.3µs 噪声内），未回退。
+
+> 备注：time bench 首次运行 Minimal/Small 的 median 出现异常尖峰（系统噪声），
+> 第二次运行恢复正常且上表数字复现稳定；render/frame 全面变快的主因推测为
+> Node/Style 变小后缓存局部性改善（LayoutProps 内联进 Node、Style 168→40 B）。
