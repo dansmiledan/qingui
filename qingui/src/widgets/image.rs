@@ -1,10 +1,9 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{TickOut, WidgetBehavior, WidgetCtx, WidgetKind};
+use super::{TickOut, WidgetCtx};
 
 /// One frame of an RGB565 (little-endian) bitmap
 pub struct Frame {
@@ -26,12 +25,12 @@ pub struct ImageState {
     pub last_switch: u64,
 }
 
-impl WidgetBehavior for ImageState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+impl super::Widget for ImageState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) {
         let Some(f) = self.data.frames.get(self.cur) else { return };
-        d.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, ctx.ap(255), clip);
+        c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, ctx.ap(255), clip);
     }
-    fn tick(&mut self, now: u64) -> TickOut {
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> TickOut {
         if self.data.frames.len() <= 1 {
             return TickOut::IDLE;
         }
@@ -44,6 +43,8 @@ impl WidgetBehavior for ImageState {
             TickOut { redraw: false, active: true }
         }
     }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// Builder for the Image widget.
@@ -71,9 +72,9 @@ impl WidgetCfg for ImageCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (fw, fh) = self.data.frames.first().map(|f| (f.w, f.h)).unwrap_or((0, 0));
         let (w, h) = common.size.unwrap_or((fw, fh));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Image(
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(
             ImageState { data: self.data, cur: 0, last_switch: ui.time() },
-        )));
+        ));
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);

@@ -7,7 +7,7 @@ use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Cell width in pixels.
 pub const CELL_W: i32 = 60;
@@ -102,7 +102,7 @@ impl WidgetCfg for TableCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Table(TableState { cols: self.cols, rows: self.rows, cells: self.cells })),
+            alloc::boxed::Box::new(TableState { cols: self.cols, rows: self.rows, cells: self.cells }),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
@@ -117,8 +117,10 @@ impl WidgetCfg for TableCfg {
     }
 }
 
-impl super::WidgetBehavior for TableState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.cols, self.rows, &self.cells, ctx, d, clip) }
+impl super::Widget for TableState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.cols, self.rows, &self.cells, ctx, c, clip) }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// Table-specific API (brought in via prelude or an explicit use)
