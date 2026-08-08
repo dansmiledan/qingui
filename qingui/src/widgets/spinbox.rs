@@ -5,7 +5,7 @@ use crate::input::Key;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Spinbox widget state.
 #[derive(Clone)]
@@ -15,27 +15,6 @@ pub struct SpinboxState {
     pub value: i32,
     pub digits: u8,
     pub cursor: u8,
-}
-
-impl SpinboxState {
-    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
-        use super::KeyOutcome::*;
-        if !ctx.edited {
-            return if key == Key::Enter { EnterEdit } else { Pass };
-        }
-        match key {
-            Key::Left => { move_cursor(self.digits, &mut self.cursor, -1); Consumed }
-            Key::Right => { move_cursor(self.digits, &mut self.cursor, 1); Consumed }
-            Key::Up | Key::Down => {
-                let d = if key == Key::Up { 1 } else { -1 };
-                let mut nv = self.value;
-                step_digit(self.min, self.max, &mut nv, self.digits, self.cursor, d);
-                if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
-            }
-            Key::Enter | Key::Esc => ExitEdit,
-            _ => Consumed,
-        }
-    }
 }
 
 pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
@@ -125,13 +104,13 @@ impl WidgetCfg for SpinboxCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Spinbox(SpinboxState {
+            alloc::boxed::Box::new(SpinboxState {
                 min: self.min,
                 max: self.max,
                 value: self.value.unwrap_or(self.min),
                 digits: self.digits,
                 cursor: self.digits - 1,
-            })),
+            }),
         );
         let base = common.style.take().unwrap_or_else(Self::base_style);
         ui.set_style(r, base.clone());
@@ -147,9 +126,28 @@ impl WidgetCfg for SpinboxCfg {
     }
 }
 
-impl super::WidgetBehavior for SpinboxState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(self.min, self.max, self.value, self.digits, self.cursor, ctx, d, clip) }
-    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for SpinboxState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, self.digits, self.cursor, ctx, c, clip) }
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        use super::KeyOutcome::*;
+        if !ui.state(obj).contains(crate::node::State::EDITED) {
+            return if key == Key::Enter { EnterEdit } else { Pass };
+        }
+        match key {
+            Key::Left => { move_cursor(self.digits, &mut self.cursor, -1); Consumed }
+            Key::Right => { move_cursor(self.digits, &mut self.cursor, 1); Consumed }
+            Key::Up | Key::Down => {
+                let d = if key == Key::Up { 1 } else { -1 };
+                let mut nv = self.value;
+                step_digit(self.min, self.max, &mut nv, self.digits, self.cursor, d);
+                if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
+            }
+            Key::Enter | Key::Esc => ExitEdit,
+            _ => Consumed,
+        }
+    }
     fn value(&self) -> i32 { self.value }
     fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

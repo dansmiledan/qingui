@@ -255,7 +255,6 @@ define_widgets! {
     Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut, inline),
     Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
     Table(table::TableState, as_table, as_table_mut, inline),
-    Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut, inline),
     Roller(roller::RollerState, as_roller, as_roller_mut, boxed),
     Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut, inline),
     Image(image::ImageState, as_image, as_image_mut, inline),
