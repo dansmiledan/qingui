@@ -249,7 +249,6 @@ macro_rules! define_widgets {
 }
 
 define_widgets! {
-    Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
     Custom(custom::CustomState, as_custom_state, as_custom_state_mut, inline),
 }
 
@@ -282,13 +281,6 @@ impl Widget for WidgetKind {
             return if w.on_key(ui, obj, key) { KeyOutcome::Consumed } else { KeyOutcome::Pass };
         }
         WidgetKind::on_key(self, key, ctx)
-    }
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
-        // Legacy container variants keep their fixed arrangement until their own
-        // migration task (Msgbox: Task 19).
-        if let WidgetKind::Msgbox(_) = self {
-            crate::layout::layout_flex(ui, obj, &msgbox::ROOT_FLEX);
-        }
     }
     fn value(&self) -> i32 { WidgetKind::value(self) }
     fn set_value(&mut self, v: i32) -> bool { WidgetKind::set_value(self, v) }

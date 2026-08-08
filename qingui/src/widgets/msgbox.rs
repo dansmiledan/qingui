@@ -5,7 +5,6 @@ use crate::event::EventKind;
 use crate::geometry::Rect;
 use crate::layout::{Align, Attach, Flex, FlexDir};
 use crate::ui::Ui;
-use super::WidgetKind;
 
 /// Msgbox widget state: index of the clicked button (-1 if none).
 #[derive(Clone)]
@@ -13,9 +12,8 @@ pub struct MsgboxState {
     pub selected: i32,
 }
 
-/// The msgbox root's fixed arrangement (column flex, centered items). The root's
-/// kind is the legacy `WidgetKind::Msgbox` variant, so the `WidgetKind` shim
-/// dispatches this until Msgbox's own migration task (Task 19).
+/// The msgbox root's fixed arrangement (column flex, centered items), run by
+/// `MsgboxState::layout`.
 pub(crate) const ROOT_FLEX: Flex = Flex {
     dir: FlexDir::Column, wrap: false,
     main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
@@ -54,7 +52,7 @@ impl MsgboxBuilder {
 }
 
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
-    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), alloc::boxed::Box::new(WidgetKind::Msgbox(MsgboxState { selected: -1 })));
+    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), alloc::boxed::Box::new(MsgboxState { selected: -1 }));
     ui.set_floating(root, parent, Attach::Center);
     ui.move_to_front(root); // popups draw on top (children order is the stacking order)
     // Style: dialog + column layout
@@ -63,7 +61,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
             .border(crate::geometry::Color::WHITE, 2),
     );
     ui.set_pad(root, (12, 12, 10, 10));
-    // The root's column flex is ROOT_FLEX, dispatched by the WidgetKind shim's layout().
+    // The root's column flex is ROOT_FLEX, run by MsgboxState::layout.
     let t = crate::widgets::label::create(ui, root, title);
     ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
@@ -81,12 +79,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
         ui.group_add(btn);
         // On click: record the index → notify → unlock and delete
         ui.add_event_cb(btn, EventKind::Clicked, Box::new(move |ui, _x, _| {
-            if let Some(n) = ui.arena.get_mut(root) {
-                if let Some(s) = n.kind.as_kind_mut().and_then(|k| k.as_msgbox_mut()) {
-                    s.selected = i as i32;
-                }
-            }
-            let root = root;
+            ui.update::<MsgboxState, _>(root, |s| s.selected = i as i32);
             ui.send_event(root, EventKind::ValueChanged);
             ui.clear_modal();
             ui.delete(root);
@@ -104,9 +97,15 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     root
 }
 
-impl super::WidgetBehavior for MsgboxState {
+impl super::Widget for MsgboxState {
     // Msgbox is an ordinary container (child objects are drawn normally)
-    fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut crate::draw::DrawBuf, _clip: Rect) {}
+    fn draw(&self, _ctx: &super::WidgetCtx, _c: &mut super::Canvas, _clip: Rect) {}
+    // The root's fixed column flex arrangement
+    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
+        crate::layout::layout_flex(ui, obj, &ROOT_FLEX);
+    }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// Msgbox-specific API (brought in via prelude or an explicit use)
@@ -117,6 +116,6 @@ pub trait UiMsgboxExt {
 
 impl UiMsgboxExt for Ui {
     fn msgbox_selected(&self, obj: ObjRef) -> i32 {
-        self.kind(obj).and_then(|k| k.as_kind()?.as_msgbox()).map(|s| s.selected).unwrap_or(-1)
+        self.widget::<MsgboxState>(obj).map(|s| s.selected).unwrap_or(-1)
     }
 }
