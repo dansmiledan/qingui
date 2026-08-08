@@ -248,7 +248,6 @@ macro_rules! define_widgets {
 
 define_widgets! {
     ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
-    Button(button::ButtonState, as_button, as_button_mut, inline),
     Slider(slider::SliderState, as_slider, as_slider_mut, inline),
     Switch(switch::SwitchState, as_switch, as_switch_mut, inline),
     Bar(bar::BarState, as_bar, as_bar_mut, inline),

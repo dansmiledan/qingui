@@ -4,7 +4,7 @@ use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Button widget state.
 #[derive(Clone)]
@@ -47,7 +47,7 @@ impl WidgetCfg for ButtonCfg {
             let (tw, th) = crate::font::text_size(font, &self.text);
             (tw + 24, th + 12)
         });
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Button(ButtonState { text: self.text })));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(ButtonState { text: self.text }));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_pressed(r, common.style_pressed.take().unwrap_or_else(crate::style::theme_button_pressed));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_button_focused));
@@ -63,6 +63,8 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
     ButtonCfg::new(text).build(ui, parent)
 }
 
-impl super::WidgetBehavior for ButtonState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, ctx, d, clip) }
+impl super::Widget for ButtonState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.text, ctx, c, clip) }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
