@@ -10,7 +10,7 @@ use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::list::UiListExt;
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Dropdown widget state.
 #[derive(Clone)]
@@ -20,57 +20,48 @@ pub struct DropdownState {
 }
 
 impl DropdownState {
-    pub(crate) fn on_key(&mut self, key: Key, _ctx: super::KeyCtx) -> super::KeyOutcome {
-        if key == Key::Enter { super::KeyOutcome::Deferred(open, 0) } else { super::KeyOutcome::Pass }
-    }
-}
-
-/// Opens the dropdown's popup list (anchored via Attach::Bottom, modal locked).
-/// The payload is unused; it only exists to match Deferred's fn(&mut Ui, ObjRef, i32) signature.
-pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
-    let Some((items, sel, w)) = ui.arena.get(obj).map(|n| match n.kind.as_kind() {
-        Some(WidgetKind::Dropdown(s)) => (s.items.clone(), s.selected, n.rect.w),
-        _ => (Vec::new(), 0, 0),
-    }) else { return };
-    if items.is_empty() {
-        return;
-    }
-    let prev = ui.focused();
-    let screen = ui.screen();
-    let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
-    let lst = crate::widgets::list::create(ui, screen, &refs);
-    ui.move_to_front(lst); // popups draw on top (children order is the stacking order)
-    ui.set_size(lst, w.max(80), (items.len().min(5) * 16 + 2) as i32);
-    ui.list_select(lst, sel);
-    ui.set_floating(lst, obj, crate::layout::Attach::Bottom);
-    ui.group_add(lst);
-    ui.set_modal(lst);
-    // On select: write back to the dropdown and send ValueChanged, close the popup, restore focus
-    ui.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
-        let idx = ui.list_selected(l);
-        if let Some(n) = ui.arena.get_mut(obj) {
-            if let Some(s) = n.kind.as_kind_mut().and_then(|k| k.as_dropdown_mut()) {
-                s.selected = idx;
-            }
+    /// Opens the popup list (anchored via Attach::Bottom, modal locked).
+    /// Runs inside take-out: `self` is the dropdown state, the popup is a new
+    /// screen child (operating on other nodes is unrestricted).
+    fn open_popup(&mut self, ui: &mut Ui, obj: ObjRef) {
+        if self.items.is_empty() {
+            return;
         }
-        ui.invalidate_obj(obj);
-        ui.send_event(obj, crate::event::EventKind::ValueChanged);
-        ui.clear_modal();
-        ui.delete(l);
-        if let Some(p) = prev {
-            ui.group_focus(p);
-        }
-    }));
-    // Esc: close without changing the value
-    ui.add_event_cb(lst, crate::event::EventKind::Key(crate::input::Key::Esc), Box::new(move |ui, l, k| {
-        if k == crate::event::EventKind::Key(crate::input::Key::Esc) {
+        let w = ui.rect(obj).w;
+        let sel = self.selected;
+        let prev = ui.focused();
+        let screen = ui.screen();
+        let refs: Vec<&str> = self.items.iter().map(|s| s.as_str()).collect();
+        let lst = crate::widgets::list::create(ui, screen, &refs);
+        ui.move_to_front(lst); // popups draw on top (children order is the stacking order)
+        ui.set_size(lst, w.max(80), (self.items.len().min(5) * 16 + 2) as i32);
+        ui.list_select(lst, sel);
+        ui.set_floating(lst, obj, crate::layout::Attach::Bottom);
+        ui.group_add(lst);
+        ui.set_modal(lst);
+        // On select: write back to the dropdown and send ValueChanged, close the popup, restore focus.
+        // The callback runs on event dispatch (outside take-out), so `ui.update` reaches the state.
+        ui.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
+            let idx = ui.list_selected(l);
+            ui.update::<DropdownState, _>(obj, |s| s.selected = idx);
+            ui.send_event(obj, crate::event::EventKind::ValueChanged);
             ui.clear_modal();
             ui.delete(l);
             if let Some(p) = prev {
                 ui.group_focus(p);
             }
-        }
-    }));
+        }));
+        // Esc: close without changing the value
+        ui.add_event_cb(lst, crate::event::EventKind::Key(crate::input::Key::Esc), Box::new(move |ui, l, k| {
+            if k == crate::event::EventKind::Key(crate::input::Key::Esc) {
+                ui.clear_modal();
+                ui.delete(l);
+                if let Some(p) = prev {
+                    ui.group_focus(p);
+                }
+            }
+        }));
+    }
 }
 
 pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
@@ -135,7 +126,7 @@ impl WidgetCfg for DropdownCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::Dropdown(DropdownState { items: self.items, selected })),
+            alloc::boxed::Box::new(DropdownState { items: self.items, selected }),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
@@ -151,9 +142,18 @@ impl WidgetCfg for DropdownCfg {
     }
 }
 
-impl super::WidgetBehavior for DropdownState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.items, self.selected, ctx, d, clip) }
-    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for DropdownState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, ctx, c, clip) }
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        if key == Key::Enter {
+            self.open_popup(ui, obj);
+            super::KeyOutcome::Consumed
+        } else {
+            super::KeyOutcome::Pass
+        }
+    }
     fn value(&self) -> i32 { self.selected as i32 }
     fn set_value(&mut self, v: i32) -> bool { super::select_clamp(self.items.len(), &mut self.selected, v) }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
