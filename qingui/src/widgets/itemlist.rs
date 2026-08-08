@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use crate::arena::ObjRef;
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
-use crate::layout::{Align, Flex, FlexDir, Layout, Sizing};
+use crate::layout::{Align, Flex, FlexDir, Sizing};
 use crate::node::State;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -52,15 +52,15 @@ pub(crate) fn item_base_style() -> Style {
     transparent()
 }
 
-fn column_layout() -> Layout {
-    Layout::Flex(Flex {
+fn column_flex() -> Flex {
+    Flex {
         dir: FlexDir::Column,
         wrap: false,
         main: Align::Start,
         cross: Align::Start,
         track: Align::Start,
         gap: 0,
-    })
+    }
 }
 
 /// Builder for the ItemList widget.
@@ -103,10 +103,10 @@ impl WidgetCfg for ItemListCfg {
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(super::obj::Manual));
         ui.set_clip_children(r, true);
         // content: a Flex column container, width GROW, transparent background
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(super::obj::Manual));
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0),
+            Box::new(super::flexbox::FlexLayout { flex: column_flex() }));
         ui.set_style(content, transparent());
         ui.set_sizing(content, Some(Sizing::GROW), None);
-        ui.set_layout(content, column_layout());
         // Replace the placeholder kind with the real one
         let sel_style = self.style_selected.unwrap_or_else(default_sel_style);
         if let Some(n) = ui.arena.get_mut(r) {

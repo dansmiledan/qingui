@@ -2,23 +2,6 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
-/// Layout description for a container.
-#[derive(Clone, PartialEq, Debug)]
-pub enum Layout {
-    /// No automatic layout.
-    None,
-    /// Flex layout.
-    Flex(Flex),
-    /// Grid layout.
-    Grid(Grid),
-}
-
-impl Default for Layout {
-    fn default() -> Self {
-        Layout::None
-    }
-}
-
 /// Axis sizing strategy (modeled after Clay's FIT/GROW/FIXED/PERCENT model).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Sizing {

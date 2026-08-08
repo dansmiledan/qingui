@@ -39,7 +39,7 @@ pub struct RenderScene {
 /// representative of a real relayout.
 pub fn build_layout_scene(children: usize) -> Ui {
     use qingui::layout::{Align, Flex, FlexDir};
-    use qingui::layout::Layout;
+    use qingui::widgets::Layout;
 
     let mut ui = Ui::new(320, 240, 24);
     let scr = ui.screen();

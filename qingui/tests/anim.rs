@@ -118,15 +118,14 @@ fn anim_value_updates_widget_and_dirty() {
 #[test]
 fn anim_x_on_flex_child_not_reset_by_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
-    use qingui::layout::Layout;
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
-    ui.set_layout(c, Layout::Flex(Flex {
+    ui.set_flex(c, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
-    }));
+    });
     let k = ObjCfg::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.timer_handler();
@@ -141,16 +140,15 @@ fn anim_x_on_flex_child_not_reset_by_layout() {
 #[test]
 fn translate_offsets_abs_rect_and_survives_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
-    use qingui::layout::Layout;
     use qingui::Rect;
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
-    ui.set_layout(c, Layout::Flex(Flex {
+    ui.set_flex(c, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
-    }));
+    });
     let k = ObjCfg::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.set_translate(c, 5, 7); // parent container translated → whole subtree offsets

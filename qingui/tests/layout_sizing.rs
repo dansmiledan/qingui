@@ -1,20 +1,19 @@
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
-use qingui::layout::Layout;
 use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 
-fn row_flex() -> Layout {
-    Layout::Flex(Flex {
+fn row_flex() -> Flex {
+    Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
-    })
+    }
 }
 
 fn container(ui: &mut Ui, w: i32, h: i32) -> qingui::ObjRef {
     let scr = ui.screen();
     let c = ObjCfg::new().build(ui, scr);
     ui.set_size(c, w, h);
-    ui.set_layout(c, row_flex());
+    ui.set_flex(c, row_flex());
     c
 }
 
@@ -83,12 +82,12 @@ fn grid_child_grow_fills_cell() {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
-    ui.set_layout(c, Layout::Grid(Grid {
+    ui.set_grid(c, Grid {
         cols: vec![Track::Px(100), Track::Fr(1)],
         rows: vec![Track::Fr(1)],
         col_gap: 10,
         row_gap: 0,
-    }));
+    });
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_grid_cell(a, (1, 1), (0, 1));
     ui.set_sizing(a, Some(Sizing::GROW), Some(Sizing::GROW));
@@ -116,12 +115,12 @@ fn grid_aspect_ratio_fits_cell() {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
-    ui.set_layout(c, Layout::Grid(Grid {
+    ui.set_grid(c, Grid {
         cols: vec![Track::Px(120)],
         rows: vec![Track::Px(80)],
         col_gap: 0,
         row_gap: 0,
-    }));
+    });
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_grid_cell(a, (0, 1), (0, 1));
     ui.set_sizing(a, Some(Sizing::GROW), Some(Sizing::GROW));

@@ -582,9 +582,17 @@ impl Ui {
         self.layout_dirty = true;
     }
 
-    pub fn set_layout(&mut self, obj: ObjRef, layout: crate::layout::Layout) {
+    /// Replaces the node's widget kind with a flex layout (runtime layout change).
+    pub fn set_flex(&mut self, obj: ObjRef, flex: crate::layout::Flex) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.layout = Some(layout);
+            n.kind = alloc::boxed::Box::new(crate::widgets::flexbox::FlexLayout { flex });
+        }
+        self.layout_dirty = true;
+    }
+    /// Replaces the node's widget kind with a grid layout.
+    pub fn set_grid(&mut self, obj: ObjRef, grid: crate::layout::Grid) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.kind = alloc::boxed::Box::new(crate::widgets::gridbox::GridLayout { grid });
         }
         self.layout_dirty = true;
     }
@@ -1146,9 +1154,10 @@ mod tests {
 
     #[test]
     fn layout_runs_flex_pass() {
-        use crate::layout::{Align, Flex, FlexDir, Layout};
+        use crate::layout::{Align, Flex, FlexDir};
         use crate::widgets::label::LabelCfg;
         use crate::widgets::obj::ObjCfg;
+        use crate::widgets::Layout;
         let mut ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let container = ObjCfg::new()

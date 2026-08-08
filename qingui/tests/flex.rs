@@ -1,10 +1,9 @@
 use qingui::layout::{Align, Flex, FlexDir};
-use qingui::layout::Layout;
 use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 
-fn flex(dir: FlexDir, main: Align, cross: Align, gap: i32) -> Layout {
-    Layout::Flex(Flex { dir, wrap: false, main, cross, track: Align::Start, gap })
+fn flex(dir: FlexDir, main: Align, cross: Align, gap: i32) -> Flex {
+    Flex { dir, wrap: false, main, cross, track: Align::Start, gap }
 }
 
 fn row_of(ui: &mut Ui, n: usize, w: i32, h: i32) -> Vec<qingui::ObjRef> {
@@ -27,7 +26,7 @@ fn row_start_gap() {
     let kids = row_of(&mut ui, 3, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
-    ui.set_layout(c, flex(FlexDir::Row, Align::Start, Align::Start, 5));
+    ui.set_flex(c, flex(FlexDir::Row, Align::Start, Align::Start, 5));
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).x, 0);
     assert_eq!(ui.rect(kids[1]).x, 25);
@@ -40,7 +39,7 @@ fn row_space_between() {
     let kids = row_of(&mut ui, 3, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
-    ui.set_layout(c, flex(FlexDir::Row, Align::SpaceBetween, Align::Start, 0));
+    ui.set_flex(c, flex(FlexDir::Row, Align::SpaceBetween, Align::Start, 0));
     ui.timer_handler();
     // Container width 200, children 20×3=60, the remaining 140 split across two gaps = 70
     assert_eq!(ui.rect(kids[0]).x, 0);
@@ -54,10 +53,10 @@ fn row_center_cross_center() {
     let kids = row_of(&mut ui, 1, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
-    ui.set_layout(c, Layout::Flex(Flex {
+    ui.set_flex(c, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Center, cross: Align::Center, track: Align::Center, gap: 0,
-    }));
+    });
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).x, 90); // (200-20)/2
     assert_eq!(ui.rect(kids[0]).y, 45); // (100-10)/2, track Center centers the whole row
@@ -70,10 +69,8 @@ fn column_wrap() {
     let scr = ui.screen();
     let c = ui.children(scr)[0];
     let mut f = flex(FlexDir::Column, Align::Start, Align::Start, 0);
-    if let Layout::Flex(ref mut fl) = f {
-        fl.wrap = true;
-    }
-    ui.set_layout(c, f);
+    f.wrap = true;
+    ui.set_flex(c, f);
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).y, 0);
     assert_eq!(ui.rect(kids[1]).y, 40);
@@ -87,7 +84,7 @@ fn layout_reruns_on_size_change() {
     let kids = row_of(&mut ui, 2, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
-    ui.set_layout(c, flex(FlexDir::Row, Align::End, Align::Start, 0));
+    ui.set_flex(c, flex(FlexDir::Row, Align::End, Align::Start, 0));
     ui.timer_handler();
     assert_eq!(ui.rect(kids[1]).x, 180);
     ui.set_size(c, 100, 100); // container shrinks → layout marked dirty → recomputed next frame
@@ -101,7 +98,7 @@ fn reorder_children_relayouts() {
     let kids = row_of(&mut ui, 3, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
-    ui.set_layout(c, flex(FlexDir::Row, Align::Start, Align::Start, 0));
+    ui.set_flex(c, flex(FlexDir::Row, Align::Start, Align::Start, 0));
     ui.timer_handler();
     assert_eq!(ui.rect(kids[0]).x, 0);
     // Moving the last child to the front → positions update after reorder

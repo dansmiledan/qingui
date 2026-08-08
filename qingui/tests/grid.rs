@@ -1,10 +1,9 @@
 use qingui::layout::{Grid, Track};
-use qingui::layout::Layout;
 use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 
-fn grid(cols: Vec<Track>, rows: Vec<Track>, gap: i32) -> Layout {
-    Layout::Grid(Grid { cols, rows, col_gap: gap, row_gap: gap })
+fn grid(cols: Vec<Track>, rows: Vec<Track>, gap: i32) -> Grid {
+    Grid { cols, rows, col_gap: gap, row_gap: gap }
 }
 
 #[test]
@@ -14,7 +13,7 @@ fn px_tracks_place_children() {
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(c, 0, 0);
     ui.set_size(c, 300, 200);
-    ui.set_layout(c, grid(vec![Track::Px(100), Track::Px(100)], vec![Track::Px(50), Track::Px(50)], 10));
+    ui.set_grid(c, grid(vec![Track::Px(100), Track::Px(100)], vec![Track::Px(50), Track::Px(50)], 10));
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 10, 10);
     ui.set_grid_cell(a, (0, 1), (0, 1));
@@ -32,7 +31,7 @@ fn fr_shares_remaining_space() {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
-    ui.set_layout(c, grid(vec![Track::Px(100), Track::Fr(1), Track::Fr(2)], vec![Track::Px(50)], 0));
+    ui.set_grid(c, grid(vec![Track::Px(100), Track::Fr(1), Track::Fr(2)], vec![Track::Px(50)], 0));
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_grid_cell(a, (1, 1), (0, 1));
     let b = ObjCfg::new().build(&mut ui, c);
@@ -50,7 +49,7 @@ fn content_track_sizes_to_child() {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
-    ui.set_layout(c, grid(vec![Track::Content, Track::Px(10)], vec![Track::Px(50)], 0));
+    ui.set_grid(c, grid(vec![Track::Content, Track::Px(10)], vec![Track::Px(50)], 0));
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 42, 10);
     ui.set_grid_cell(a, (0, 1), (0, 1));
@@ -66,7 +65,7 @@ fn span_places_across_tracks() {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
-    ui.set_layout(c, grid(vec![Track::Px(50), Track::Px(50)], vec![Track::Px(50)], 10));
+    ui.set_grid(c, grid(vec![Track::Px(50), Track::Px(50)], vec![Track::Px(50)], 10));
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 10, 10);
     ui.set_grid_cell(a, (0, 2), (0, 1)); // spans 2 columns
@@ -83,7 +82,7 @@ fn ignore_layout_child_not_managed() {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
-    ui.set_layout(c, grid(vec![Track::Content, Track::Px(10)], vec![Track::Px(50)], 0));
+    ui.set_grid(c, grid(vec![Track::Content, Track::Px(10)], vec![Track::Px(50)], 0));
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 42, 10);
     ui.set_grid_cell(a, (0, 1), (0, 1));

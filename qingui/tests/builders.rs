@@ -1,4 +1,4 @@
-use qingui::layout::{Align, Flex, FlexDir, Layout, Sizing};
+use qingui::layout::{Align, Flex, FlexDir, Sizing};
 use qingui::prelude::*;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
@@ -8,6 +8,7 @@ use qingui::widgets::msgbox::MsgboxBuilder;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::slider::SliderCfg;
+use qingui::widgets::Layout;
 use qingui::{Color, EventKind, Ui};
 
 #[test]

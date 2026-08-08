@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use crate::arena::ObjRef;
 use crate::event::EventKind;
 use crate::geometry::Rect;
-use crate::layout::{Align, Attach, Flex, FlexDir, Layout};
+use crate::layout::{Align, Attach, Flex, FlexDir};
 use crate::ui::Ui;
 use super::WidgetKind;
 
@@ -12,6 +12,14 @@ use super::WidgetKind;
 pub struct MsgboxState {
     pub selected: i32,
 }
+
+/// The msgbox root's fixed arrangement (column flex, centered items). The root's
+/// kind is the legacy `WidgetKind::Msgbox` variant, so the `WidgetKind` shim
+/// dispatches this until Msgbox's own migration task (Task 19).
+pub(crate) const ROOT_FLEX: Flex = Flex {
+    dir: FlexDir::Column, wrap: false,
+    main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
+};
 
 /// Modal message box: title + text + button row, floating centered with focus locked.
 /// Closes on button click: the root object receives `EventKind::ValueChanged`;
@@ -55,10 +63,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
             .border(crate::geometry::Color::WHITE, 2),
     );
     ui.set_pad(root, (12, 12, 10, 10));
-    ui.set_layout(root, Layout::Flex(Flex {
-        dir: FlexDir::Column, wrap: false,
-        main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
-    }));
+    // The root's column flex is ROOT_FLEX, dispatched by the WidgetKind shim's layout().
     let t = crate::widgets::label::create(ui, root, title);
     ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
@@ -67,10 +72,10 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     let mut rs = crate::style::Style::default();
     rs.bg_opa = Some(0);
     ui.set_style(row, rs);
-    ui.set_layout(row, Layout::Flex(Flex {
+    ui.set_flex(row, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Center, cross: Align::Start, track: Align::Start, gap: 12,
-    }));
+    });
     for (i, b) in buttons.iter().enumerate() {
         let btn = crate::widgets::button::create(ui, row, b);
         ui.group_add(btn);

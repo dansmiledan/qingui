@@ -1,7 +1,6 @@
 // Regression: no rendering ghosting after layout transitions (moving a container must mark its subtree dirty)
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
-use qingui::layout::Layout;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
@@ -37,12 +36,12 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     let ss = qingui::style::theme_screen();
     ui.set_style(screen, ss);
     ui.set_pad(screen, (8, 0, 8, 0));
-    ui.set_layout(screen, Layout::Grid(Grid {
+    ui.set_grid(screen, Grid {
         cols: vec![Track::Px(col), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,
         row_gap: 8,
-    }));
+    });
 
     let menu = ListCfg::new(&["Settings", "About"]).build(&mut ui, screen);
     ui.set_grid_cell(menu, (0, 1), (1, 1));
@@ -52,20 +51,20 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     ui.set_grid_cell(panel, (1, 1), (1, 1));
     ui.set_style(panel, qingui::style::theme_obj());
     ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(panel, Layout::Flex(Flex {
+    ui.set_flex(panel, Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
-    }));
+    });
 
     let page = ObjCfg::new().build(&mut ui, panel);
     let mut ps = qingui::style::Style::default();
     ps.bg_opa = Some(0);
     ui.set_style(page, ps);
     ui.set_sizing(page, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page, Layout::Flex(Flex {
+    ui.set_flex(page, Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
-    }));
+    });
     let _la = LabelCfg::new(TEXT).build(&mut ui, page);
 
     if with_transition {
@@ -93,12 +92,12 @@ fn repro_wide_transition_text_ghost() {
     ui.tick_inc(1);
     ui.timer_handler();
     let scr = ui.screen();
-    ui.set_layout(scr, Layout::Grid(Grid {
+    ui.set_grid(scr, Grid {
         cols: vec![Track::Px(108), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,
         row_gap: 8,
-    }));
+    });
     for _ in 0..40 {
         ui.tick_inc(16);
         ui.timer_handler();

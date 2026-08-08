@@ -8,7 +8,6 @@ mod sim;
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::prelude::*;
-use qingui::layout::Layout;
 use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
@@ -86,14 +85,14 @@ impl Demo {
         // Screen: flex row + wrap, padding 8, gap 8
         ui.set_style(screen, qingui::style::theme_screen());
         ui.set_pad(screen, (8, 8, 8, 8));
-        ui.set_layout(screen, Layout::Flex(Flex {
+        ui.set_flex(screen, Flex {
             dir: FlexDir::Row,
             wrap: true,
             main: Align::Start,
             cross: Align::Start,
             track: Align::Start,
             gap: 8,
-        }));
+        });
 
         let mut kids: Vec<ObjRef> = Vec::new();
 
@@ -176,14 +175,14 @@ impl Demo {
             (Color::WHITE, "About"),
         ] {
             let it = ui.itemlist_add_item(menu).unwrap();
-            ui.set_layout(it, Layout::Flex(Flex {
+            ui.set_flex(it, Flex {
                 dir: FlexDir::Row,
                 wrap: false,
                 main: Align::Start,
                 cross: Align::Center,
                 track: Align::Start,
                 gap: 6,
-            }));
+            });
             ui.set_size(it, 140, 16);
             LedCfg::new(color).size(8, 8).build(ui, it);
             LabelCfg::new(name).build(ui, it);

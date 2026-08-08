@@ -8,6 +8,14 @@ use crate::layout::Sizing;
 use crate::style::Style;
 use crate::ui::Ui;
 
+/// Container layout kind selected via `WidgetBuilder::layout`.
+pub enum Layout {
+    /// Flex layout.
+    Flex(crate::layout::Flex),
+    /// Grid layout.
+    Grid(crate::layout::Grid),
+}
+
 /// Common fields shared by every widget builder.
 #[derive(Default)]
 pub(crate) struct CommonBuilder {
@@ -15,7 +23,7 @@ pub(crate) struct CommonBuilder {
     pub style: Option<Style>,
     pub style_pressed: Option<Style>,
     pub style_focused: Option<Style>,
-    pub layout: Option<crate::layout::Layout>,
+    pub layout: Option<Layout>,
     pub pad: Option<(i32, i32, i32, i32)>,
     pub sizing: Option<(Option<Sizing>, Option<Sizing>)>,
     pub aspect: Option<u32>,
@@ -24,10 +32,11 @@ pub(crate) struct CommonBuilder {
 }
 
 impl CommonBuilder {
-    /// Applies the layout/sizing/transition/events tail to an inserted node.
-    /// Style defaults are widget-specific and stay in each `WidgetCfg::build`.
+    /// Applies the sizing/transition/events tail to an inserted node.
+    /// Style defaults are widget-specific and stay in each `WidgetCfg::build`;
+    /// `layout` is consumed by `ObjCfg::build` (it decides the widget kind) and
+    /// never reaches this tail.
     pub fn apply_tail(self, ui: &mut Ui, r: ObjRef) {
-        if let Some(l) = self.layout { ui.set_layout(r, l); }
         if let Some(p) = self.pad { ui.set_pad(r, p); }
         if let Some((sw, sh)) = self.sizing { ui.set_sizing(r, sw, sh); }
         if let Some(a) = self.aspect { ui.set_aspect(r, Some(a)); }
@@ -65,8 +74,10 @@ impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
     pub fn style_pressed(mut self, s: Style) -> Self { self.common.style_pressed = Some(s); self }
     /// Sets the focused style. Only honored by widgets that have a focused-state style (currently Button, Checkbox, Dropdown, ItemList, List, Roller, ScrollView, Slider, Spinbox, Switch).
     pub fn style_focused(mut self, s: Style) -> Self { self.common.style_focused = Some(s); self }
-    /// Sets the layout.
-    pub fn layout(mut self, l: crate::layout::Layout) -> Self { self.common.layout = Some(l); self }
+    /// Sets the container layout. Layout is a widget kind, not a common property:
+    /// only `ObjCfg` honors it (it becomes the node's FlexLayout/GridLayout kind);
+    /// every other widget silently ignores it.
+    pub fn layout(mut self, l: Layout) -> Self { self.common.layout = Some(l); self }
     /// Sets padding on all four sides.
     pub fn pads(mut self, v: i32) -> Self { self.common.pad = Some((v, v, v, v)); self }
     /// Sets padding per side: (left, right, top, bottom).

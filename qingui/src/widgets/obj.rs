@@ -18,7 +18,13 @@ impl ObjCfg {
 impl WidgetCfg for ObjCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((0, 0));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(Manual));
+        // The layout config decides the widget kind at insert time (layout is a kind).
+        let kind: alloc::boxed::Box<dyn super::Widget> = match common.layout.take() {
+            Some(super::builder::Layout::Flex(f)) => alloc::boxed::Box::new(super::flexbox::FlexLayout { flex: f }),
+            Some(super::builder::Layout::Grid(g)) => alloc::boxed::Box::new(super::gridbox::GridLayout { grid: g }),
+            _ => alloc::boxed::Box::new(Manual),
+        };
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), kind);
         if let Some(s) = common.style.take() {
             ui.set_style(r, s);
         }
@@ -27,24 +33,11 @@ impl WidgetCfg for ObjCfg {
     }
 }
 
-/// Manual-positioning container: hosts children and (via Task 9's bridge) a layout
-/// config; draws nothing itself. Replaces the old unit `ObjState`.
+/// Manual-positioning container: hosts children; draws nothing itself.
+/// Replaces the old unit `ObjState`.
 pub struct Manual;
 
 impl Widget for Manual {
-    // Bridge (Task 9 deletes this with the Node.layout field): read the container
-    // layout config from the node and dispatch, same as the `WidgetKind` shim.
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
-        let layout = ui.arena.get(obj).and_then(|n| match &n.layout {
-            Some(crate::layout::Layout::Flex(f)) => Some(crate::layout::Layout::Flex(*f)),
-            other => other.clone(),
-        });
-        match layout {
-            Some(crate::layout::Layout::Flex(f)) => crate::layout::layout_flex(ui, obj, &f),
-            Some(crate::layout::Layout::Grid(g)) => crate::layout::layout_grid(ui, obj, &g),
-            _ => {}
-        }
-    }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

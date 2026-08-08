@@ -2,7 +2,7 @@ mod sim;
 mod images;
 
 use qingui::anim::{Anim, AnimProp, Easing};
-use qingui::layout::{Align, Flex, FlexDir, Grid, Layout, Sizing, Track};
+use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::prelude::*;
 use qingui::style::Style;
 use qingui::widgets::arc::ArcCfg;
@@ -49,11 +49,11 @@ fn main() {
     });
 }
 
-fn column() -> Layout {
-    Layout::Flex(Flex {
+fn column() -> Flex {
+    Flex {
         dir: FlexDir::Column, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
-    })
+    }
 }
 
 /// Transparent container style (layout only, no background drawn)
@@ -70,12 +70,12 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let ss = qingui::style::theme_screen();
     ui.set_style(screen, ss);
     ui.set_pad(screen, (8, 8, 8, 8));
-    ui.set_layout(screen, Layout::Grid(Grid {
+    ui.set_grid(screen, Grid {
         cols: vec![Track::Px(108), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,
         row_gap: 8,
-    }));
+    });
 
     let title = LabelCfg::new("qingui demo").build(ui, screen);
     ui.set_grid_cell(title, (0, 2), (0, 1));
@@ -89,13 +89,13 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_grid_cell(panel, (1, 1), (1, 1));
     ui.set_style(panel, qingui::style::theme_obj());
     ui.set_sizing(panel, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(panel, column());
+    ui.set_flex(panel, column());
 
     // ---- Settings page: Slider + Switch + preview Bar ----
     let page_settings = ObjCfg::new().build(ui, panel);
     ui.set_style(page_settings, transparent());
     ui.set_sizing(page_settings, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page_settings, column());
+    ui.set_flex(page_settings, column());
     let l1 = LabelCfg::new("Brightness").build(ui, page_settings);
     let _ = l1;
     let slider = SliderCfg::new(0, 100)
@@ -123,7 +123,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let page_about = ObjCfg::new().build(ui, panel);
     ui.set_style(page_about, transparent());
     ui.set_sizing(page_about, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page_about, column());
+    ui.set_flex(page_about, column());
     // Layout transition demo: toggling the left menu column width smoothly re-lays out the UI
     let wide = std::cell::Cell::new(false);
     let wide_btn = ButtonCfg::new("Wide").build(ui, page_about);
@@ -131,12 +131,12 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         let w = !wide.get();
         wide.set(w);
         let scr = ui.screen();
-        ui.set_layout(scr, Layout::Grid(Grid {
+        ui.set_grid(scr, Grid {
             cols: vec![Track::Px(if w { 180 } else { 108 }), Track::Fr(1)],
             rows: vec![Track::Content, Track::Fr(1)],
             col_gap: 8,
             row_gap: 8,
-        }));
+        });
     }));
     // Scrolling content: text + image widget examples (static image + gif frame animation);
     // When content exceeds the viewport, focus the ScrollView and scroll with Up/Down
@@ -162,7 +162,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let page_animate = ObjCfg::new().build(ui, panel);
     ui.set_style(page_animate, transparent());
     ui.set_sizing(page_animate, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page_animate, column());
+    ui.set_flex(page_animate, column());
     let bar = BarCfg::new(0, 100).build(ui, page_animate);
     ui.set_size(bar, 160, 10);
     ui.anim_start(
@@ -185,7 +185,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let page_longlist = ObjCfg::new().build(ui, panel);
     ui.set_style(page_longlist, transparent());
     ui.set_sizing(page_longlist, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page_longlist, column());
+    ui.set_flex(page_longlist, column());
     let long_list = ListCfg::new(&[
         "Item 01", "Item 02", "Item 03", "Item 04", "Item 05",
         "Item 06", "Item 07", "Item 08", "Item 09", "Item 10",
@@ -198,10 +198,10 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let btn_row = ObjCfg::new().build(ui, page_longlist);
     ui.set_style(btn_row, transparent());
     ui.set_size(btn_row, 160, 28);
-    ui.set_layout(btn_row, Layout::Flex(Flex {
+    ui.set_flex(btn_row, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Start, track: Align::Start, gap: 8,
-    }));
+    });
     let add_btn = ButtonCfg::new("Add").build(ui, btn_row);
     let del_btn = ButtonCfg::new("Del").build(ui, btn_row);
 
@@ -244,7 +244,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let page_p1 = ObjCfg::new().build(ui, panel);
     ui.set_style(page_p1, transparent());
     ui.set_sizing(page_p1, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page_p1, column());
+    ui.set_flex(page_p1, column());
     let roller = RollerCfg::new(&["One", "Two", "Three", "Four", "Five"])
         .size(90, 56)
         .build(ui, page_p1);
@@ -253,10 +253,10 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let led_row = ObjCfg::new().build(ui, page_p1);
     ui.set_style(led_row, transparent());
     ui.set_size(led_row, 120, 18);
-    ui.set_layout(led_row, Layout::Flex(Flex {
+    ui.set_flex(led_row, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Center, track: Align::Start, gap: 6,
-    }));
+    });
     let led = LedCfg::new(Color::rgb(60, 180, 90)).build(ui, led_row);
     let _led_lbl = LabelCfg::new("status").build(ui, led_row);
     // LED brightness follows the spinbox value (demonstrates widget linkage)
@@ -277,7 +277,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let page_itemlist = ObjCfg::new().build(ui, panel);
     ui.set_style(page_itemlist, transparent());
     ui.set_sizing(page_itemlist, Some(Sizing::GROW), Some(Sizing::GROW));
-    ui.set_layout(page_itemlist, column());
+    ui.set_flex(page_itemlist, column());
 
     // Two line charts (top/bottom): different colors, data pushed periodically by main's tick
     let chart1 = ChartCfg::new()
@@ -300,10 +300,10 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let item_controls: Rc<RefCell<Vec<(ObjRef, ObjRef)>>> = Rc::new(RefCell::new(Vec::new()));
     for i in 0..8 {
         let item = ui.itemlist_add_item(il).unwrap();
-        ui.set_layout(item, Layout::Flex(Flex {
+        ui.set_flex(item, Flex {
             dir: FlexDir::Row, wrap: false,
             main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
-        }));
+        });
         let led = LedCfg::new(Color::rgb(60, 180, 90)).size(10, 10).build(ui, item);
         let _lbl = LabelCfg::new(&format!("Sensor {:02}", i + 1)).build(ui, item);
         let cb = CheckboxCfg::new("").build(ui, item);

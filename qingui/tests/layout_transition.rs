@@ -1,14 +1,13 @@
 use qingui::anim::Easing;
 use qingui::layout::{Align, Flex, FlexDir, Sizing};
-use qingui::layout::Layout;
 use qingui::widgets::obj::ObjCfg;
 use qingui::{ObjRef, Ui};
 
-fn flex(main: Align) -> Layout {
-    Layout::Flex(Flex {
+fn flex(main: Align) -> Flex {
+    Flex {
         dir: FlexDir::Row, wrap: false,
         main, cross: Align::Start, track: Align::Start, gap: 0,
-    })
+    }
 }
 
 fn setup() -> (Ui, ObjRef, ObjRef) {
@@ -16,7 +15,7 @@ fn setup() -> (Ui, ObjRef, ObjRef) {
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
-    ui.set_layout(c, flex(Align::Start));
+    ui.set_flex(c, flex(Align::Start));
     let k = ObjCfg::new().build(&mut ui, c);
     ui.set_size(k, 20, 10);
     ui.set_transition(k, Some((100, Easing::Linear)));
@@ -26,7 +25,7 @@ fn setup() -> (Ui, ObjRef, ObjRef) {
 #[test]
 fn first_layout_does_not_animate() {
     let (mut ui, c, k) = setup();
-    ui.set_layout(c, flex(Align::End));
+    ui.set_flex(c, flex(Align::End));
     ui.timer_handler();
     // The first layout lands directly in place, no fly-in animation
     assert_eq!(ui.rect(k).x, 180);
@@ -39,7 +38,7 @@ fn layout_change_animates_to_target() {
     ui.timer_handler(); // first layout lands in place (Start → x=0)
     assert_eq!(ui.rect(k).x, 0);
     // Layout change → automatically transitions to the target position
-    ui.set_layout(c, flex(Align::End));
+    ui.set_flex(c, flex(Align::End));
     ui.timer_handler();
     assert!(ui.anim_running());
     assert!(ui.rect(k).x < 180); // still in transit
@@ -84,7 +83,7 @@ fn no_transition_no_animation() {
     let (mut ui, c, k) = setup();
     ui.set_transition(k, None); // disable transition
     ui.timer_handler();
-    ui.set_layout(c, flex(Align::End));
+    ui.set_flex(c, flex(Align::End));
     ui.timer_handler();
     assert_eq!(ui.rect(k).x, 180); // teleports
     assert!(!ui.anim_running());

@@ -2,7 +2,7 @@ use crate::arena::ObjRef;
 use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::input::Key;
-use crate::layout::{Align, Flex, FlexDir, Layout, Sizing};
+use crate::layout::{Align, Flex, FlexDir, Sizing};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -10,6 +10,14 @@ use super::{KeyCtx, KeyOutcome, WidgetBehavior, WidgetCtx, WidgetKind};
 
 /// Scroll step per key press (px)
 pub const STEP: i32 = 20;
+
+/// The content node's fixed arrangement (column flex). The viewport itself is a
+/// `ScrollViewState` with no layout of its own: the content width comes from the
+/// viewport width at creation (Task 10 owns the viewport's layout behavior).
+pub(crate) const CONTENT_FLEX: Flex = Flex {
+    dir: FlexDir::Column, wrap: false,
+    main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+};
 
 /// Scrolling container state: viewport CLIP_CHILDREN, content moved via translate
 pub struct ScrollViewState {
@@ -59,16 +67,13 @@ impl WidgetCfg for ScrollViewCfg {
         // The viewport is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(super::obj::Manual));
         ui.set_clip_children(r, true);
-        // content: column flex, width GROW, transparent
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(super::obj::Manual));
+        // content: column flex, width set from the viewport at creation, transparent
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0),
+            alloc::boxed::Box::new(super::flexbox::FlexLayout { flex: CONTENT_FLEX }));
         let mut cs = Style::default();
         cs.bg_opa = Some(0);
         ui.set_style(content, cs);
         ui.set_sizing(content, Some(Sizing::GROW), None);
-        ui.set_layout(content, Layout::Flex(Flex {
-            dir: FlexDir::Column, wrap: false,
-            main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
-        }));
         // Replace the placeholder kind with the real one
         if let Some(n) = ui.kind_mut(r) {
             *n = alloc::boxed::Box::new(WidgetKind::ScrollView(ScrollViewState { content, scroll: 0 }));
@@ -77,11 +82,6 @@ impl WidgetCfg for ScrollViewCfg {
         let mut vs = common.style.take().unwrap_or_default();
         if vs.bg_opa.is_none() { vs.bg_opa = Some(0); }
         ui.set_style(r, vs);
-        // The viewport is a column flex by default: lets content's width GROW follow the viewport width (otherwise GROW is dead code)
-        ui.set_layout(r, Layout::Flex(Flex {
-            dir: FlexDir::Column, wrap: false,
-            main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
-        }));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
         common.apply_tail(ui, r);
         r

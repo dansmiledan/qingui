@@ -9,7 +9,7 @@ use crate::ui::Ui;
 use crate::draw::DrawBuf as Canvas;
 
 pub(crate) mod builder;
-pub use builder::WidgetBuilder; // public return type (XxxCfg::new returns it)
+pub use builder::{Layout, WidgetBuilder}; // public return type (XxxCfg::new returns it)
 
 pub mod arc;
 pub mod bar;
@@ -19,6 +19,8 @@ pub mod chart;
 pub mod checkbox;
 pub mod custom;
 pub mod dropdown;
+pub mod flexbox;
+pub mod gridbox;
 pub mod image;
 pub mod itemlist;
 pub mod label;
@@ -298,15 +300,11 @@ impl Widget for WidgetKind {
         WidgetKind::on_key(self, key, ctx)
     }
     fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
-        // Bridge: read the container layout config from the node (Task 1 bridge field).
-        let layout = ui.arena.get(obj).and_then(|n| match &n.layout {
-            Some(crate::layout::Layout::Flex(f)) => Some(crate::layout::Layout::Flex(*f)),
-            other => other.clone(),
-        });
-        match layout {
-            Some(crate::layout::Layout::Flex(f)) => crate::layout::layout_flex(ui, obj, &f),
-            Some(crate::layout::Layout::Grid(g)) => crate::layout::layout_grid(ui, obj, &g),
-            _ => {}
+        // Legacy container variants keep their fixed arrangement until their own
+        // migration task (Msgbox: Task 19). The ScrollView viewport is not here:
+        // its content node carries the flex (Task 10 owns the viewport).
+        if let WidgetKind::Msgbox(_) = self {
+            crate::layout::layout_flex(ui, obj, &msgbox::ROOT_FLEX);
         }
     }
     fn value(&self) -> i32 { WidgetKind::value(self) }

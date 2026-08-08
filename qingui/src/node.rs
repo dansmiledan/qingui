@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::geometry::Rect;
-use crate::layout::{Layout, Sizing};
+use crate::layout::Sizing;
 
 /// Overlay draw hook: called after the widget draws its own content, with
 /// (draw buffer, widget absolute rect, clip rect, current time ms).
@@ -82,8 +82,6 @@ pub struct Node {
     pub aspect_ratio: Option<u32>,
     /// Layout transition: (duration ms, easing).
     pub transition: Option<(u32, crate::anim::Easing)>,
-    /// Container layout config (bridge field; replaced by layout widget kinds in Task 9).
-    pub layout: Option<Layout>,
     /// Per-child layout constraints consumed by the parent.
     pub item_props: ItemProps,
     /// Visual translation offset: applied to the whole subtree at render time, does not
@@ -117,7 +115,6 @@ impl Node {
             sizing_h: None,
             aspect_ratio: None,
             transition: None,
-            layout: None,
             item_props: ItemProps::None,
             translate: crate::geometry::Point::default(),
             floating: None,
