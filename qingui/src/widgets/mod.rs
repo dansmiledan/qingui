@@ -263,7 +263,6 @@ define_widgets! {
     Table(table::TableState, as_table, as_table_mut, inline),
     Spinbox(spinbox::SpinboxState, as_spinbox, as_spinbox_mut, inline),
     Roller(roller::RollerState, as_roller, as_roller_mut, boxed),
-    ScrollView(scrollview::ScrollViewState, as_scrollview, as_scrollview_mut, inline),
     Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut, inline),
     Image(image::ImageState, as_image, as_image_mut, inline),
     Custom(custom::CustomState, as_custom_state, as_custom_state_mut, inline),
@@ -301,8 +300,7 @@ impl Widget for WidgetKind {
     }
     fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
         // Legacy container variants keep their fixed arrangement until their own
-        // migration task (Msgbox: Task 19). The ScrollView viewport is not here:
-        // its content node carries the flex (Task 10 owns the viewport).
+        // migration task (Msgbox: Task 19).
         if let WidgetKind::Msgbox(_) = self {
             crate::layout::layout_flex(ui, obj, &msgbox::ROOT_FLEX);
         }

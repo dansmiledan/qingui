@@ -1,20 +1,25 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::input::Key;
 use crate::layout::{Align, Flex, FlexDir, Sizing};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{KeyCtx, KeyOutcome, WidgetBehavior, WidgetCtx, WidgetKind};
 
 /// Scroll step per key press (px)
 pub const STEP: i32 = 20;
 
-/// The content node's fixed arrangement (column flex). The viewport itself is a
-/// `ScrollViewState` with no layout of its own: the content width comes from the
-/// viewport width at creation (Task 10 owns the viewport's layout behavior).
+/// The content node's fixed arrangement (column flex).
 pub(crate) const CONTENT_FLEX: Flex = Flex {
+    dir: FlexDir::Column, wrap: false,
+    main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+};
+
+/// The viewport's own arrangement: a single column holding the content node.
+/// Running this flex on the viewport makes the content's cross-axis
+/// `Sizing::GROW` track the viewport width on every layout pass, including
+/// runtime resizes of the viewport.
+const SCROLL_FLEX: Flex = Flex {
     dir: FlexDir::Column, wrap: false,
     main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
 };
@@ -25,27 +30,55 @@ pub struct ScrollViewState {
     pub scroll: i32, // ≤0
 }
 
-impl ScrollViewState {
-    pub(crate) fn on_key(&mut self, key: Key, _ctx: KeyCtx) -> KeyOutcome {
+impl super::Widget for ScrollViewState {
+    // Container: content is drawn by child nodes (CLIP_CHILDREN handled by the pipeline).
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        // Reentrancy: the kind is taken out during on_key, so `Ui::widget`/`Ui::update`
+        // cannot reach this node — mutate `self` directly via `apply_scroll`.
         match key {
-            Key::Up => KeyOutcome::Deferred(scroll_by_exec, -STEP),
-            Key::Down => KeyOutcome::Deferred(scroll_by_exec, STEP),
-            _ => KeyOutcome::Pass,
+            Key::Up => {
+                let y = self.scroll + STEP;
+                apply_scroll(ui, obj, self, y);
+                super::KeyOutcome::Consumed
+            }
+            Key::Down => {
+                let y = self.scroll - STEP;
+                apply_scroll(ui, obj, self, y);
+                super::KeyOutcome::Consumed
+            }
+            _ => super::KeyOutcome::Pass,
         }
     }
-}
-
-/// Scroll exec fn: Ui calls it after putting the kind back.
-pub(crate) fn scroll_by_exec(ui: &mut Ui, sv: ObjRef, delta: i32) {
-    ui.scrollview_scroll_by(sv, delta);
-}
-
-impl WidgetBehavior for ScrollViewState {
-    // Container: content is drawn by child nodes (viewport CLIP is handled by the common pipeline)
-    fn draw(&self, _ctx: &WidgetCtx, _d: &mut DrawBuf, _clip: Rect) {}
-    fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
-        self.on_key(key, ctx)
+    // The viewport arranges its single child (the content node): the column flex
+    // consumes the content's cross-axis `Sizing::GROW`, keeping the content width
+    // equal to the viewport width.
+    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
+        crate::layout::layout_flex(ui, obj, &SCROLL_FLEX);
     }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
+}
+
+/// Core of scroll_to: clamps `y`, writes `state.scroll`, applies the translate.
+/// Callable both from the ext trait (kind in arena) and from `on_key` (kind taken out).
+pub(crate) fn apply_scroll(ui: &mut Ui, sv: ObjRef, state: &mut ScrollViewState, y: i32) {
+    // Child rects are produced by layout: flush pending layout first so the rects read below are current (same as itemlist ensure_visible)
+    if ui.layout_dirty {
+        ui.layout_pass();
+        ui.layout_dirty = false;
+    }
+    // content_h = the child nodes' maximum bottom edge; viewport height = sv height
+    let content_h = ui.children(state.content).iter()
+        .map(|&c| ui.rect(c).y + ui.rect(c).h)
+        .max()
+        .unwrap_or(0);
+    let view_h = ui.rect(sv).h;
+    let ny = y.clamp(-(content_h - view_h).max(0), 0);
+    // Early return if the clamped value equals the current scroll: no state write, no set_translate, avoids a needless repaint (same as itemlist ensure_visible)
+    if state.scroll == ny { return; }
+    state.scroll = ny;
+    let content = state.content;
+    ui.set_translate(content, 0, ny);
 }
 
 /// Builder for the ScrollView widget.
@@ -64,10 +97,11 @@ impl ScrollViewCfg {
 impl WidgetCfg for ScrollViewCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
-        // The viewport is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
+        // The viewport is first created as a Manual placeholder: the content node
+        // needs the viewport as its parent, and the state needs the content handle.
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(super::obj::Manual));
         ui.set_clip_children(r, true);
-        // content: column flex, width set from the viewport at creation, transparent
+        // content: column flex, width grows with the viewport, transparent
         let content = ui.insert_node(r, Rect::new(0, 0, w, 0),
             alloc::boxed::Box::new(super::flexbox::FlexLayout { flex: CONTENT_FLEX }));
         let mut cs = Style::default();
@@ -76,7 +110,7 @@ impl WidgetCfg for ScrollViewCfg {
         ui.set_sizing(content, Some(Sizing::GROW), None);
         // Replace the placeholder kind with the real one
         if let Some(n) = ui.kind_mut(r) {
-            *n = alloc::boxed::Box::new(WidgetKind::ScrollView(ScrollViewState { content, scroll: 0 }));
+            *n = alloc::boxed::Box::new(ScrollViewState { content, scroll: 0 });
         }
         // Viewport style: transparent by default; focused style gives a default border highlight
         let mut vs = common.style.take().unwrap_or_default();
@@ -100,7 +134,7 @@ pub trait UiScrollViewExt {
 
 impl UiScrollViewExt for Ui {
     fn scrollview_content(&self, sv: ObjRef) -> Option<ObjRef> {
-        self.kind(sv).and_then(|k| k.as_kind()?.as_scrollview()).map(|s| s.content)
+        self.widget::<ScrollViewState>(sv).map(|s| s.content)
     }
 
     fn scrollview_scroll_to(&mut self, sv: ObjRef, y: i32) {
@@ -116,20 +150,20 @@ impl UiScrollViewExt for Ui {
             .max()
             .unwrap_or(0);
         let view_h = self.rect(sv).h;
-        let min = -(content_h - view_h).max(0);
-        let ny = y.clamp(min, 0);
-        // Early return if the clamped value equals the current scroll: no state write, no set_translate, avoids a needless repaint (same as itemlist ensure_visible)
-        let cur = self.kind(sv).and_then(|k| k.as_kind()?.as_scrollview()).map(|s| s.scroll);
-        if cur == Some(ny) { return; }
-        if let Some(s) = self.kind_mut(sv).and_then(|k| k.as_kind_mut()?.as_scrollview_mut()) {
+        let ny = y.clamp(-(content_h - view_h).max(0), 0);
+        let changed = self.update::<ScrollViewState, _>(sv, |s| {
+            let changed = s.scroll != ny;
             s.scroll = ny;
+            changed
+        }).unwrap_or(false);
+        // Early return if the clamped value equals the current scroll: no set_translate, avoids a needless repaint (same as itemlist ensure_visible)
+        if changed {
+            self.set_translate(content, 0, ny);
         }
-        self.set_translate(content, 0, ny);
     }
 
     fn scrollview_scroll_by(&mut self, sv: ObjRef, delta: i32) {
-        let cur = self.kind(sv).and_then(|k| k.as_kind()?.as_scrollview()).map(|s| s.scroll);
-        if let Some(cur) = cur {
+        if let Some(cur) = self.widget::<ScrollViewState>(sv).map(|s| s.scroll) {
             // scroll equals translate.y (≤0): a positive delta scrolls down = content moves up = translate decreases
             self.scrollview_scroll_to(sv, cur - delta);
         }

@@ -62,6 +62,18 @@ fn short_content_never_scrolls() {
 }
 
 #[test]
+fn viewport_resize_grows_content_width() {
+    let (mut ui, sv, content) = build();
+    ui.timer_handler(); // initial layout: content width tracks the viewport width
+    assert_eq!(ui.rect(content).w, 80);
+    // Runtime resize: the viewport's layout (column flex) consumes the content's
+    // cross-axis Sizing::GROW again, so the content width follows the new width.
+    ui.set_size(sv, 100, 80);
+    ui.timer_handler();
+    assert_eq!(ui.rect(content).w, 100);
+}
+
+#[test]
 fn scroll_to_programmatic() {
     let (mut ui, sv, content) = build();
     ui.scrollview_scroll_to(sv, -30);
