@@ -6,7 +6,7 @@ use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::{MeasureCtx, WidgetCtx};
 
 /// Label widget state.
 #[derive(Clone)]
@@ -50,7 +50,7 @@ impl WidgetCfg for LabelCfg {
             let font = crate::font::measure_font(common.style.as_ref(), ui);
             crate::font::text_size(font, &self.text)
         });
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Label(LabelState { text: self.text })));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(LabelState { text: self.text }));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         common.apply_tail(ui, r);
         r
@@ -65,9 +65,8 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     ui.invalidate_obj(obj);
     let font = crate::font::measure_font(ui.arena.get(obj).map(|n| &n.style), ui);
     let (w, h) = crate::font::text_size(font, text);
-    if let Some(n) = ui.arena.get_mut(obj) {
-        if let Some(s) = n.kind.as_kind_mut().and_then(|k| k.as_label_mut()) {
-            s.text = text.into();
+    if ui.update::<LabelState, _>(obj, |s| { s.text = text.into(); }).is_some() {
+        if let Some(n) = ui.arena.get_mut(obj) {
             n.rect.w = w;
             n.rect.h = h;
         }
@@ -77,16 +76,17 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
 }
 
 pub(crate) fn text(ui: &Ui, obj: ObjRef) -> String {
-    if let Some(n) = ui.arena.get(obj) {
-        if let Some(s) = n.kind.as_kind().and_then(|k| k.as_label()) {
-            return s.text.clone();
-        }
-    }
-    String::new()
+    ui.widget::<LabelState>(obj).map(|s| s.text.clone()).unwrap_or_default()
 }
 
-impl super::WidgetBehavior for LabelState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.text, ctx, d, clip) }
+impl super::Widget for LabelState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.text, ctx, c, clip) }
+    fn measure(&self, ctx: &MeasureCtx) -> (i32, i32) {
+        if self.text.is_empty() { return ctx.cur; }
+        crate::font::text_size(ctx.font, &self.text)
+    }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// Text API (brought in via prelude or an explicit use)
