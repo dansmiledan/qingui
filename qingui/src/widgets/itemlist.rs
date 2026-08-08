@@ -100,10 +100,10 @@ impl WidgetCfg for ItemListCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport node is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(super::obj::Manual));
         ui.set_clip_children(r, true);
         // content: a Flex column container, width GROW, transparent background
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(super::obj::Manual));
         ui.set_style(content, transparent());
         ui.set_sizing(content, Some(Sizing::GROW), None);
         ui.set_layout(content, column_layout());
@@ -161,7 +161,7 @@ impl UiItemListExt for Ui {
             let s = self.kind(il)?.as_kind()?.as_itemlist()?;
             (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
         };
-        let item = self.insert_node(content, Rect::default(), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
+        let item = self.insert_node(content, Rect::default(), alloc::boxed::Box::new(super::obj::Manual));
         let st = item_base_style();
         self.set_style(item, st);
         self.set_sizing(item, Some(Sizing::GROW), None);

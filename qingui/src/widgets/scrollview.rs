@@ -57,10 +57,10 @@ impl WidgetCfg for ScrollViewCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(super::obj::Manual));
         ui.set_clip_children(r, true);
         // content: column flex, width GROW, transparent
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(super::obj::Manual));
         let mut cs = Style::default();
         cs.bg_opa = Some(0);
         ui.set_style(content, cs);

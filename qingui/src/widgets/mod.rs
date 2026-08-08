@@ -247,7 +247,6 @@ macro_rules! define_widgets {
 }
 
 define_widgets! {
-    Obj(obj::ObjState, as_obj, as_obj_mut, inline),
     ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
     Label(label::LabelState, as_label, as_label_mut, inline),
     Button(button::ButtonState, as_button, as_button_mut, inline),

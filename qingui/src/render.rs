@@ -189,8 +189,7 @@ fn node_state(arena: &Arena<Node>, obj: ObjRef) -> State {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::widgets::obj::ObjState;
-    use crate::widgets::WidgetKind;
+    use crate::widgets::obj::Manual;
     use alloc::boxed::Box;
     use alloc::rc::Rc;
     use alloc::vec::Vec;
@@ -223,9 +222,9 @@ mod tests {
     /// Builds a screen + a full-screen solid-color child, renders, and asserts pixels
     fn render_fixture(scr_style: crate::style::Style, child_style: crate::style::Style, w: i32, h: i32) -> (Arena<Node>, Rc<RefCell<Rec>>) {
         let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, w, h), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().style = scr_style;
-        let child = arena.insert(Node::new(Some(screen), Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let child = arena.insert(Node::new(Some(screen), Rect::new(0, 0, w, h), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().children.push(child);
         arena.get_mut(child).unwrap().style = child_style;
         let mut dirty = DirtyQueue::new(Rect::new(0, 0, w, h), 16);
@@ -246,9 +245,9 @@ mod tests {
     #[test]
     fn hidden_subtree_is_skipped() {
         let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().style = style(Color::BLACK);
-        let child = arena.insert(Node::new(Some(screen), Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let child = arena.insert(Node::new(Some(screen), Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().children.push(child);
         arena.get_mut(child).unwrap().style = style(Color::WHITE);
         arena.get_mut(child).unwrap().flags |= crate::node::Flag::HIDDEN;
@@ -264,12 +263,12 @@ mod tests {
     fn clip_children_limits_child() {
         let (_arena, rec) = {
             let mut arena = Arena::new();
-            let screen = arena.insert(Node::new(None, Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+            let screen = arena.insert(Node::new(None, Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
             arena.get_mut(screen).unwrap().style = style(Color::BLACK);
-            let vp = arena.insert(Node::new(Some(screen), Rect::new(0, 0, 20, 30), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+            let vp = arena.insert(Node::new(Some(screen), Rect::new(0, 0, 20, 30), alloc::boxed::Box::new(Manual)));
             arena.get_mut(vp).unwrap().flags |= crate::node::Flag::CLIP_CHILDREN;
             arena.get_mut(screen).unwrap().children.push(vp);
-            let child = arena.insert(Node::new(Some(vp), Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+            let child = arena.insert(Node::new(Some(vp), Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
             arena.get_mut(child).unwrap().style = style(Color::WHITE);
             arena.get_mut(vp).unwrap().children.push(child);
             let mut dirty = DirtyQueue::new(Rect::new(0, 0, 40, 30), 16);
@@ -286,11 +285,11 @@ mod tests {
     #[test]
     fn abs_rect_accumulates_parent_and_translate() {
         let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, 100, 100), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
-        let p = arena.insert(Node::new(Some(screen), Rect::new(10, 20, 50, 50), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, 100, 100), alloc::boxed::Box::new(Manual)));
+        let p = arena.insert(Node::new(Some(screen), Rect::new(10, 20, 50, 50), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().children.push(p);
         arena.get_mut(p).unwrap().translate = crate::geometry::Point { x: 5, y: 0 };
-        let c = arena.insert(Node::new(Some(p), Rect::new(3, 4, 10, 10), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let c = arena.insert(Node::new(Some(p), Rect::new(3, 4, 10, 10), alloc::boxed::Box::new(Manual)));
         arena.get_mut(p).unwrap().children.push(c);
         assert_eq!(abs_rect(&arena, c), Rect::new(18, 24, 10, 10)); // 10+5+3, 20+0+4
     }
@@ -299,7 +298,7 @@ mod tests {
     fn resolved_style_state_precedence() {
         // Three states are mutually exclusive: pressed > focused > selected
         let mut arena = Arena::new();
-        let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(WidgetKind::Obj(ObjState))));
+        let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let n = arena.get_mut(r).unwrap();
         n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED | crate::node::State::PRESSED;
         n.style_selected = Some(Box::new(style(Color::rgb(1, 0, 0))));

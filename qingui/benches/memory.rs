@@ -88,7 +88,7 @@ fn report_static_sizes() {
         size_of::<label::LabelState>(),
         size_of::<led::LedState>(),
         size_of::<msgbox::MsgboxState>(),
-        size_of::<obj::ObjState>(),
+        size_of::<obj::Manual>(),
         size_of::<scrollview::ScrollViewState>(),
         size_of::<slider::SliderState>(),
         size_of::<spinbox::SpinboxState>(),
@@ -105,7 +105,7 @@ fn report_static_sizes() {
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
     }
-    row!("Obj", obj::ObjState);
+    row!("Obj", obj::Manual);
     row!("Label", label::LabelState);
     row!("Button", button::ButtonState);
     row!("Slider", slider::SliderState);

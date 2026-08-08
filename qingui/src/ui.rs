@@ -56,7 +56,7 @@ impl Ui {
     /// scanlines (used for chunked rendering).
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
         let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(WidgetKind::Obj(crate::widgets::obj::ObjState))));
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(crate::widgets::obj::Manual)));
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // build screen: dirty the full screen
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];

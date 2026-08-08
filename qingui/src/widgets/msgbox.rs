@@ -63,7 +63,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
     // Button row
-    let row = ui.insert_node(root, Rect::default(), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
+    let row = ui.insert_node(root, Rect::default(), alloc::boxed::Box::new(super::obj::Manual));
     let mut rs = crate::style::Style::default();
     rs.bg_opa = Some(0);
     ui.set_style(row, rs);
