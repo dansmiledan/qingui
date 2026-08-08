@@ -4,7 +4,7 @@ use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 pub(crate) fn draw(ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
     let abs = ctx.abs;
@@ -43,7 +43,7 @@ impl WidgetCfg for SpinnerCfg {
 
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((32, 32));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Spinner(SpinnerState)));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(SpinnerState));
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);
@@ -54,11 +54,13 @@ impl WidgetCfg for SpinnerCfg {
     }
 }
 
-/// Placeholder state: Spinner carries no data, it only keeps the macro treating all variants uniformly
+/// Spinner state: the widget carries no data, it only rotates with time.
 pub struct SpinnerState;
 
-impl super::WidgetBehavior for SpinnerState {
-    fn draw(&self, ctx: &super::WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(ctx, d, clip) }
+impl super::Widget for SpinnerState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(ctx, c, clip) }
     // Spinner spins forever
-    fn tick(&mut self, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

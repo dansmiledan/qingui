@@ -252,7 +252,6 @@ define_widgets! {
     ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
     List(list::ListState, as_list, as_list_mut, boxed),
     Chart(chart::ChartState, as_chart, as_chart_mut, inline),
-    Spinner(spinner::SpinnerState, as_spinner, as_spinner_mut, inline),
     Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
     Table(table::TableState, as_table, as_table_mut, inline),
     Roller(roller::RollerState, as_roller, as_roller_mut, boxed),
