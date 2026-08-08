@@ -47,7 +47,7 @@ impl WidgetCfg for ButtonCfg {
             let (tw, th) = crate::font::text_size(font, &self.text);
             (tw + 24, th + 12)
         });
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Button(ButtonState { text: self.text }));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Button(ButtonState { text: self.text })));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_pressed(r, common.style_pressed.take().unwrap_or_else(crate::style::theme_button_pressed));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_button_focused));

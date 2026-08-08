@@ -62,7 +62,7 @@ impl WidgetCfg for LedCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Led(LedState { color: self.color, bright: self.bright.unwrap_or(255) }),
+            alloc::boxed::Box::new(WidgetKind::Led(LedState { color: self.color, bright: self.bright.unwrap_or(255) })),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {

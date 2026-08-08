@@ -125,13 +125,13 @@ impl WidgetCfg for SpinboxCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Spinbox(SpinboxState {
+            alloc::boxed::Box::new(WidgetKind::Spinbox(SpinboxState {
                 min: self.min,
                 max: self.max,
                 value: self.value.unwrap_or(self.min),
                 digits: self.digits,
                 cursor: self.digits - 1,
-            }),
+            })),
         );
         let base = common.style.take().unwrap_or_else(Self::base_style);
         ui.set_style(r, base.clone());

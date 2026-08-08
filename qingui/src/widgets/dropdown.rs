@@ -28,8 +28,8 @@ impl DropdownState {
 /// Opens the dropdown's popup list (anchored via Attach::Bottom, modal locked).
 /// The payload is unused; it only exists to match Deferred's fn(&mut Ui, ObjRef, i32) signature.
 pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
-    let Some((items, sel, w)) = ui.arena.get(obj).map(|n| match &n.kind {
-        WidgetKind::Dropdown(s) => (s.items.clone(), s.selected, n.rect.w),
+    let Some((items, sel, w)) = ui.arena.get(obj).map(|n| match n.kind.as_kind() {
+        Some(WidgetKind::Dropdown(s)) => (s.items.clone(), s.selected, n.rect.w),
         _ => (Vec::new(), 0, 0),
     }) else { return };
     if items.is_empty() {
@@ -49,7 +49,7 @@ pub(crate) fn open(ui: &mut Ui, obj: ObjRef, _payload: i32) {
     ui.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {
         let idx = ui.list_selected(l);
         if let Some(n) = ui.arena.get_mut(obj) {
-            if let Some(s) = n.kind.as_dropdown_mut() {
+            if let Some(s) = n.kind.as_kind_mut().and_then(|k| k.as_dropdown_mut()) {
                 s.selected = idx;
             }
         }
@@ -135,7 +135,7 @@ impl WidgetCfg for DropdownCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Dropdown(DropdownState { items: self.items, selected }),
+            alloc::boxed::Box::new(WidgetKind::Dropdown(DropdownState { items: self.items, selected })),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());

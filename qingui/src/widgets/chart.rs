@@ -118,7 +118,7 @@ impl WidgetCfg for ChartCfg {
             max: self.max,
             series: self.series.into_iter().map(|(c, cap)| Series::new(c, cap)).collect(),
         };
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Chart(state));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Chart(state)));
         ui.set_style(r, common.style.take().unwrap_or_default());
         common.apply_tail(ui, r);
         r
@@ -184,7 +184,7 @@ impl UiChartExt for Ui {
 
     fn chart_point_count(&self, c: ObjRef, series: usize) -> usize {
         self.kind(c)
-            .and_then(|k| k.as_chart())
+            .and_then(|k| k.as_kind()?.as_chart())
             .and_then(|s| s.series.get(series))
             .map(|ser| ser.points.len())
             .unwrap_or(0)
@@ -192,7 +192,7 @@ impl UiChartExt for Ui {
 
     fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32> {
         self.kind(c)
-            .and_then(|k| k.as_chart())
+            .and_then(|k| k.as_kind()?.as_chart())
             .and_then(|s| s.series.get(series))
             .and_then(|ser| ser.points.get(idx).copied())
     }

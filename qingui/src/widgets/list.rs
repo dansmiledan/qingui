@@ -303,7 +303,7 @@ impl WidgetCfg for ListCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::List(Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() })),
+            alloc::boxed::Box::new(WidgetKind::List(Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() }))),
         );
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
@@ -342,7 +342,7 @@ impl UiListExt for Ui {
         self.invalidate_obj(obj);
         let now = self.time();
         let vis_h = self.rect(obj).h;
-        if let Some(k) = self.kind_mut(obj) {
+        if let Some(k) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()) {
             if let Some(s) = k.as_list_mut() {
                 select(&s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now);
             }
@@ -351,13 +351,13 @@ impl UiListExt for Ui {
     }
 
     fn list_selected(&self, obj: ObjRef) -> usize {
-        self.kind(obj).and_then(|k| k.as_list()).map(|s| s.selected).unwrap_or(0)
+        self.kind(obj).and_then(|k| k.as_kind()?.as_list()).map(|s| s.selected).unwrap_or(0)
     }
 
     fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
         self.invalidate_obj(obj);
         let now = self.time();
-        if let Some(k) = self.kind_mut(obj) {
+        if let Some(k) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()) {
             if let Some(s) = k.as_list_mut() {
                 let idx = idx.min(s.items.len());
                 // When the insertion point is above the selected item, shift the selected index down
@@ -374,7 +374,7 @@ impl UiListExt for Ui {
         self.invalidate_obj(obj);
         let now = self.time();
         let vis_h = self.rect(obj).h;
-        let ok = match self.kind_mut(obj) {
+        let ok = match self.kind_mut(obj).and_then(|k| k.as_kind_mut()) {
             Some(k) => {
                 if let Some(s) = k.as_list_mut() {
                     let ok = remove(&mut s.items, &mut s.fx, &mut s.selected, now);
@@ -392,6 +392,6 @@ impl UiListExt for Ui {
     }
 
     fn list_len(&self, obj: ObjRef) -> usize {
-        self.kind(obj).and_then(|k| k.as_list()).map(|s| s.items.len()).unwrap_or(0)
+        self.kind(obj).and_then(|k| k.as_kind()?.as_list()).map(|s| s.items.len()).unwrap_or(0)
     }
 }

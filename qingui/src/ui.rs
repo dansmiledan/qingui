@@ -1,7 +1,8 @@
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
-use crate::node::{Flag, Node, State, WidgetKind};
+use crate::node::{Flag, Node, State};
+use crate::widgets::WidgetKind;
 
 /// The UI state: owns the widget tree (arena), dirty tracking, animation, focus, and rendering.
 pub struct Ui {
@@ -55,7 +56,7 @@ impl Ui {
     /// scanlines (used for chunked rendering).
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
         let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), WidgetKind::Obj(crate::widgets::obj::ObjState)));
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(WidgetKind::Obj(crate::widgets::obj::ObjState))));
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // build screen: dirty the full screen
         let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
@@ -103,28 +104,46 @@ impl Ui {
 
     /// Mounts a user-defined widget (implementing `widgets::custom::Widget`).
     pub fn create_custom(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::custom::Widget>) -> ObjRef {
-        self.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Custom(crate::widgets::custom::CustomState(widget)))
+        self.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Custom(crate::widgets::custom::CustomState(widget))))
+    }
+
+    /// Mounts a user-defined widget (implementing `widgets::Widget`). This is the
+    /// same insertion path built-in widgets use: user widgets are first-class.
+    pub fn create_widget(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::Widget>) -> ObjRef {
+        self.insert_node(parent, Rect::new(0, 0, w, h), widget)
     }
 
     /// Read-only query of custom widget state (returns `None` on a type mismatch or if the
     /// object is not a custom widget).
     pub fn custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
-        self.arena.get(obj)?.kind.as_custom()?.as_any().downcast_ref::<T>()
+        self.arena.get(obj)?.kind.as_kind()?.as_custom()?.as_any().downcast_ref::<T>()
+    }
+
+    /// Read-only access to widget state by type (returns `None` on type mismatch).
+    /// During migration this also reaches into the legacy `WidgetKind` enum.
+    pub fn widget<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
+        let kind = self.arena.get(obj).map(|n| &n.kind)?;
+        if let Some(t) = kind.as_any().downcast_ref::<T>() {
+            return Some(t);
+        }
+        kind.as_any()
+            .downcast_ref::<crate::widgets::WidgetKind>()
+            .and_then(|legacy| legacy.downcast_ref::<T>())
     }
 
     /// Read-only access to the List state (returns `None` for non-List objects).
     pub fn as_list(&self, obj: ObjRef) -> Option<&crate::widgets::list::ListState> {
-        self.arena.get(obj).and_then(|n| n.kind.as_list())
+        self.widget::<crate::widgets::list::ListState>(obj)
     }
     /// Read-only access to the Roller state (returns `None` for non-Roller objects).
     pub fn as_roller(&self, obj: ObjRef) -> Option<&crate::widgets::roller::RollerState> {
-        self.arena.get(obj).and_then(|n| n.kind.as_roller())
+        self.widget::<crate::widgets::roller::RollerState>(obj)
     }
 
-    pub(crate) fn kind(&self, obj: ObjRef) -> Option<&crate::widgets::WidgetKind> {
+    pub(crate) fn kind(&self, obj: ObjRef) -> Option<&alloc::boxed::Box<dyn crate::widgets::Widget>> {
         self.arena.get(obj).map(|n| &n.kind)
     }
-    pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut crate::widgets::WidgetKind> {
+    pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut alloc::boxed::Box<dyn crate::widgets::Widget>> {
         self.arena.get_mut(obj).map(|n| &mut n.kind)
     }
 
@@ -133,7 +152,15 @@ impl Ui {
     /// returning `f`'s result; invalid objects or type mismatches silently return `None`.
     pub fn update<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         let r = match self.arena.get_mut(obj) {
-            Some(n) => n.kind.downcast_mut::<T>().map(f),
+            Some(n) => {
+                if let Some(t) = n.kind.as_any_mut().downcast_mut::<T>() {
+                    Some(f(t))
+                } else if let Some(legacy) = n.kind.as_any_mut().downcast_mut::<crate::widgets::WidgetKind>() {
+                    legacy.downcast_mut::<T>().map(f)
+                } else {
+                    None
+                }
+            }
             None => None,
         };
         if r.is_some() {
@@ -149,6 +176,7 @@ impl Ui {
             .arena
             .get_mut(obj)?
             .kind
+            .as_kind_mut()?
             .as_custom_mut()?
             .as_any_mut()
             .downcast_mut::<T>()
@@ -439,10 +467,20 @@ impl Ui {
             if hidden {
                 continue;
             }
-            let (out, children, has_hook) = match self.arena.get_mut(r) {
-                Some(n) => (n.kind.tick(now), n.children.clone(), n.tick_hook.is_some()),
+            let mut taken = match self.arena.get_mut(r) {
+                Some(n) => core::mem::replace(&mut n.kind, alloc::boxed::Box::new(crate::widgets::NoopWidget)),
                 None => continue,
             };
+            let out = taken.tick(self, r, now);
+            let children = match self.arena.get_mut(r) {
+                Some(n) => {
+                    let c = n.children.clone();
+                    n.kind = taken;
+                    c
+                }
+                None => continue, // node deleted during tick
+            };
+            let has_hook = self.arena.get(r).map(|n| n.tick_hook.is_some()).unwrap_or(false);
             if out.redraw {
                 self.invalidate_obj(r);
             }
@@ -817,7 +855,7 @@ impl Ui {
         );
     }
 
-    pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: WidgetKind) -> ObjRef {
+    pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget>) -> ObjRef {
         let r = self.arena.insert(Node::new(Some(parent), rect, kind));
         if let Some(p) = self.arena.get_mut(parent) {
             p.children.push(r);
@@ -1048,33 +1086,14 @@ impl Ui {
         }
     }
 
-    /// Widget key handling: takes the kind out, calls its `on_key`, puts it back, then runs
-    /// the common side effects.
-    /// (While taken out the node's kind is a placeholder Obj, so built-in widgets' `on_key`
-    /// does not receive `&mut Ui`.)
+    /// Widget key handling: takes the kind out, calls its `on_key` with `&mut Ui`,
+    /// puts it back, then runs the common side effects.
     fn call_on_key(&mut self, obj: ObjRef, key: crate::input::Key) -> bool {
-        use crate::widgets::KeyCtx;
-        let edited = self.state(obj).contains(State::EDITED);
-        let vis_h = self.rect(obj).h;
-        let now = self.time_ms;
         let mut kind = match self.arena.get_mut(obj) {
-            Some(n) => core::mem::replace(&mut n.kind, WidgetKind::Obj(crate::widgets::obj::ObjState)),
+            Some(n) => core::mem::replace(&mut n.kind, alloc::boxed::Box::new(crate::widgets::NoopWidget)),
             None => return false,
         };
-        // Custom: the user state lives in the taken-out Box, so `on_key` may safely take `&mut Ui`
-        if let Some(w) = kind.as_custom_mut() {
-            let consumed = w.on_key(self, obj, key);
-            if let Some(n) = self.arena.get_mut(obj) {
-                n.kind = kind;
-            } else {
-                return true; // the node was deleted during handling: treat as consumed (symmetric with the built-in branch)
-            }
-            if consumed {
-                self.invalidate_obj(obj);
-            }
-            return consumed;
-        }
-        let out = kind.on_key(key, KeyCtx { edited, vis_h, now });
+        let out = kind.on_key(self, obj, key);
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind = kind;
         } else {

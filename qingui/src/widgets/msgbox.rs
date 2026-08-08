@@ -46,7 +46,7 @@ impl MsgboxBuilder {
 }
 
 pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
-    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), WidgetKind::Msgbox(MsgboxState { selected: -1 }));
+    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), alloc::boxed::Box::new(WidgetKind::Msgbox(MsgboxState { selected: -1 })));
     ui.set_floating(root, parent, Attach::Center);
     ui.move_to_front(root); // popups draw on top (children order is the stacking order)
     // Style: dialog + column layout
@@ -63,7 +63,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
     // Button row
-    let row = ui.insert_node(root, Rect::default(), WidgetKind::Obj(super::obj::ObjState));
+    let row = ui.insert_node(root, Rect::default(), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
     let mut rs = crate::style::Style::default();
     rs.bg_opa = Some(0);
     ui.set_style(row, rs);
@@ -77,7 +77,7 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
         // On click: record the index → notify → unlock and delete
         ui.add_event_cb(btn, EventKind::Clicked, Box::new(move |ui, _x, _| {
             if let Some(n) = ui.arena.get_mut(root) {
-                if let WidgetKind::Msgbox(s) = &mut n.kind {
+                if let Some(s) = n.kind.as_kind_mut().and_then(|k| k.as_msgbox_mut()) {
                     s.selected = i as i32;
                 }
             }
@@ -112,6 +112,6 @@ pub trait UiMsgboxExt {
 
 impl UiMsgboxExt for Ui {
     fn msgbox_selected(&self, obj: ObjRef) -> i32 {
-        self.kind(obj).and_then(|k| k.as_msgbox()).map(|s| s.selected).unwrap_or(-1)
+        self.kind(obj).and_then(|k| k.as_kind()?.as_msgbox()).map(|s| s.selected).unwrap_or(-1)
     }
 }

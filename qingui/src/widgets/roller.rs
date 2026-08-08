@@ -147,7 +147,7 @@ impl WidgetCfg for RollerCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Roller(Box::new(RollerState { items: self.items, selected, sel_from: None })),
+            alloc::boxed::Box::new(WidgetKind::Roller(Box::new(RollerState { items: self.items, selected, sel_from: None }))),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
@@ -179,6 +179,6 @@ pub trait UiRollerExt {
 
 impl UiRollerExt for Ui {
     fn roller_selected(&self, obj: ObjRef) -> usize {
-        self.kind(obj).and_then(|k| k.as_roller()).map(|s| s.selected).unwrap_or(0)
+        self.kind(obj).and_then(|k| k.as_kind()?.as_roller()).map(|s| s.selected).unwrap_or(0)
     }
 }

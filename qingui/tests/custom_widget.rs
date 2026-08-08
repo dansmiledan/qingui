@@ -75,6 +75,44 @@ fn custom_widget_draws_and_handles_keys() {
     assert!(ui.custom::<String>(g).is_none()); // type mismatch → None
 }
 
+// --- Task 3: take-out dispatch through the unified `widgets::Widget` trait ---
+
+/// A widget whose on_key mutates its own state on `self` and creates a sibling
+/// label through `&mut Ui` (only safe because its kind is taken out of the arena).
+struct KeyProbe {
+    hit: bool,
+}
+impl qingui::widgets::Widget for KeyProbe {
+    fn on_key(&mut self, ui: &mut Ui, _obj: ObjRef, key: Key) -> qingui::widgets::KeyOutcome {
+        if key == Key::Enter {
+            self.hit = true;
+            let scr = ui.screen();
+            qingui::widgets::label::LabelCfg::new("x").build(ui, scr);
+            qingui::widgets::KeyOutcome::Consumed
+        } else {
+            qingui::widgets::KeyOutcome::Pass
+        }
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+#[test]
+fn on_key_receives_mut_ui_via_takeout() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let before = ui.children(scr).len();
+    let w = ui.create_widget(scr, 10, 10, Box::new(KeyProbe { hit: false }));
+    ui.group_add(w);
+    ui.keypad_input(Key::Enter);
+    assert!(ui.widget::<KeyProbe>(w).unwrap().hit, "on_key should have run on the taken-out state");
+    assert_eq!(ui.children(scr).len(), before + 2, "the probe plus the sibling label created inside on_key");
+}
+
 #[test]
 fn custom_widget_tick_dispatch() {
     let mut ui = Ui::new(160, 120, 120);

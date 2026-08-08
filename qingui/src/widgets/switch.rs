@@ -59,7 +59,7 @@ impl WidgetCfg for SwitchCfg {
 
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((40, 20));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Switch(SwitchState { on: self.on }));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Switch(SwitchState { on: self.on })));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_switch_focused));
         common.apply_tail(ui, r);
@@ -76,7 +76,7 @@ pub trait UiSwitchExt {
 impl UiSwitchExt for Ui {
     fn toggle_switch(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
-        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_switch_mut()) {
+        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()?.as_switch_mut()) {
             s.on = !s.on;
         }
         self.invalidate_obj(obj);

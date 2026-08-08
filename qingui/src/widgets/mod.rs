@@ -5,6 +5,9 @@ use crate::style::ResolvedStyle;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
+// Temporary alias: Task 21 renames DrawBuf to Canvas and switches this to a re-export.
+use crate::draw::DrawBuf as Canvas;
+
 pub(crate) mod builder;
 pub use builder::WidgetBuilder; // public return type (XxxCfg::new returns it)
 
@@ -71,7 +74,7 @@ pub(crate) struct KeyCtx {
 
 /// Key handling result: Ui performs the common side effects (dirtying/events/EDITED state);
 /// widget-specific side effects run via `Deferred` in the widget file
-pub(crate) enum KeyOutcome {
+pub enum KeyOutcome {
     Pass,          // not consumed → fall through to default (focus move / Clicked)
     Consumed,      // consumed, dirty the node
     ValueChanged,  // consumed, dirty the node and send a ValueChanged event
@@ -80,6 +83,53 @@ pub(crate) enum KeyOutcome {
     /// Widget-specific side effect, executed later: a static exec fn provided by the widget file + an i32 payload.
     /// Ui calls `f(self, obj, p)` after putting the kind back in the arena (clean window, no placeholder); treated as consumed.
     Deferred(fn(&mut Ui, ObjRef, i32), i32),
+}
+
+/// Measure context: read-only inputs for intrinsic content sizing.
+pub struct MeasureCtx {
+    /// Resolved font (node style font or the Ui default).
+    pub font: &'static embedded_graphics::mono_font::MonoFont<'static>,
+    /// The node's current size (layout treats it as content size today).
+    pub cur: (i32, i32),
+}
+
+/// The single widget behavior interface. Node owns common data; the trait object
+/// owns behavior and widget-specific data (reached via `as_any` downcast).
+///
+/// `draw`/`measure` take `&self` and never leave the arena. `layout`/`tick`/`on_key`
+/// take `&mut self` and are called via take-out (the node temporarily holds a
+/// `NoopWidget` placeholder), so they receive `&mut Ui` and may operate on any
+/// other node; rules while taken out:
+/// - mutate your own state directly on `self`;
+/// - `ui.update(self_obj, ...)` is a silent no-op (your kind is not in the arena);
+/// - deleting your own node is allowed (Ui treats the outcome as consumed).
+pub trait Widget {
+    /// Content drawing (background/border/opa are handled uniformly by Ui). Default: draws nothing.
+    fn draw(&self, _ctx: &WidgetCtx, _c: &mut Canvas, _clip: Rect) {}
+    /// Intrinsic content size; `(0, 0)` means "no intrinsic size" (layout uses the current rect).
+    fn measure(&self, _ctx: &MeasureCtx) -> (i32, i32) { (0, 0) }
+    /// Lays out direct children. Default: manual positioning (children keep their rects).
+    fn layout(&mut self, _ui: &mut Ui, _obj: ObjRef) {}
+    /// Per-frame progress. Default: idle.
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> TickOut { TickOut::IDLE }
+    /// Key handling. Default: not consumed (falls through to focus move / Clicked).
+    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, _key: Key) -> KeyOutcome { KeyOutcome::Pass }
+    /// Property-animation Value channel.
+    fn value(&self) -> i32 { 0 }
+    fn set_value(&mut self, _v: i32) -> bool { false }
+    fn set_range(&mut self, _min: i32, _max: i32) {}
+    /// Draw overflow beyond the node rect (knobs, etc.), for dirty-area expansion.
+    fn overflow(&self) -> i32 { 0 }
+    fn as_any(&self) -> &dyn core::any::Any;
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any;
+}
+
+/// Zero-sized placeholder swapped in during take-out (Box of a ZST does not allocate).
+pub struct NoopWidget;
+
+impl Widget for NoopWidget {
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// Widget behavior interface: `draw` must be implemented (a new widget that forgets to paint fails to compile);
@@ -181,6 +231,17 @@ macro_rules! define_widgets {
                 )+
                 None
             }
+            /// Read-only counterpart of `downcast_mut` (used by `Ui::widget` during migration).
+            pub(crate) fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+                $(
+                    if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
+                        if let WidgetKind::$variant(s) = self {
+                            return (wref!($store, s) as &dyn core::any::Any).downcast_ref::<T>();
+                        }
+                    }
+                )+
+                None
+            }
         }
     };
 }
@@ -215,5 +276,45 @@ impl WidgetKind {
     }
     pub(crate) fn as_custom_mut(&mut self) -> Option<&mut dyn custom::Widget> {
         match self { WidgetKind::Custom(s) => Some(s.0.as_mut()), _ => None }
+    }
+}
+
+/// Compatibility shim: the legacy enum boxes itself as a trait object while
+/// widgets are migrated one by one. Deleted together with the enum (Task 22).
+impl Widget for WidgetKind {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut Canvas, clip: Rect) {
+        WidgetKind::draw(self, ctx, c, clip);
+    }
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> TickOut {
+        WidgetKind::tick(self, now)
+    }
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> KeyOutcome {
+        let ctx = KeyCtx {
+            edited: ui.state(obj).contains(crate::node::State::EDITED),
+            vis_h: ui.rect(obj).h,
+            now: ui.time(),
+        };
+        // Legacy Custom variant: user state already received `&mut Ui` — keep that path.
+        if let Some(w) = self.as_custom_mut() {
+            return if w.on_key(ui, obj, key) { KeyOutcome::Consumed } else { KeyOutcome::Pass };
+        }
+        WidgetKind::on_key(self, key, ctx)
+    }
+    fn value(&self) -> i32 { WidgetKind::value(self) }
+    fn set_value(&mut self, v: i32) -> bool { WidgetKind::set_value(self, v) }
+    fn set_range(&mut self, min: i32, max: i32) { WidgetKind::set_range(self, min, max) }
+    fn overflow(&self) -> i32 { WidgetKind::overflow(self) }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
+}
+
+/// Migration helpers on the trait object: reach the boxed legacy `WidgetKind`
+/// enum while widgets are migrated one by one. Deleted with the enum (Task 22).
+impl dyn Widget {
+    pub(crate) fn as_kind(&self) -> Option<&WidgetKind> {
+        self.as_any().downcast_ref()
+    }
+    pub(crate) fn as_kind_mut(&mut self) -> Option<&mut WidgetKind> {
+        self.as_any_mut().downcast_mut()
     }
 }

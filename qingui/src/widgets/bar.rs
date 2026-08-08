@@ -62,7 +62,7 @@ impl WidgetCfg for BarCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Bar(BarState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
+            alloc::boxed::Box::new(WidgetKind::Bar(BarState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) })),
         );
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         common.apply_tail(ui, r);

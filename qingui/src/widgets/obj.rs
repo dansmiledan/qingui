@@ -19,7 +19,7 @@ impl ObjCfg {
 impl WidgetCfg for ObjCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((0, 0));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(ObjState));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(ObjState)));
         if let Some(s) = common.style.take() {
             ui.set_style(r, s);
         }

@@ -71,9 +71,9 @@ impl WidgetCfg for ImageCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (fw, fh) = self.data.frames.first().map(|f| (f.w, f.h)).unwrap_or((0, 0));
         let (w, h) = common.size.unwrap_or((fw, fh));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Image(
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Image(
             ImageState { data: self.data, cur: 0, last_switch: ui.time() },
-        ));
+        )));
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);

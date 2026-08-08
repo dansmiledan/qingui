@@ -100,17 +100,17 @@ impl WidgetCfg for ItemListCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport node is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
         ui.set_clip_children(r, true);
         // content: a Flex column container, width GROW, transparent background
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), WidgetKind::Obj(super::obj::ObjState));
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
         ui.set_style(content, transparent());
         ui.set_sizing(content, Some(Sizing::GROW), None);
         ui.set_layout(content, column_layout());
         // Replace the placeholder kind with the real one
         let sel_style = self.style_selected.unwrap_or_else(default_sel_style);
         if let Some(n) = ui.arena.get_mut(r) {
-            n.kind = WidgetKind::ItemList(Box::new(ItemListState { selected: 0, content, sel_style }));
+            n.kind = Box::new(WidgetKind::ItemList(Box::new(ItemListState { selected: 0, content, sel_style })));
         }
         // Viewport style (defaults to theme_list's dark background + border)
         let mut vs = common.style.take().unwrap_or_else(Self::default_style);
@@ -158,10 +158,10 @@ impl UiItemListExt for Ui {
     /// and returns that container (the user builds content inside it); returns None if il is not an ItemList
     fn itemlist_add_item(&mut self, il: ObjRef) -> Option<ObjRef> {
         let (content, sel_style, was_empty) = {
-            let s = self.kind(il)?.as_itemlist()?;
+            let s = self.kind(il)?.as_kind()?.as_itemlist()?;
             (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
         };
-        let item = self.insert_node(content, Rect::default(), WidgetKind::Obj(super::obj::ObjState));
+        let item = self.insert_node(content, Rect::default(), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
         let st = item_base_style();
         self.set_style(item, st);
         self.set_sizing(item, Some(Sizing::GROW), None);
@@ -177,7 +177,7 @@ impl UiItemListExt for Ui {
     fn itemlist_remove_selected(&mut self, il: ObjRef) -> bool {
         let Some((content, selected)) = self
             .kind(il)
-            .and_then(|k| k.as_itemlist())
+            .and_then(|k| k.as_kind()?.as_itemlist())
             .map(|s| (s.content, s.selected))
         else {
             return false;
@@ -189,7 +189,7 @@ impl UiItemListExt for Ui {
         self.delete(kids[selected]);
         let new_len = kids.len() - 1;
         let new_sel = if new_len == 0 { 0 } else { selected.min(new_len - 1) };
-        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_itemlist_mut()) {
+        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_kind_mut()?.as_itemlist_mut()) {
             s.selected = new_sel;
         }
         // Shift the selection to an adjacent item (deleting a middle item → the former next item; deleting the last item → the former previous item)
@@ -205,7 +205,7 @@ impl UiItemListExt for Ui {
     fn itemlist_select(&mut self, il: ObjRef, idx: usize) {
         let Some((content, cur)) = self
             .kind(il)
-            .and_then(|k| k.as_itemlist())
+            .and_then(|k| k.as_kind()?.as_itemlist())
             .map(|s| (s.content, s.selected))
         else {
             return;
@@ -216,7 +216,7 @@ impl UiItemListExt for Ui {
         }
         // The user may bypass itemlist_remove_selected and delete an item directly: clamp the out-of-range selected and write it back to eliminate drift
         let cur = cur.min(kids.len() - 1);
-        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_itemlist_mut()) {
+        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_kind_mut()?.as_itemlist_mut()) {
             if s.selected != cur {
                 s.selected = cur;
             }
@@ -227,7 +227,7 @@ impl UiItemListExt for Ui {
         }
         self.set_state(kids[cur], State::SELECTED, false);
         self.set_state(kids[nidx], State::SELECTED, true);
-        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_itemlist_mut()) {
+        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_kind_mut()?.as_itemlist_mut()) {
             s.selected = nidx;
         }
         ensure_visible(self, il);
@@ -236,14 +236,14 @@ impl UiItemListExt for Ui {
 
     fn itemlist_selected(&self, il: ObjRef) -> usize {
         self.kind(il)
-            .and_then(|k| k.as_itemlist())
+            .and_then(|k| k.as_kind()?.as_itemlist())
             .map(|s| s.selected)
             .unwrap_or(0)
     }
 
     fn itemlist_len(&self, il: ObjRef) -> usize {
         self.kind(il)
-            .and_then(|k| k.as_itemlist())
+            .and_then(|k| k.as_kind()?.as_itemlist())
             .map(|s| self.children(s.content).len())
             .unwrap_or(0)
     }
@@ -258,7 +258,7 @@ fn ensure_visible(ui: &mut Ui, il: ObjRef) {
     }
     let Some((content, selected)) = ui
         .kind(il)
-        .and_then(|k| k.as_itemlist())
+        .and_then(|k| k.as_kind()?.as_itemlist())
         .map(|s| (s.content, s.selected))
     else {
         return;

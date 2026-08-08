@@ -57,10 +57,10 @@ impl WidgetCfg for ScrollViewCfg {
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Obj(super::obj::ObjState));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
         ui.set_clip_children(r, true);
         // content: column flex, width GROW, transparent
-        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), WidgetKind::Obj(super::obj::ObjState));
+        let content = ui.insert_node(r, Rect::new(0, 0, w, 0), alloc::boxed::Box::new(WidgetKind::Obj(super::obj::ObjState)));
         let mut cs = Style::default();
         cs.bg_opa = Some(0);
         ui.set_style(content, cs);
@@ -71,7 +71,7 @@ impl WidgetCfg for ScrollViewCfg {
         }));
         // Replace the placeholder kind with the real one
         if let Some(n) = ui.kind_mut(r) {
-            *n = WidgetKind::ScrollView(ScrollViewState { content, scroll: 0 });
+            *n = alloc::boxed::Box::new(WidgetKind::ScrollView(ScrollViewState { content, scroll: 0 }));
         }
         // Viewport style: transparent by default; focused style gives a default border highlight
         let mut vs = common.style.take().unwrap_or_default();
@@ -100,7 +100,7 @@ pub trait UiScrollViewExt {
 
 impl UiScrollViewExt for Ui {
     fn scrollview_content(&self, sv: ObjRef) -> Option<ObjRef> {
-        self.kind(sv).and_then(|k| k.as_scrollview()).map(|s| s.content)
+        self.kind(sv).and_then(|k| k.as_kind()?.as_scrollview()).map(|s| s.content)
     }
 
     fn scrollview_scroll_to(&mut self, sv: ObjRef, y: i32) {
@@ -119,16 +119,16 @@ impl UiScrollViewExt for Ui {
         let min = -(content_h - view_h).max(0);
         let ny = y.clamp(min, 0);
         // Early return if the clamped value equals the current scroll: no state write, no set_translate, avoids a needless repaint (same as itemlist ensure_visible)
-        let cur = self.kind(sv).and_then(|k| k.as_scrollview()).map(|s| s.scroll);
+        let cur = self.kind(sv).and_then(|k| k.as_kind()?.as_scrollview()).map(|s| s.scroll);
         if cur == Some(ny) { return; }
-        if let Some(s) = self.kind_mut(sv).and_then(|k| k.as_scrollview_mut()) {
+        if let Some(s) = self.kind_mut(sv).and_then(|k| k.as_kind_mut()?.as_scrollview_mut()) {
             s.scroll = ny;
         }
         self.set_translate(content, 0, ny);
     }
 
     fn scrollview_scroll_by(&mut self, sv: ObjRef, delta: i32) {
-        let cur = self.kind(sv).and_then(|k| k.as_scrollview()).map(|s| s.scroll);
+        let cur = self.kind(sv).and_then(|k| k.as_kind()?.as_scrollview()).map(|s| s.scroll);
         if let Some(cur) = cur {
             // scroll equals translate.y (≤0): a positive delta scrolls down = content moves up = translate decreases
             self.scrollview_scroll_to(sv, cur - delta);

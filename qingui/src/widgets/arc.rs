@@ -77,7 +77,7 @@ impl WidgetCfg for ArcCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Arc(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
+            alloc::boxed::Box::new(WidgetKind::Arc(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) })),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {

@@ -102,7 +102,7 @@ impl WidgetCfg for TableCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Table(TableState { cols: self.cols, rows: self.rows, cells: self.cells }),
+            alloc::boxed::Box::new(WidgetKind::Table(TableState { cols: self.cols, rows: self.rows, cells: self.cells })),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {

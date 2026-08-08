@@ -3,9 +3,6 @@ use crate::arena::ObjRef;
 use crate::geometry::Rect;
 use crate::layout::{Layout, Sizing};
 
-/// The kind of widget a node holds.
-pub use crate::widgets::WidgetKind;
-
 /// Overlay draw hook: called after the widget draws its own content, with
 /// (draw buffer, widget absolute rect, clip rect, current time ms).
 pub type DrawHook = alloc::boxed::Box<dyn FnMut(&mut crate::draw::DrawBuf, Rect, Rect, u64)>;
@@ -60,7 +57,7 @@ pub struct Node {
     /// Behavior flags (hidden/clickable/etc.).
     pub flags: Flag,
     /// The widget behavior carried by this node.
-    pub kind: WidgetKind,               // Task 3 changes this to Box<dyn Widget>
+    pub kind: alloc::boxed::Box<dyn crate::widgets::Widget>,
     /// Base style.
     pub style: crate::style::Style,
     /// Style overlay while pressed.
@@ -100,7 +97,7 @@ pub struct Node {
 
 impl Node {
     /// Creates a node with the given parent, local rect, and widget kind.
-    pub fn new(parent: Option<ObjRef>, rect: Rect, kind: WidgetKind) -> Self {
+    pub fn new(parent: Option<ObjRef>, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget>) -> Self {
         Self {
             parent,
             children: Vec::new(),

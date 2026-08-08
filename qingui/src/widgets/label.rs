@@ -50,7 +50,7 @@ impl WidgetCfg for LabelCfg {
             let font = crate::font::measure_font(common.style.as_ref(), ui);
             crate::font::text_size(font, &self.text)
         });
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), WidgetKind::Label(LabelState { text: self.text }));
+        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Label(LabelState { text: self.text })));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         common.apply_tail(ui, r);
         r
@@ -66,7 +66,7 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     let font = crate::font::measure_font(ui.arena.get(obj).map(|n| &n.style), ui);
     let (w, h) = crate::font::text_size(font, text);
     if let Some(n) = ui.arena.get_mut(obj) {
-        if let WidgetKind::Label(s) = &mut n.kind {
+        if let Some(s) = n.kind.as_kind_mut().and_then(|k| k.as_label_mut()) {
             s.text = text.into();
             n.rect.w = w;
             n.rect.h = h;
@@ -78,7 +78,7 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
 
 pub(crate) fn text(ui: &Ui, obj: ObjRef) -> String {
     if let Some(n) = ui.arena.get(obj) {
-        if let WidgetKind::Label(s) = &n.kind {
+        if let Some(s) = n.kind.as_kind().and_then(|k| k.as_label()) {
             return s.text.clone();
         }
     }

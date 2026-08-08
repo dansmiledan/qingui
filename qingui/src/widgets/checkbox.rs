@@ -89,7 +89,7 @@ impl WidgetCfg for CheckboxCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            WidgetKind::Checkbox(CheckboxState { text: self.text, checked: self.checked }),
+            alloc::boxed::Box::new(WidgetKind::Checkbox(CheckboxState { text: self.text, checked: self.checked })),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());
@@ -114,7 +114,7 @@ pub trait UiCheckboxExt {
 impl UiCheckboxExt for Ui {
     fn toggle_checkbox(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
-        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_checkbox_mut()) {
+        if let Some(s) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()?.as_checkbox_mut()) {
             s.checked = !s.checked;
         }
         self.invalidate_obj(obj);
