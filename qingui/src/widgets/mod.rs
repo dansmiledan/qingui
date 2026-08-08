@@ -249,8 +249,6 @@ macro_rules! define_widgets {
 }
 
 define_widgets! {
-    ItemList(itemlist::ItemListState, as_itemlist, as_itemlist_mut, boxed),
-    List(list::ListState, as_list, as_list_mut, boxed),
     Msgbox(msgbox::MsgboxState, as_msgbox, as_msgbox_mut, inline),
     Roller(roller::RollerState, as_roller, as_roller_mut, boxed),
     Dropdown(dropdown::DropdownState, as_dropdown, as_dropdown_mut, inline),

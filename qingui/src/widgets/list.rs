@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -9,7 +8,7 @@ use crate::input::Key;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{WidgetCtx, WidgetKind};
+use super::WidgetCtx;
 
 /// Row height in pixels.
 pub const ROW_H: i32 = 16;
@@ -23,29 +22,6 @@ pub struct ListState {
     pub selected: usize,
     pub scroll: i32,
     pub fx: ListFx,
-}
-
-impl ListState {
-    pub(crate) fn tick(&mut self, now: u64) -> super::TickOut {
-        let was_active = self.fx.active(now);
-        let removed = self.fx.prune(now);
-        // Redraw every frame while active; the frame that clears an effect also repaints once (to remove the ghost residue)
-        super::TickOut { redraw: was_active || removed, active: self.fx.active(now) }
-    }
-
-    pub(crate) fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome {
-        let n = self.items.len();
-        match key {
-            Key::Up | Key::Down => {
-                if n > 0 {
-                    let idx = if key == Key::Up { (self.selected + n - 1) % n } else { (self.selected + 1) % n };
-                    select(&self.items, &mut self.selected, &mut self.scroll, &mut self.fx, idx, ctx.vis_h, ctx.now);
-                }
-                super::KeyOutcome::Consumed
-            }
-            _ => super::KeyOutcome::Pass,
-        }
-    }
 }
 
 /// Entry/shift effect for a single item (interpolated by time while drawing, cleaned up by prune once settled)
@@ -303,7 +279,7 @@ impl WidgetCfg for ListCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(WidgetKind::List(Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() }))),
+            alloc::boxed::Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default() }),
         );
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
         ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
@@ -316,10 +292,31 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
     ListCfg::new(items).build(ui, parent)
 }
 
-impl super::WidgetBehavior for ListState {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) { draw(&self.items, self.selected, self.scroll, &self.fx, ctx, d, clip) }
-    fn tick(&mut self, now: u64) -> super::TickOut { self.tick(now) }
-    fn on_key(&mut self, key: Key, ctx: super::KeyCtx) -> super::KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for ListState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, self.scroll, &self.fx, ctx, c, clip) }
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {
+        let was_active = self.fx.active(now);
+        let removed = self.fx.prune(now);
+        // Redraw every frame while active; the frame that clears an effect also repaints once (to remove the ghost residue)
+        super::TickOut { redraw: was_active || removed, active: self.fx.active(now) }
+    }
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        let n = self.items.len();
+        match key {
+            Key::Up | Key::Down => {
+                if n > 0 {
+                    let idx = if key == Key::Up { (self.selected + n - 1) % n } else { (self.selected + 1) % n };
+                    let vis_h = ui.rect(obj).h;
+                    let now = ui.time();
+                    select(&self.items, &mut self.selected, &mut self.scroll, &mut self.fx, idx, vis_h, now);
+                }
+                super::KeyOutcome::Consumed
+            }
+            _ => super::KeyOutcome::Pass,
+        }
+    }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// List-specific API (brought in via prelude or an explicit use)
@@ -339,59 +336,42 @@ pub trait UiListExt {
 
 impl UiListExt for Ui {
     fn list_select(&mut self, obj: ObjRef, idx: usize) {
-        self.invalidate_obj(obj);
         let now = self.time();
         let vis_h = self.rect(obj).h;
-        if let Some(k) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()) {
-            if let Some(s) = k.as_list_mut() {
-                select(&s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now);
-            }
-        }
-        self.invalidate_obj(obj);
+        self.update::<ListState, _>(obj, |s| {
+            select(&s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now);
+        });
     }
 
     fn list_selected(&self, obj: ObjRef) -> usize {
-        self.kind(obj).and_then(|k| k.as_kind()?.as_list()).map(|s| s.selected).unwrap_or(0)
+        self.widget::<ListState>(obj).map(|s| s.selected).unwrap_or(0)
     }
 
     fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str) {
-        self.invalidate_obj(obj);
         let now = self.time();
-        if let Some(k) = self.kind_mut(obj).and_then(|k| k.as_kind_mut()) {
-            if let Some(s) = k.as_list_mut() {
-                let idx = idx.min(s.items.len());
-                // When the insertion point is above the selected item, shift the selected index down
-                if !s.items.is_empty() && s.selected >= idx {
-                    s.selected += 1;
-                }
-                insert(&mut s.items, &mut s.fx, idx, text, now);
+        self.update::<ListState, _>(obj, |s| {
+            let idx = idx.min(s.items.len());
+            // When the insertion point is above the selected item, shift the selected index down
+            if !s.items.is_empty() && s.selected >= idx {
+                s.selected += 1;
             }
-        }
-        self.invalidate_obj(obj);
+            insert(&mut s.items, &mut s.fx, idx, text, now);
+        });
     }
 
     fn list_remove(&mut self, obj: ObjRef) -> bool {
-        self.invalidate_obj(obj);
         let now = self.time();
         let vis_h = self.rect(obj).h;
-        let ok = match self.kind_mut(obj).and_then(|k| k.as_kind_mut()) {
-            Some(k) => {
-                if let Some(s) = k.as_list_mut() {
-                    let ok = remove(&mut s.items, &mut s.fx, &mut s.selected, now);
-                    // Auto-scroll up to fill the window when the tail leaves a blank gap after deletion
-                    ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now);
-                    ok
-                } else {
-                    false
-                }
-            }
-            None => false,
-        };
-        self.invalidate_obj(obj);
-        ok
+        self.update::<ListState, _>(obj, |s| {
+            let ok = remove(&mut s.items, &mut s.fx, &mut s.selected, now);
+            // Auto-scroll up to fill the window when the tail leaves a blank gap after deletion
+            ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now);
+            ok
+        })
+        .unwrap_or(false)
     }
 
     fn list_len(&self, obj: ObjRef) -> usize {
-        self.kind(obj).and_then(|k| k.as_kind()?.as_list()).map(|s| s.items.len()).unwrap_or(0)
+        self.widget::<ListState>(obj).map(|s| s.items.len()).unwrap_or(0)
     }
 }

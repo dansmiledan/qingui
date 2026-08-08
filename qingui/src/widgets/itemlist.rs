@@ -8,7 +8,7 @@ use crate::node::State;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
-use super::{KeyCtx, KeyOutcome, WidgetKind};
+use super::KeyOutcome;
 
 /// Container-type list: items are ordinary child nodes (the user builds the content freely), the widget only handles selection/navigation/scrolling.
 /// Structure: ItemList (viewport, CLIP_CHILDREN) > content (Flex column, translated to scroll) > items
@@ -16,28 +16,6 @@ pub struct ItemListState {
     pub selected: usize,
     pub(crate) content: ObjRef,
     pub(crate) sel_style: Style,
-}
-
-impl ItemListState {
-    pub(crate) fn on_key(&mut self, key: Key, _ctx: KeyCtx) -> KeyOutcome {
-        match key {
-            // Navigation details need Ui (child nodes/scroll/events); executed via the Deferred exec fn after the kind is put back
-            Key::Up => KeyOutcome::Deferred(nav_select_exec, -1),
-            Key::Down => KeyOutcome::Deferred(nav_select_exec, 1),
-            _ => KeyOutcome::Pass,
-        }
-    }
-}
-
-/// List navigation exec fn: Ui calls it after putting the kind back (obj's kind is restored, so it can safely access itself via ui).
-/// Semantics match the old NavSelect branch of apply_key_outcome exactly: an empty list is consumed too.
-pub(crate) fn nav_select_exec(ui: &mut Ui, il: ObjRef, d: i32) {
-    let n = ui.itemlist_len(il);
-    if n > 0 {
-        let cur = ui.itemlist_selected(il);
-        let next = (cur as i32 + d).rem_euclid(n as i32) as usize;
-        ui.itemlist_select(il, next);
-    }
 }
 
 /// Transparent container style (only for layout/scroll, draws no background)
@@ -109,8 +87,8 @@ impl WidgetCfg for ItemListCfg {
         ui.set_sizing(content, Some(Sizing::GROW), None);
         // Replace the placeholder kind with the real one
         let sel_style = self.style_selected.unwrap_or_else(default_sel_style);
-        if let Some(n) = ui.arena.get_mut(r) {
-            n.kind = Box::new(WidgetKind::ItemList(Box::new(ItemListState { selected: 0, content, sel_style })));
+        if let Some(n) = ui.kind_mut(r) {
+            *n = Box::new(ItemListState { selected: 0, content, sel_style });
         }
         // Viewport style (defaults to theme_list's dark background + border)
         let mut vs = common.style.take().unwrap_or_else(Self::default_style);
@@ -132,11 +110,40 @@ fn default_sel_style() -> Style {
     s
 }
 
-impl super::WidgetBehavior for ItemListState {
-    // ItemList is also a container: its content is drawn by child nodes
-    fn draw(&self, _ctx: &super::WidgetCtx, _d: &mut crate::draw::DrawBuf, _clip: Rect) {}
-    fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome { self.on_key(key, ctx) }
+impl super::Widget for ItemListState {
+    // ItemList is also a container: its content is drawn by child nodes (the default draw paints nothing)
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> KeyOutcome {
+        match key {
+            // Navigation needs child nodes/scroll/events; the kind is taken out during
+            // on_key, so mutate `self` directly and operate on the children via ui
+            // (same semantics as the old Deferred nav_select_exec → itemlist_select path).
+            Key::Up | Key::Down => {
+                let d = if key == Key::Up { -1 } else { 1 };
+                let kids = ui.children(self.content);
+                let n = kids.len();
+                if n > 0 {
+                    let next = (self.selected as i32 + d).rem_euclid(n as i32) as usize;
+                    // The user may bypass itemlist_remove_selected and delete an item directly: clamp the out-of-range selected and write it back to eliminate drift
+                    let cur = self.selected.min(n - 1);
+                    self.selected = cur;
+                    let nidx = next.min(n - 1);
+                    if nidx != cur {
+                        ui.set_state(kids[cur], State::SELECTED, false);
+                        ui.set_state(kids[nidx], State::SELECTED, true);
+                        self.selected = nidx;
+                        ensure_visible(ui, obj, self.content, nidx);
+                        ui.send_event(obj, crate::event::EventKind::ValueChanged);
+                    }
+                }
+                // An empty list is consumed too (matches the old NavSelect semantics)
+                KeyOutcome::Consumed
+            }
+            _ => KeyOutcome::Pass,
+        }
+    }
     fn value(&self) -> i32 { self.selected as i32 }
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 /// ItemList data/navigation API (brought in via prelude or an explicit use)
@@ -158,7 +165,7 @@ impl UiItemListExt for Ui {
     /// and returns that container (the user builds content inside it); returns None if il is not an ItemList
     fn itemlist_add_item(&mut self, il: ObjRef) -> Option<ObjRef> {
         let (content, sel_style, was_empty) = {
-            let s = self.kind(il)?.as_kind()?.as_itemlist()?;
+            let s = self.widget::<ItemListState>(il)?;
             (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
         };
         let item = self.insert_node(content, Rect::default(), alloc::boxed::Box::new(super::obj::Manual));
@@ -175,11 +182,7 @@ impl UiItemListExt for Ui {
 
     /// Deletes the ItemList's selected item (returns false on an empty list), clamps selected and shifts the selection to an adjacent item
     fn itemlist_remove_selected(&mut self, il: ObjRef) -> bool {
-        let Some((content, selected)) = self
-            .kind(il)
-            .and_then(|k| k.as_kind()?.as_itemlist())
-            .map(|s| (s.content, s.selected))
-        else {
+        let Some((content, selected)) = self.widget::<ItemListState>(il).map(|s| (s.content, s.selected)) else {
             return false;
         };
         let kids = self.children(content);
@@ -189,25 +192,19 @@ impl UiItemListExt for Ui {
         self.delete(kids[selected]);
         let new_len = kids.len() - 1;
         let new_sel = if new_len == 0 { 0 } else { selected.min(new_len - 1) };
-        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_kind_mut()?.as_itemlist_mut()) {
-            s.selected = new_sel;
-        }
+        self.update::<ItemListState, _>(il, |s| s.selected = new_sel);
         // Shift the selection to an adjacent item (deleting a middle item → the former next item; deleting the last item → the former previous item)
         if new_len > 0 {
             let target = if selected < new_len { kids[selected + 1] } else { kids[selected - 1] };
             self.set_state(target, State::SELECTED, true);
         }
-        ensure_visible(self, il);
+        ensure_visible(self, il, content, new_sel);
         true
     }
 
     /// Selects the idx-th item of the ItemList (clamped to a valid range); switches and sends ValueChanged only on change
     fn itemlist_select(&mut self, il: ObjRef, idx: usize) {
-        let Some((content, cur)) = self
-            .kind(il)
-            .and_then(|k| k.as_kind()?.as_itemlist())
-            .map(|s| (s.content, s.selected))
-        else {
+        let Some((content, selected)) = self.widget::<ItemListState>(il).map(|s| (s.content, s.selected)) else {
             return;
         };
         let kids = self.children(content);
@@ -215,11 +212,13 @@ impl UiItemListExt for Ui {
             return;
         }
         // The user may bypass itemlist_remove_selected and delete an item directly: clamp the out-of-range selected and write it back to eliminate drift
-        let cur = cur.min(kids.len() - 1);
-        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_kind_mut()?.as_itemlist_mut()) {
-            if s.selected != cur {
-                s.selected = cur;
-            }
+        let cur = selected.min(kids.len() - 1);
+        if cur != selected {
+            self.update::<ItemListState, _>(il, |s| {
+                if s.selected != cur {
+                    s.selected = cur;
+                }
+            });
         }
         let nidx = idx.min(kids.len() - 1);
         if nidx == cur {
@@ -227,42 +226,27 @@ impl UiItemListExt for Ui {
         }
         self.set_state(kids[cur], State::SELECTED, false);
         self.set_state(kids[nidx], State::SELECTED, true);
-        if let Some(s) = self.kind_mut(il).and_then(|k| k.as_kind_mut()?.as_itemlist_mut()) {
-            s.selected = nidx;
-        }
-        ensure_visible(self, il);
+        self.update::<ItemListState, _>(il, |s| s.selected = nidx);
+        ensure_visible(self, il, content, nidx);
         self.send_event(il, crate::event::EventKind::ValueChanged);
     }
 
     fn itemlist_selected(&self, il: ObjRef) -> usize {
-        self.kind(il)
-            .and_then(|k| k.as_kind()?.as_itemlist())
-            .map(|s| s.selected)
-            .unwrap_or(0)
+        self.widget::<ItemListState>(il).map(|s| s.selected).unwrap_or(0)
     }
 
     fn itemlist_len(&self, il: ObjRef) -> usize {
-        self.kind(il)
-            .and_then(|k| k.as_kind()?.as_itemlist())
-            .map(|s| self.children(s.content).len())
-            .unwrap_or(0)
+        self.widget::<ItemListState>(il).map(|s| self.children(s.content).len()).unwrap_or(0)
     }
 }
 
 /// Scrolls content (translate.y) so the selected item is visible in the viewport (instant, no animation)
-fn ensure_visible(ui: &mut Ui, il: ObjRef) {
+fn ensure_visible(ui: &mut Ui, il: ObjRef, content: ObjRef, selected: usize) {
     // Item positions are produced by Flex layout: flush pending layout first so the rects read below are current
     if ui.layout_dirty {
         ui.layout_pass();
         ui.layout_dirty = false;
     }
-    let Some((content, selected)) = ui
-        .kind(il)
-        .and_then(|k| k.as_kind()?.as_itemlist())
-        .map(|s| (s.content, s.selected))
-    else {
-        return;
-    };
     let Some(item) = ui.children(content).get(selected).copied() else {
         return;
     };
