@@ -8,7 +8,7 @@ mod sim;
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::prelude::*;
-use qingui::style::Layout;
+use qingui::layout::Layout;
 use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
@@ -84,18 +84,16 @@ impl Demo {
     fn build(&mut self, ui: &mut Ui) {
         let screen = ui.screen();
         // Screen: flex row + wrap, padding 8, gap 8
-        ui.set_style(screen,
-            qingui::style::theme_screen()
-                .pads(8)
-                .layout(Layout::Flex(Flex {
-                    dir: FlexDir::Row,
-                    wrap: true,
-                    main: Align::Start,
-                    cross: Align::Start,
-                    track: Align::Start,
-                    gap: 8,
-                })),
-        );
+        ui.set_style(screen, qingui::style::theme_screen());
+        ui.set_pad(screen, (8, 8, 8, 8));
+        ui.set_layout(screen, Layout::Flex(Flex {
+            dir: FlexDir::Row,
+            wrap: true,
+            main: Align::Start,
+            cross: Align::Start,
+            track: Align::Start,
+            gap: 8,
+        }));
 
         let mut kids: Vec<ObjRef> = Vec::new();
 

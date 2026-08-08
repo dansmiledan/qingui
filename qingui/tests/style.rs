@@ -12,14 +12,16 @@ fn merge_some_overrides_none_keeps() {
 }
 
 #[test]
-fn merge_layout_and_sizing_fields() {
-    use qingui::layout::Sizing;
-    let base = Style::new().sizing(Sizing::GROW, Sizing::FIT);
+fn merge_opa_field() {
+    let mut base = Style::new();
+    base.opa = Some(128);
     let merged = base.clone().merge(Style::new().bg(Color::RED));
-    assert_eq!(merged.sizing_w, Some(Sizing::GROW)); // sizing kept
+    assert_eq!(merged.opa, Some(128)); // opa kept
     assert_eq!(merged.bg_color, Some(Color::RED));
-    let m2 = base.merge(Style::new().sizing(Sizing::FIT, Sizing::FIT));
-    assert_eq!(m2.sizing_w, Some(Sizing::FIT)); // sizing can also be overridden
+    let mut other = Style::new();
+    other.opa = Some(64);
+    let m2 = base.merge(other);
+    assert_eq!(m2.opa, Some(64)); // opa can also be overridden
 }
 
 #[test]

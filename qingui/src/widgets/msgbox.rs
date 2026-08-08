@@ -3,8 +3,7 @@ use alloc::boxed::Box;
 use crate::arena::ObjRef;
 use crate::event::EventKind;
 use crate::geometry::Rect;
-use crate::layout::{Align, Attach, Flex, FlexDir};
-use crate::style::Layout;
+use crate::layout::{Align, Attach, Flex, FlexDir, Layout};
 use crate::ui::Ui;
 use super::WidgetKind;
 
@@ -52,13 +51,13 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     // Style: dialog + column layout
     ui.set_style(root,
         crate::style::theme_obj()
-            .border(crate::geometry::Color::WHITE, 2)
-            .pad(12, 12, 10, 10)
-            .layout(Layout::Flex(Flex {
-                dir: FlexDir::Column, wrap: false,
-                main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
-            })),
+            .border(crate::geometry::Color::WHITE, 2),
     );
+    ui.set_pad(root, (12, 12, 10, 10));
+    ui.set_layout(root, Layout::Flex(Flex {
+        dir: FlexDir::Column, wrap: false,
+        main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
+    }));
     let t = crate::widgets::label::create(ui, root, title);
     ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
@@ -66,11 +65,11 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     let row = ui.insert_node(root, Rect::default(), WidgetKind::Obj(super::obj::ObjState));
     let mut rs = crate::style::Style::default();
     rs.bg_opa = Some(0);
-    rs.layout = Some(Layout::Flex(Flex {
+    ui.set_style(row, rs);
+    ui.set_layout(row, Layout::Flex(Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Center, cross: Align::Start, track: Align::Start, gap: 12,
     }));
-    ui.set_style(row, rs);
     for (i, b) in buttons.iter().enumerate() {
         let btn = crate::widgets::button::create(ui, row, b);
         ui.group_add(btn);

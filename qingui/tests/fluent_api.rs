@@ -9,14 +9,20 @@ use std::rc::Rc;
 
 #[test]
 fn style_builder_chain() {
-    let s = Style::new().bg(Color::RED).bg_opa(200).border(Color::WHITE, 2).radius(4).pads(8);
+    let s = Style::new().bg(Color::RED).bg_opa(200).border(Color::WHITE, 2).radius(4);
     assert_eq!(s.bg_color, Some(Color::RED));
     assert_eq!(s.bg_opa, Some(200));
     assert_eq!(s.border_color, Some(Color::WHITE));
     assert_eq!(s.border_width, Some(2));
     assert_eq!(s.radius, Some(4));
-    assert_eq!(s.pad_left, Some(8));
-    assert_eq!(s.pad_bottom, Some(8));
+}
+
+#[test]
+fn widget_builder_pads() {
+    let mut ui = Ui::new(64, 48, 48);
+    let scr = ui.screen();
+    let o = ObjCfg::new().pads(8).build(&mut ui, scr);
+    assert_eq!(ui.pad(o), (8, 8, 8, 8));
 }
 
 #[test]

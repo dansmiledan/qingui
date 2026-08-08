@@ -147,7 +147,10 @@ fn node_draw_info(
     obj: ObjRef,
     font: &'static MonoFont<'static>,
 ) -> Option<(Rect, Flag, u8, ResolvedStyle)> {
-    arena.get(obj).map(|n| (abs_rect(arena, obj), n.flags, n.opa, resolved_style(arena, obj, font)))
+    arena.get(obj).map(|n| {
+        let resolved = resolved_style(arena, obj, font);
+        (abs_rect(arena, obj), n.flags, resolved.opa, resolved)
+    })
 }
 
 /// Absolute coordinates: accumulates local coordinates and translates up the parent chain

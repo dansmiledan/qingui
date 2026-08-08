@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::geometry::Rect;
+use crate::layout::{Layout, Sizing};
 
 /// The kind of widget a node holds.
 pub use crate::widgets::WidgetKind;
@@ -37,6 +38,15 @@ bitflags::bitflags! {
     }
 }
 
+/// Per-child layout constraints, consumed by the parent's layout widget.
+/// Follows the child's lifecycle (no parent-side table to clean up).
+pub enum ItemProps {
+    /// The parent's layout consumes no constraints (default).
+    None,
+    /// Grid cell placement: (start, span) per axis.
+    Grid { col: (u8, u8), row: (u8, u8) },
+}
+
 /// A node in the widget tree: geometry, style, state, and widget behavior.
 pub struct Node {
     /// Parent object, or `None` for the screen root.
@@ -50,7 +60,7 @@ pub struct Node {
     /// Behavior flags (hidden/clickable/etc.).
     pub flags: Flag,
     /// The widget behavior carried by this node.
-    pub kind: WidgetKind,
+    pub kind: WidgetKind,               // Task 3 changes this to Box<dyn Widget>
     /// Base style.
     pub style: crate::style::Style,
     /// Style overlay while pressed.
@@ -59,24 +69,32 @@ pub struct Node {
     pub style_focused: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Style overlay while selected.
     pub style_selected: Option<alloc::boxed::Box<crate::style::Style>>,
-    /// Node opacity multiplier (0..=255) applied to everything it draws.
-    pub opa: u8,
     /// Registered event callbacks, in order.
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
     /// Overlay draw hook, drawn after the widget's own content.
     pub draw_hook: Option<DrawHook>,
     /// Per-frame hook.
     pub tick_hook: Option<TickHook>,
-    /// Grid column (start, span).
-    pub grid_col: (u8, u8),
-    /// Grid row (start, span).
-    pub grid_row: (u8, u8),
+    /// Padding (l, r, t, b): layout input, content origin offset.
+    pub pad: (i32, i32, i32, i32),
+    /// Width sizing strategy (None = content size).
+    pub sizing_w: Option<Sizing>,
+    /// Height sizing strategy (None = content size).
+    pub sizing_h: Option<Sizing>,
+    /// Aspect ratio (per-mille: 1000 = 1:1).
+    pub aspect_ratio: Option<u32>,
+    /// Layout transition: (duration ms, easing).
+    pub transition: Option<(u32, crate::anim::Easing)>,
+    /// Container layout config (bridge field; replaced by layout widget kinds in Task 9).
+    pub layout: Option<Layout>,
+    /// Per-child layout constraints consumed by the parent.
+    pub item_props: ItemProps,
     /// Visual translation offset: applied to the whole subtree at render time, does not
     /// participate in layout (mirrors LVGL translate_x/y).
     pub translate: crate::geometry::Point,
     /// Floating anchor: (target object, attach mode). Setting this also marks the object as IGNORE_LAYOUT.
     pub floating: Option<(ObjRef, crate::layout::Attach)>,
-    /// Stacking order: siblings are stably sorted by z_index at render time (larger = on top).
+    /// Stacking order (Task 2 deletes this field together with `Ui::set_z_index`).
     pub z_index: i16,
     /// Whether the node has been through one layout pass (the first layout does not animate transitions).
     pub laid_out: bool,
@@ -96,12 +114,16 @@ impl Node {
             style_pressed: None,
             style_focused: None,
             style_selected: None,
-            opa: 255,
             events: Vec::new(),
             draw_hook: None,
             tick_hook: None,
-            grid_col: (0, 1),
-            grid_row: (0, 1),
+            pad: (0, 0, 0, 0),
+            sizing_w: None,
+            sizing_h: None,
+            aspect_ratio: None,
+            transition: None,
+            layout: None,
+            item_props: ItemProps::None,
             translate: crate::geometry::Point::default(),
             floating: None,
             z_index: 0,

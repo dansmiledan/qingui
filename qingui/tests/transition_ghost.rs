@@ -1,7 +1,7 @@
 // Regression: no rendering ghosting after layout transitions (moving a container must mark its subtree dirty)
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
-use qingui::style::Layout;
+use qingui::layout::Layout;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
@@ -34,16 +34,15 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let screen = ui.screen();
     let col = if wide { 108 } else { 180 };
-    let mut ss = qingui::style::theme_screen();
-    ss.layout = Some(Layout::Grid(Grid {
+    let ss = qingui::style::theme_screen();
+    ui.set_style(screen, ss);
+    ui.set_pad(screen, (8, 0, 8, 0));
+    ui.set_layout(screen, Layout::Grid(Grid {
         cols: vec![Track::Px(col), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,
         row_gap: 8,
     }));
-    ss.pad_left = Some(8);
-    ss.pad_top = Some(8);
-    ui.set_style(screen, ss);
 
     let menu = ListCfg::new(&["Settings", "About"]).build(&mut ui, screen);
     ui.set_grid_cell(menu, (0, 1), (1, 1));

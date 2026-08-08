@@ -1,5 +1,5 @@
 use qingui::layout::{Align, Flex, FlexDir};
-use qingui::style::Layout;
+use qingui::layout::Layout;
 use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 

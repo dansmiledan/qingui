@@ -3,9 +3,9 @@ use alloc::boxed::Box;
 use crate::arena::ObjRef;
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
-use crate::layout::{Align, Flex, FlexDir, Sizing};
+use crate::layout::{Align, Flex, FlexDir, Layout, Sizing};
 use crate::node::State;
-use crate::style::{Layout, Style};
+use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{KeyCtx, KeyOutcome, WidgetKind};
@@ -162,9 +162,9 @@ impl UiItemListExt for Ui {
             (s.content, s.sel_style.clone(), self.children(s.content).is_empty())
         };
         let item = self.insert_node(content, Rect::default(), WidgetKind::Obj(super::obj::ObjState));
-        let mut st = item_base_style();
-        st.sizing_w = Some(Sizing::GROW);
+        let st = item_base_style();
         self.set_style(item, st);
+        self.set_sizing(item, Some(Sizing::GROW), None);
         self.set_style_selected(item, sel_style);
         // The first item is automatically selected
         if was_empty {

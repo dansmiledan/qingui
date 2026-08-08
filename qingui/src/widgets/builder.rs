@@ -5,7 +5,7 @@ use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::event::{EventCb, EventKind};
 use crate::layout::Sizing;
-use crate::style::{Layout, Style};
+use crate::style::Style;
 use crate::ui::Ui;
 
 /// Common fields shared by every widget builder.
@@ -15,8 +15,10 @@ pub(crate) struct CommonBuilder {
     pub style: Option<Style>,
     pub style_pressed: Option<Style>,
     pub style_focused: Option<Style>,
-    pub layout: Option<Layout>,
+    pub layout: Option<crate::layout::Layout>,
+    pub pad: Option<(i32, i32, i32, i32)>,
     pub sizing: Option<(Option<Sizing>, Option<Sizing>)>,
+    pub aspect: Option<u32>,
     pub transition: Option<(u32, Easing)>,
     pub events: Vec<(EventKind, EventCb)>,
 }
@@ -25,18 +27,12 @@ impl CommonBuilder {
     /// Applies the layout/sizing/transition/events tail to an inserted node.
     /// Style defaults are widget-specific and stay in each `WidgetCfg::build`.
     pub fn apply_tail(self, ui: &mut Ui, r: ObjRef) {
-        if let Some(l) = self.layout {
-            ui.set_layout(r, l);
-        }
-        if let Some((sw, sh)) = self.sizing {
-            ui.set_sizing(r, sw, sh);
-        }
-        if let Some(t) = self.transition {
-            ui.set_transition(r, Some(t));
-        }
-        for (k, cb) in self.events {
-            ui.add_event_cb(r, k, cb);
-        }
+        if let Some(l) = self.layout { ui.set_layout(r, l); }
+        if let Some(p) = self.pad { ui.set_pad(r, p); }
+        if let Some((sw, sh)) = self.sizing { ui.set_sizing(r, sw, sh); }
+        if let Some(a) = self.aspect { ui.set_aspect(r, Some(a)); }
+        if let Some(t) = self.transition { ui.set_transition(r, Some(t)); }
+        for (k, cb) in self.events { ui.add_event_cb(r, k, cb); }
     }
 }
 
@@ -70,7 +66,13 @@ impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
     /// Sets the focused style. Only honored by widgets that have a focused-state style (currently Button, Checkbox, Dropdown, ItemList, List, Roller, ScrollView, Slider, Spinbox, Switch).
     pub fn style_focused(mut self, s: Style) -> Self { self.common.style_focused = Some(s); self }
     /// Sets the layout.
-    pub fn layout(mut self, l: Layout) -> Self { self.common.layout = Some(l); self }
+    pub fn layout(mut self, l: crate::layout::Layout) -> Self { self.common.layout = Some(l); self }
+    /// Sets padding on all four sides.
+    pub fn pads(mut self, v: i32) -> Self { self.common.pad = Some((v, v, v, v)); self }
+    /// Sets padding per side: (left, right, top, bottom).
+    pub fn pad(mut self, l: i32, r: i32, t: i32, b: i32) -> Self { self.common.pad = Some((l, r, t, b)); self }
+    /// Sets the aspect ratio (per-mille).
+    pub fn aspect(mut self, ratio: u32) -> Self { self.common.aspect = Some(ratio); self }
     /// Sets the width/height sizing.
     pub fn sizing(mut self, w: Option<Sizing>, h: Option<Sizing>) -> Self {
         self.common.sizing = Some((w, h));

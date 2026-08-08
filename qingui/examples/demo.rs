@@ -2,9 +2,9 @@ mod sim;
 mod images;
 
 use qingui::anim::{Anim, AnimProp, Easing};
-use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
+use qingui::layout::{Align, Flex, FlexDir, Grid, Layout, Sizing, Track};
 use qingui::prelude::*;
-use qingui::style::{Layout, Style};
+use qingui::style::Style;
 use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
@@ -67,18 +67,15 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let screen = ui.screen();
 
     // Screen-level Grid: title row (content height) + main row (Fr); fixed-width menu on the left, adaptive panel on the right
-    let mut ss = qingui::style::theme_screen();
-    ss.pad_left = Some(8);
-    ss.pad_top = Some(8);
-    ss.pad_right = Some(8);
-    ss.pad_bottom = Some(8);
-    ss.layout = Some(Layout::Grid(Grid {
+    let ss = qingui::style::theme_screen();
+    ui.set_style(screen, ss);
+    ui.set_pad(screen, (8, 8, 8, 8));
+    ui.set_layout(screen, Layout::Grid(Grid {
         cols: vec![Track::Px(108), Track::Fr(1)],
         rows: vec![Track::Content, Track::Fr(1)],
         col_gap: 8,
         row_gap: 8,
     }));
-    ui.set_style(screen, ss);
 
     let title = LabelCfg::new("qingui demo").build(ui, screen);
     ui.set_grid_cell(title, (0, 2), (0, 1));

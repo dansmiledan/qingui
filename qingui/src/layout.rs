@@ -2,6 +2,23 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
+/// Layout description for a container.
+#[derive(Clone, PartialEq, Debug)]
+pub enum Layout {
+    /// No automatic layout.
+    None,
+    /// Flex layout.
+    Flex(Flex),
+    /// Grid layout.
+    Grid(Grid),
+}
+
+impl Default for Layout {
+    fn default() -> Self {
+        Layout::None
+    }
+}
+
 /// Axis sizing strategy (modeled after Clay's FIT/GROW/FIXED/PERCENT model).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Sizing {
@@ -130,11 +147,11 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     if order.is_empty() {
         return;
     }
-    let style = ui.layout_style(container);
-    let origin_x = style.pad_left;
-    let origin_y = style.pad_top;
-    let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
-    let area_h = ui.rect(container).h - style.pad_top - style.pad_bottom;
+    let lp = ui.layout_props(container);
+    let origin_x = lp.pad.0;
+    let origin_y = lp.pad.2;
+    let area_w = ui.rect(container).w - lp.pad.0 - lp.pad.1;
+    let area_h = ui.rect(container).h - lp.pad.2 - lp.pad.3;
 
     let is_row = matches!(f.dir, FlexDir::Row | FlexDir::RowReverse);
     let reverse = matches!(f.dir, FlexDir::RowReverse | FlexDir::ColumnReverse);
@@ -148,7 +165,7 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     let mut info: Vec<Kid> = Vec::with_capacity(order.len());
     for &k in &order {
         let r = ui.rect(k);
-        let ls = ui.layout_style(k);
+        let ls = ui.layout_props(k);
         let (content_m, content_c) = if is_row { (r.w, r.h) } else { (r.h, r.w) };
         let (sm, sc) = if is_row { (ls.sizing_w, ls.sizing_h) } else { (ls.sizing_h, ls.sizing_w) };
         info.push(Kid {
@@ -355,9 +372,9 @@ fn track_offset(sizes: &[i32], idx: u8, gap: i32) -> i32 {
 
 /// Runs one grid layout pass on `container`: positions every child in its grid cell.
 pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
-    let style = ui.layout_style(container);
-    let area_w = ui.rect(container).w - style.pad_left - style.pad_right;
-    let area_h = ui.rect(container).h - style.pad_top - style.pad_bottom;
+    let lp = ui.layout_props(container);
+    let area_w = ui.rect(container).w - lp.pad.0 - lp.pad.1;
+    let area_h = ui.rect(container).h - lp.pad.2 - lp.pad.3;
     let mut kids: Vec<ObjRef> = Vec::new();
     if let Some(n) = ui.arena.get(container) {
         for &k in &n.children {
@@ -404,7 +421,7 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
         };
         let (cw, ch) = (span_w(ci, cs), span_h(ri, rs));
         // The sizing strategy decides each child's size inside its cell
-        let st = ui.layout_style(k);
+        let st = ui.layout_props(k);
         let cur = ui.rect(k);
         let mut fw = axis_in_cell(st.sizing_w, cur.w, cw);
         let mut fh = axis_in_cell(st.sizing_h, cur.h, ch);
@@ -419,8 +436,8 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
             }
         }
         ui.layout_resize(k, fw, fh);
-        let x = style.pad_left + track_offset(&col_px, ci, g.col_gap);
-        let y = style.pad_top + track_offset(&row_px, ri, g.row_gap);
+        let x = lp.pad.0 + track_offset(&col_px, ci, g.col_gap);
+        let y = lp.pad.2 + track_offset(&row_px, ri, g.row_gap);
         ui.layout_move(k, x, y);
     }
 }

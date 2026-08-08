@@ -23,16 +23,11 @@ pub struct Ui {
     default_font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
-/// The handful of style fields the layout hot path needs, resolved with the
-/// same overlay precedence as `resolved_style` but without building a full
-/// `ResolvedStyle` (which showed up in the layout profile: three full
-/// resolves per child per pass).
+/// The layout-relevant node props, read directly (they live on Node now: no
+/// overlay resolution — state overlays can no longer change layout, by design).
 #[derive(Clone, Copy, Default)]
-pub(crate) struct LayoutStyle {
-    pub pad_left: i32,
-    pub pad_right: i32,
-    pub pad_top: i32,
-    pub pad_bottom: i32,
+pub(crate) struct LayoutProps {
+    pub pad: (i32, i32, i32, i32),
     pub sizing_w: Option<crate::layout::Sizing>,
     pub sizing_h: Option<crate::layout::Sizing>,
     pub aspect_ratio: Option<u32>,
@@ -40,32 +35,20 @@ pub(crate) struct LayoutStyle {
 }
 
 impl Ui {
-    /// Resolves the layout-relevant style fields of `obj` (pressed > focused
-    /// > selected > base, matching `render::resolved_style`).
-    pub(crate) fn layout_style(&self, obj: ObjRef) -> LayoutStyle {
-        let Some(n) = self.arena.get(obj) else {
-            return LayoutStyle::default();
-        };
-        let overlay = if n.state.contains(State::PRESSED) {
-            n.style_pressed.as_deref()
-        } else if n.state.contains(State::FOCUSED) {
-            n.style_focused.as_deref()
-        } else if n.state.contains(State::SELECTED) {
-            n.style_selected.as_deref()
-        } else {
-            None
-        };
-        let b = &n.style;
-        LayoutStyle {
-            pad_left: overlay.and_then(|s| s.pad_left).or(b.pad_left).unwrap_or(0),
-            pad_right: overlay.and_then(|s| s.pad_right).or(b.pad_right).unwrap_or(0),
-            pad_top: overlay.and_then(|s| s.pad_top).or(b.pad_top).unwrap_or(0),
-            pad_bottom: overlay.and_then(|s| s.pad_bottom).or(b.pad_bottom).unwrap_or(0),
-            sizing_w: overlay.and_then(|s| s.sizing_w).or(b.sizing_w),
-            sizing_h: overlay.and_then(|s| s.sizing_h).or(b.sizing_h),
-            aspect_ratio: overlay.and_then(|s| s.aspect_ratio).or(b.aspect_ratio),
-            transition: overlay.and_then(|s| s.transition).or(b.transition),
-        }
+    pub(crate) fn layout_props(&self, obj: ObjRef) -> LayoutProps {
+        let Some(n) = self.arena.get(obj) else { return LayoutProps::default() };
+        LayoutProps { pad: n.pad, sizing_w: n.sizing_w, sizing_h: n.sizing_h, aspect_ratio: n.aspect_ratio, transition: n.transition }
+    }
+
+    /// Sets padding (l, r, t, b).
+    pub fn set_pad(&mut self, obj: ObjRef, pad: (i32, i32, i32, i32)) {
+        if let Some(n) = self.arena.get_mut(obj) { n.pad = pad; }
+        self.invalidate_obj(obj);
+        self.layout_dirty = true;
+    }
+    /// Returns padding (l, r, t, b).
+    pub fn pad(&self, obj: ObjRef) -> (i32, i32, i32, i32) {
+        self.arena.get(obj).map(|n| n.pad).unwrap_or((0, 0, 0, 0))
     }
 
     /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
@@ -531,13 +514,13 @@ impl Ui {
     fn layout_subtree(&mut self, obj: ObjRef) {
         // Flex is Copy, so the common case copies the config out without
         // cloning; only Grid (with its track Vecs) allocates here.
-        let layout = self.arena.get(obj).and_then(|n| match &n.style.layout {
-            Some(crate::style::Layout::Flex(f)) => Some(crate::style::Layout::Flex(*f)),
+        let layout = self.arena.get(obj).and_then(|n| match &n.layout {
+            Some(crate::layout::Layout::Flex(f)) => Some(crate::layout::Layout::Flex(*f)),
             other => other.clone(),
         });
         match layout {
-            Some(crate::style::Layout::Flex(f)) => crate::layout::layout_flex(self, obj, &f),
-            Some(crate::style::Layout::Grid(g)) => crate::layout::layout_grid(self, obj, &g),
+            Some(crate::layout::Layout::Flex(f)) => crate::layout::layout_flex(self, obj, &f),
+            Some(crate::layout::Layout::Grid(g)) => crate::layout::layout_grid(self, obj, &g),
             _ => {}
         }
         // Iterate children by index: cloning the child Vec per node per pass
@@ -550,19 +533,21 @@ impl Ui {
     }
 
     pub fn grid_cell(&self, obj: ObjRef) -> ((u8, u8), (u8, u8)) {
-        self.arena.get(obj).map(|n| (n.grid_col, n.grid_row)).unwrap_or(((0, 1), (0, 1)))
+        match self.arena.get(obj).map(|n| &n.item_props) {
+            Some(crate::node::ItemProps::Grid { col, row }) => (*col, *row),
+            _ => ((0, 1), (0, 1)),
+        }
     }
     pub fn set_grid_cell(&mut self, obj: ObjRef, col: (u8, u8), row: (u8, u8)) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.grid_col = (col.0, col.1.max(1));
-            n.grid_row = (row.0, row.1.max(1));
+            n.item_props = crate::node::ItemProps::Grid { col: (col.0, col.1.max(1)), row: (row.0, row.1.max(1)) };
         }
         self.layout_dirty = true;
     }
 
-    pub fn set_layout(&mut self, obj: ObjRef, layout: crate::style::Layout) {
+    pub fn set_layout(&mut self, obj: ObjRef, layout: crate::layout::Layout) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style.layout = Some(layout);
+            n.layout = Some(layout);
         }
         self.layout_dirty = true;
     }
@@ -570,8 +555,8 @@ impl Ui {
     /// Sets the width/height sizing strategies (None = content size).
     pub fn set_sizing(&mut self, obj: ObjRef, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style.sizing_w = w;
-            n.style.sizing_h = h;
+            n.sizing_w = w;
+            n.sizing_h = h;
         }
         self.layout_dirty = true;
     }
@@ -579,7 +564,7 @@ impl Ui {
     /// Sets the aspect ratio (per-mille: 1000 = 1:1, 1778 ≈16:9; None clears it).
     pub fn set_aspect(&mut self, obj: ObjRef, ratio: Option<u32>) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style.aspect_ratio = ratio;
+            n.aspect_ratio = ratio;
         }
         self.layout_dirty = true;
     }
@@ -588,7 +573,7 @@ impl Ui {
     /// animate automatically; None disables it.
     pub fn set_transition(&mut self, obj: ObjRef, transition: Option<(u32, crate::anim::Easing)>) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.style.transition = transition;
+            n.transition = transition;
         }
         self.layout_dirty = true;
     }
@@ -608,7 +593,7 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
         let cur = n.rect;
-        let tr = self.layout_style(obj).transition;
+        let tr = self.layout_props(obj).transition;
         let mut animated = false;
         if laid && (cur.x != x || cur.y != y) {
             if let Some((dur, easing)) = tr {
@@ -642,7 +627,7 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
         let cur = n.rect;
-        let tr = self.layout_style(obj).transition;
+        let tr = self.layout_props(obj).transition;
         let mut animated = false;
         if laid && (cur.w != w || cur.h != h) {
             if let Some((dur, easing)) = tr {
@@ -698,6 +683,13 @@ impl Ui {
         if let Some(n) = self.arena.get_mut(obj) {
             n.z_index = z;
         }
+        self.invalidate_obj(obj);
+    }
+
+    /// Sets the node opacity multiplier (0..=255) via the base style.
+    pub fn set_opa(&mut self, obj: ObjRef, opa: u8) {
+        self.invalidate_obj(obj);
+        if let Some(n) = self.arena.get_mut(obj) { n.style.opa = Some(opa); }
         self.invalidate_obj(obj);
     }
 
@@ -780,7 +772,7 @@ impl Ui {
             AnimProp::Opa => {
                 self.invalidate_obj(target);
                 if let Some(n) = self.arena.get_mut(target) {
-                    n.opa = v.clamp(0, 255) as u8;
+                    n.style.opa = Some(v.clamp(0, 255) as u8);
                 }
                 self.invalidate_obj(target);
             }
@@ -1120,8 +1112,7 @@ mod tests {
 
     #[test]
     fn layout_runs_flex_pass() {
-        use crate::layout::{Align, Flex, FlexDir};
-        use crate::style::Layout;
+        use crate::layout::{Align, Flex, FlexDir, Layout};
         use crate::widgets::label::LabelCfg;
         use crate::widgets::obj::ObjCfg;
         let mut ui = Ui::new(320, 240, 24);

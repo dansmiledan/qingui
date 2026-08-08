@@ -1,24 +1,7 @@
 use crate::geometry::Color;
 
-/// Layout description for a container.
-#[derive(Clone, PartialEq, Debug)]
-pub enum Layout {
-    /// No automatic layout.
-    None,
-    /// Flex layout.
-    Flex(crate::layout::Flex),
-    /// Grid layout.
-    Grid(crate::layout::Grid),
-}
-
-impl Default for Layout {
-    fn default() -> Self {
-        Layout::None
-    }
-}
-
 /// Flat style: `Option` fields, where `None` means "do not override".
-/// Usable as a struct literal or built with a chained builder: `Style::new().bg(RED).radius(4).pads(8)`
+/// Usable as a struct literal or built with a chained builder: `Style::new().bg(RED).radius(4)`
 #[derive(Clone, Default, PartialEq, Debug)]
 pub struct Style {
     /// Background color.
@@ -31,29 +14,12 @@ pub struct Style {
     pub border_width: Option<i32>,
     /// Corner radius in pixels.
     pub radius: Option<i32>,
-    /// Left padding.
-    pub pad_left: Option<i32>,
-    /// Right padding.
-    pub pad_right: Option<i32>,
-    /// Top padding.
-    pub pad_top: Option<i32>,
-    /// Bottom padding.
-    pub pad_bottom: Option<i32>,
     /// Text color.
     pub text_color: Option<Color>,
-    /// Container layout.
-    pub layout: Option<Layout>,
-    /// Width sizing strategy (None = content size).
-    pub sizing_w: Option<crate::layout::Sizing>,
-    /// Height sizing strategy (None = content size).
-    pub sizing_h: Option<crate::layout::Sizing>,
-    /// Aspect ratio (per-mille: 1000 = 1:1, 1778 ≈ 16:9).
-    pub aspect_ratio: Option<u32>,
-    /// Layout transition: (duration ms, easing). Position/size changes from layout are
-    /// animated automatically when set.
-    pub transition: Option<(u32, crate::anim::Easing)>,
     /// Text font (None = use the Ui default font).
     pub font: Option<&'static embedded_graphics::mono_font::MonoFont<'static>>,
+    /// Node opacity multiplier (0..=255), applied to everything the node draws.
+    pub opa: Option<u8>,
 }
 
 impl Style {
@@ -82,46 +48,9 @@ impl Style {
         self.radius = Some(radius);
         self
     }
-    /// Uniform padding on all four sides.
-    pub fn pads(mut self, v: i32) -> Self {
-        self.pad_left = Some(v);
-        self.pad_right = Some(v);
-        self.pad_top = Some(v);
-        self.pad_bottom = Some(v);
-        self
-    }
-    /// Sets padding per side: (left, right, top, bottom).
-    pub fn pad(mut self, left: i32, right: i32, top: i32, bottom: i32) -> Self {
-        self.pad_left = Some(left);
-        self.pad_right = Some(right);
-        self.pad_top = Some(top);
-        self.pad_bottom = Some(bottom);
-        self
-    }
     /// Sets the text color.
     pub fn text_color(mut self, color: Color) -> Self {
         self.text_color = Some(color);
-        self
-    }
-    /// Sets the container layout.
-    pub fn layout(mut self, layout: Layout) -> Self {
-        self.layout = Some(layout);
-        self
-    }
-    /// Sets the width and height sizing strategies.
-    pub fn sizing(mut self, w: crate::layout::Sizing, h: crate::layout::Sizing) -> Self {
-        self.sizing_w = Some(w);
-        self.sizing_h = Some(h);
-        self
-    }
-    /// Sets the aspect ratio (per-mille).
-    pub fn aspect(mut self, ratio: u32) -> Self {
-        self.aspect_ratio = Some(ratio);
-        self
-    }
-    /// Sets the layout transition (duration ms, easing).
-    pub fn transition(mut self, duration_ms: u32, easing: crate::anim::Easing) -> Self {
-        self.transition = Some((duration_ms, easing));
         self
     }
 
@@ -132,17 +61,9 @@ impl Style {
         if other.border_color.is_some() { self.border_color = other.border_color; }
         if other.border_width.is_some() { self.border_width = other.border_width; }
         if other.radius.is_some() { self.radius = other.radius; }
-        if other.pad_left.is_some() { self.pad_left = other.pad_left; }
-        if other.pad_right.is_some() { self.pad_right = other.pad_right; }
-        if other.pad_top.is_some() { self.pad_top = other.pad_top; }
-        if other.pad_bottom.is_some() { self.pad_bottom = other.pad_bottom; }
         if other.text_color.is_some() { self.text_color = other.text_color; }
-        if other.layout.is_some() { self.layout = other.layout; }
-        if other.sizing_w.is_some() { self.sizing_w = other.sizing_w; }
-        if other.sizing_h.is_some() { self.sizing_h = other.sizing_h; }
-        if other.aspect_ratio.is_some() { self.aspect_ratio = other.aspect_ratio; }
-        if other.transition.is_some() { self.transition = other.transition; }
         if other.font.is_some() { self.font = other.font; }
+        if other.opa.is_some() { self.opa = other.opa; }
         self
     }
 }
@@ -160,28 +81,12 @@ pub struct ResolvedStyle {
     pub border_width: i32,
     /// Corner radius in pixels.
     pub radius: i32,
-    /// Left padding.
-    pub pad_left: i32,
-    /// Right padding.
-    pub pad_right: i32,
-    /// Top padding.
-    pub pad_top: i32,
-    /// Bottom padding.
-    pub pad_bottom: i32,
     /// Text color.
     pub text_color: Color,
-    /// Container layout.
-    pub layout: Layout,
-    /// Width sizing strategy (None = content size).
-    pub sizing_w: Option<crate::layout::Sizing>,
-    /// Height sizing strategy (None = content size).
-    pub sizing_h: Option<crate::layout::Sizing>,
-    /// Aspect ratio (per-mille).
-    pub aspect_ratio: Option<u32>,
-    /// Layout transition: (duration ms, easing).
-    pub transition: Option<(u32, crate::anim::Easing)>,
     /// Text font.
     pub font: &'static embedded_graphics::mono_font::MonoFont<'static>,
+    /// Node opacity multiplier (0..=255).
+    pub opa: u8,
 }
 
 impl Default for ResolvedStyle {
@@ -192,17 +97,9 @@ impl Default for ResolvedStyle {
             border_color: Color::BLACK,
             border_width: 0,
             radius: 0,
-            pad_left: 0,
-            pad_right: 0,
-            pad_top: 0,
-            pad_bottom: 0,
             text_color: Color::WHITE,
-            layout: Layout::None,
-            sizing_w: None,
-            sizing_h: None,
-            aspect_ratio: None,
-            transition: None,
             font: crate::font::DEFAULT_FONT,
+            opa: 255,
         }
     }
 }
@@ -226,20 +123,9 @@ pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded
         border_color: pick(overlay, |s| s.border_color).unwrap_or(d.border_color),
         border_width: pick_i(overlay, |s| s.border_width).unwrap_or(d.border_width),
         radius: pick_i(overlay, |s| s.radius).unwrap_or(d.radius),
-        pad_left: pick_i(overlay, |s| s.pad_left).unwrap_or(d.pad_left),
-        pad_right: pick_i(overlay, |s| s.pad_right).unwrap_or(d.pad_right),
-        pad_top: pick_i(overlay, |s| s.pad_top).unwrap_or(d.pad_top),
-        pad_bottom: pick_i(overlay, |s| s.pad_bottom).unwrap_or(d.pad_bottom),
         text_color: pick(overlay, |s| s.text_color).unwrap_or(d.text_color),
-        layout: overlay
-            .and_then(|s| s.layout.clone())
-            .or_else(|| base.layout.clone())
-            .unwrap_or(Layout::None),
-        sizing_w: overlay.and_then(|s| s.sizing_w).or(base.sizing_w),
-        sizing_h: overlay.and_then(|s| s.sizing_h).or(base.sizing_h),
-        aspect_ratio: overlay.and_then(|s| s.aspect_ratio).or(base.aspect_ratio),
-        transition: overlay.and_then(|s| s.transition).or(base.transition),
         font: overlay.and_then(|s| s.font).or(base.font).unwrap_or(default),
+        opa: pick_u8(overlay, |s| s.opa).unwrap_or(d.opa),
     }
 }
 

@@ -1,10 +1,11 @@
-use qingui::layout::Sizing;
+use qingui::layout::{Align, Flex, FlexDir, Layout, Sizing};
 use qingui::prelude::*;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::msgbox::MsgboxBuilder;
+use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::{Color, EventKind, Ui};
@@ -35,19 +36,28 @@ fn slider_builder_defaults() {
 fn slider_builder_overrides() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
+    // A flex parent so the child's GROW sizing is observable after a layout pass.
+    let parent = ObjCfg::new()
+        .size(160, 40)
+        .layout(Layout::Flex(Flex {
+            dir: FlexDir::Row, wrap: false,
+            main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+        }))
+        .build(&mut ui, scr);
     let s = SliderCfg::new(0, 100)
         .size(140, 14)
         .value(50)
         .style_with(|s| s.bg(Color::RED))
         .sizing(Some(Sizing::GROW), None)
-        .build(&mut ui, scr);
+        .build(&mut ui, parent);
     let r = ui.rect(s);
     assert_eq!((r.w, r.h), (140, 14));
     assert_eq!(ui.value(s), 50);
     let st = ui.resolved_style(s);
     assert_eq!(st.bg_color, Color::RED); // override takes effect
     assert_eq!(st.radius, 6); // other defaults kept
-    assert_eq!(st.sizing_w, Some(Sizing::GROW));
+    ui.layout();
+    assert_eq!(ui.rect(s).w, 160); // GROW sizing fills the parent
 }
 
 #[test]

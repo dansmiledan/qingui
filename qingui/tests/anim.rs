@@ -118,7 +118,7 @@ fn anim_value_updates_widget_and_dirty() {
 #[test]
 fn anim_x_on_flex_child_not_reset_by_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
-    use qingui::style::Layout;
+    use qingui::layout::Layout;
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
@@ -141,7 +141,7 @@ fn anim_x_on_flex_child_not_reset_by_layout() {
 #[test]
 fn translate_offsets_abs_rect_and_survives_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
-    use qingui::style::Layout;
+    use qingui::layout::Layout;
     use qingui::Rect;
     let mut ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
