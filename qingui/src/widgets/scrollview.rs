@@ -52,8 +52,8 @@ impl super::Widget for ScrollViewState {
     // The viewport arranges its single child (the content node): the column flex
     // consumes the content's cross-axis `Sizing::GROW`, keeping the content width
     // equal to the viewport width.
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
-        crate::layout::layout_flex(ui, obj, &SCROLL_FLEX);
+    fn layout(&mut self, ui: &mut Ui, obj: ObjRef, content: Rect) {
+        crate::layout::layout_flex(ui, obj, &SCROLL_FLEX, content);
     }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }

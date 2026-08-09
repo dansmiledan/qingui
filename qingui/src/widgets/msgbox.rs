@@ -101,8 +101,8 @@ impl super::Widget for MsgboxState {
     // Msgbox is an ordinary container (child objects are drawn normally)
     fn draw(&self, _ctx: &super::WidgetCtx, _c: &mut super::Canvas, _clip: Rect) {}
     // The root's fixed column flex arrangement
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef) {
-        crate::layout::layout_flex(ui, obj, &ROOT_FLEX);
+    fn layout(&mut self, ui: &mut Ui, obj: ObjRef, content: Rect) {
+        crate::layout::layout_flex(ui, obj, &ROOT_FLEX, content);
     }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }

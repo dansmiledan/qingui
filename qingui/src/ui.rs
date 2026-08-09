@@ -27,7 +27,6 @@ pub struct Ui {
 /// overlay resolution — state overlays can no longer change layout, by design).
 #[derive(Clone, Copy, Default)]
 pub(crate) struct LayoutProps {
-    pub pad: (i32, i32, i32, i32),
     pub sizing_w: Option<crate::layout::Sizing>,
     pub sizing_h: Option<crate::layout::Sizing>,
     pub aspect_ratio: Option<u32>,
@@ -37,7 +36,7 @@ pub(crate) struct LayoutProps {
 impl Ui {
     pub(crate) fn layout_props(&self, obj: ObjRef) -> LayoutProps {
         let Some(n) = self.arena.get(obj) else { return LayoutProps::default() };
-        LayoutProps { pad: n.pad, sizing_w: n.item_props.sizing_w, sizing_h: n.item_props.sizing_h, aspect_ratio: n.item_props.aspect_ratio, transition: n.transition }
+        LayoutProps { sizing_w: n.item_props.sizing_w, sizing_h: n.item_props.sizing_h, aspect_ratio: n.item_props.aspect_ratio, transition: n.transition }
     }
 
     /// Sets padding (l, r, t, b).
@@ -504,11 +503,23 @@ impl Ui {
         }
     }
     fn layout_subtree(&mut self, obj: ObjRef) {
+        // Content box (node rect minus padding), passed to the layout algorithm.
+        // Local coordinates: layout algorithms place children relative to the
+        // parent's rect origin, so content.x = pad.0, content.y = pad.2.
+        let content = {
+            let (r, pad) = match self.arena.get(obj) {
+                Some(n) => (n.rect, n.pad),
+                None => return,
+            };
+            let w = (r.w - pad.0 - pad.1).max(0);
+            let h = (r.h - pad.2 - pad.3).max(0);
+            crate::geometry::Rect::new(r.x + pad.0, r.y + pad.2, w, h)
+        };
         let mut kind = match self.arena.get_mut(obj) {
             Some(n) => core::mem::replace(&mut n.kind, alloc::boxed::Box::new(crate::widgets::NoopWidget)),
             None => return,
         };
-        kind.layout(self, obj);
+        kind.layout(self, obj, content);
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind = kind;
         } else {

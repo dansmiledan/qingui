@@ -117,7 +117,8 @@ struct Kid {
 }
 
 /// Runs one flex layout pass on `container` (directly modifies the x/y of child rects).
-pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
+/// `content` is the container's content box (rect minus padding), computed by Ui.
+pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex, content: crate::geometry::Rect) {
     // Filtered child list, gathered without cloning the children Vec.
     let mut order: Vec<ObjRef> = Vec::new();
     if let Some(n) = ui.arena.get(container) {
@@ -130,11 +131,10 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex) {
     if order.is_empty() {
         return;
     }
-    let lp = ui.layout_props(container);
-    let origin_x = lp.pad.0;
-    let origin_y = lp.pad.2;
-    let area_w = ui.rect(container).w - lp.pad.0 - lp.pad.1;
-    let area_h = ui.rect(container).h - lp.pad.2 - lp.pad.3;
+    let origin_x = content.x;
+    let origin_y = content.y;
+    let area_w = content.w;
+    let area_h = content.h;
 
     let is_row = matches!(f.dir, FlexDir::Row | FlexDir::RowReverse);
     let reverse = matches!(f.dir, FlexDir::RowReverse | FlexDir::ColumnReverse);
@@ -354,10 +354,10 @@ fn track_offset(sizes: &[i32], idx: u8, gap: i32) -> i32 {
 }
 
 /// Runs one grid layout pass on `container`: positions every child in its grid cell.
-pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
-    let lp = ui.layout_props(container);
-    let area_w = ui.rect(container).w - lp.pad.0 - lp.pad.1;
-    let area_h = ui.rect(container).h - lp.pad.2 - lp.pad.3;
+/// `content` is the container's content box (rect minus padding), computed by Ui.
+pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid, content: crate::geometry::Rect) {
+    let area_w = content.w;
+    let area_h = content.h;
     let mut kids: Vec<ObjRef> = Vec::new();
     if let Some(n) = ui.arena.get(container) {
         for &k in &n.children {
@@ -419,8 +419,8 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid) {
             }
         }
         ui.layout_resize(k, fw, fh);
-        let x = lp.pad.0 + track_offset(&col_px, ci, g.col_gap);
-        let y = lp.pad.2 + track_offset(&row_px, ri, g.row_gap);
+        let x = content.x + track_offset(&col_px, ci, g.col_gap);
+        let y = content.y + track_offset(&row_px, ri, g.row_gap);
         ui.layout_move(k, x, y);
     }
 }
