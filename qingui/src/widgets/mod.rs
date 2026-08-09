@@ -5,8 +5,9 @@ use crate::style::ResolvedStyle;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
-// Temporary alias: Task 21 renames DrawBuf to Canvas and switches this to a re-export.
-use crate::draw::DrawBuf as Canvas;
+// Re-exported so user widgets can name the canvas type in `Widget::draw`;
+// Task 21 renames DrawBuf to Canvas and points this at `crate::canvas::Canvas`.
+pub use crate::draw::DrawBuf as Canvas;
 
 pub(crate) mod builder;
 pub use builder::{Layout, WidgetBuilder}; // public return type (XxxCfg::new returns it)
@@ -17,7 +18,6 @@ pub mod button;
 pub mod canvas;
 pub mod chart;
 pub mod checkbox;
-pub mod custom;
 pub mod dropdown;
 pub mod flexbox;
 pub mod gridbox;
@@ -136,6 +136,10 @@ impl Widget for NoopWidget {
 
 /// Widget behavior interface: `draw` must be implemented (a new widget that forgets to paint fails to compile);
 /// most widgets lack the other behaviors, so they get default no-op implementations.
+///
+/// Legacy migration remnant: no implementors left (the last one was `CustomState`);
+/// kept only so the `define_widgets!` macro below still parses. Swept in Task 22.
+#[allow(dead_code)]
 pub(crate) trait WidgetBehavior {
     fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect);
     fn tick(&mut self, _now: u64) -> TickOut { TickOut::IDLE }
@@ -165,6 +169,7 @@ pub(crate) fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
 
 /// Variant storage: inline = inlined state, boxed = heap-allocated (large states to
 /// avoid the "largest-variant tax").
+#[allow(unused_macros)] // transitional: only used by the dead `define_widgets!` below; swept in Task 22
 macro_rules! wtype {
     (inline, $state:ty) => { $state };
     (boxed,  $state:ty) => { alloc::boxed::Box<$state> };
@@ -172,10 +177,12 @@ macro_rules! wtype {
 
 /// Private deref helpers: expand to a `&T`/`&mut T` for both inline (`s: &T`) and
 /// boxed (`s: &Box<T>`) payloads without adding any public trait impls.
+#[allow(unused_macros)] // transitional, see `wtype!`
 macro_rules! wref {
     (inline, $s:expr) => { $s };
     (boxed,  $s:expr) => { &**$s };
 }
+#[allow(unused_macros)] // transitional, see `wtype!`
 macro_rules! wmut {
     (inline, $s:expr) => { $s };
     (boxed,  $s:expr) => { &mut **$s };
@@ -183,6 +190,10 @@ macro_rules! wmut {
 
 /// Declaratively registers a widget: generates the enum, behavior dispatch, `as_xxx` accessors, and downcast.
 /// Adding a widget requires just one line here.
+///
+/// Legacy migration remnant: the invocation and the generated `WidgetKind` enum were
+/// deleted together with the last variant (`Custom`); the macro itself is swept in Task 22.
+#[allow(unused_macros)]
 macro_rules! define_widgets {
     ($($variant:ident($state:ty, $as:ident, $as_mut:ident, $store:ident)),+ $(,)?) => {
         /// Discriminated widget state: one variant per registered widget type.
@@ -246,57 +257,4 @@ macro_rules! define_widgets {
             }
         }
     };
-}
-
-define_widgets! {
-    Custom(custom::CustomState, as_custom_state, as_custom_state_mut, inline),
-}
-
-impl WidgetKind {
-    pub(crate) fn as_custom(&self) -> Option<&dyn custom::Widget> {
-        match self { WidgetKind::Custom(s) => Some(s.0.as_ref()), _ => None }
-    }
-    pub(crate) fn as_custom_mut(&mut self) -> Option<&mut dyn custom::Widget> {
-        match self { WidgetKind::Custom(s) => Some(s.0.as_mut()), _ => None }
-    }
-}
-
-/// Compatibility shim: the legacy enum boxes itself as a trait object while
-/// widgets are migrated one by one. Deleted together with the enum (Task 22).
-impl Widget for WidgetKind {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut Canvas, clip: Rect) {
-        WidgetKind::draw(self, ctx, c, clip);
-    }
-    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> TickOut {
-        WidgetKind::tick(self, now)
-    }
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> KeyOutcome {
-        let ctx = KeyCtx {
-            edited: ui.state(obj).contains(crate::node::State::EDITED),
-            vis_h: ui.rect(obj).h,
-            now: ui.time(),
-        };
-        // Legacy Custom variant: user state already received `&mut Ui` — keep that path.
-        if let Some(w) = self.as_custom_mut() {
-            return if w.on_key(ui, obj, key) { KeyOutcome::Consumed } else { KeyOutcome::Pass };
-        }
-        WidgetKind::on_key(self, key, ctx)
-    }
-    fn value(&self) -> i32 { WidgetKind::value(self) }
-    fn set_value(&mut self, v: i32) -> bool { WidgetKind::set_value(self, v) }
-    fn set_range(&mut self, min: i32, max: i32) { WidgetKind::set_range(self, min, max) }
-    fn overflow(&self) -> i32 { WidgetKind::overflow(self) }
-    fn as_any(&self) -> &dyn core::any::Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
-}
-
-/// Migration helpers on the trait object: reach the boxed legacy `WidgetKind`
-/// enum while widgets are migrated one by one. Deleted with the enum (Task 22).
-impl dyn Widget {
-    pub(crate) fn as_kind(&self) -> Option<&WidgetKind> {
-        self.as_any().downcast_ref()
-    }
-    pub(crate) fn as_kind_mut(&mut self) -> Option<&mut WidgetKind> {
-        self.as_any_mut().downcast_mut()
-    }
 }

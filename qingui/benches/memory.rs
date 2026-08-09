@@ -44,7 +44,6 @@ fn peak() -> usize { PEAK.load(Ordering::Relaxed) }
 
 // Thresholds recalibrated 2026-08-05 after the memory optimization: new baseline x 2.
 // See spec docs/superpowers/specs/2026-08-05-memory-bench-design.md.
-const LIMIT_WIDGETKIND: usize = 80;
 const LIMIT_STYLE: usize = 336;
 const LIMIT_NODE: usize = 752;
 const LIMIT_PEAK_MINIMAL: usize = 11_742;
@@ -62,10 +61,9 @@ fn report_static_sizes() {
     use qingui::node::Node;
     use qingui::style::{ResolvedStyle, Style};
     use qingui::widgets::{
-        arc, bar, button, chart, checkbox, custom, dropdown, image, itemlist, label, led,
+        arc, bar, button, chart, checkbox, dropdown, image, itemlist, label, led,
         list, msgbox, obj, roller, scrollview, slider, spinbox, spinner, switch, table,
     };
-    use qingui::widgets::WidgetKind;
 
     println!("== static sizes (host 64-bit) ==");
     println!("Rect          {:>6} B", size_of::<Rect>());
@@ -75,14 +73,13 @@ fn report_static_sizes() {
     println!("ResolvedStyle {:>6} B", size_of::<ResolvedStyle>());
     println!("4 x Style (old inline cost) {:>6} B", 4 * size_of::<Style>());
     println!("Node          {:>6} B", size_of::<Node>());
-    println!("WidgetKind    {:>6} B", size_of::<WidgetKind>());
+    println!("Box<dyn Widget> {:>6} B (per-node kind)", size_of::<alloc::boxed::Box<dyn qingui::widgets::Widget>>());
     let max_state = [
         size_of::<arc::ArcState>(),
         size_of::<bar::BarState>(),
         size_of::<button::ButtonState>(),
         size_of::<chart::ChartState>(),
         size_of::<checkbox::CheckboxState>(),
-        size_of::<custom::CustomState>(),
         size_of::<dropdown::DropdownState>(),
         size_of::<image::ImageState>(),
         size_of::<label::LabelState>(),
@@ -99,9 +96,8 @@ fn report_static_sizes() {
     .into_iter()
     .max()
     .unwrap();
-    println!("  largest inline state  = {max_state} B");
-    println!("  discriminator overhead = {} B (WidgetKind - largest inline state)", size_of::<WidgetKind>() - max_state);
-    println!("  NOTE: List/ItemList/Roller states are boxed (heap-allocated), so the enum stays small for every node");
+    println!("  largest widget state  = {max_state} B");
+    println!("  NOTE: every node stores a Box<dyn Widget>; List/ItemList/Roller states were already heap-allocated");
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
     }
@@ -125,9 +121,7 @@ fn report_static_sizes() {
     row!("Dropdown", dropdown::DropdownState);
     row!("Image", image::ImageState);
     row!("ItemList", itemlist::ItemListState);
-    row!("Custom", custom::CustomState);
     println!("Ui            {:>6} B", size_of::<qingui::Ui>());
-    assert!(size_of::<WidgetKind>() < LIMIT_WIDGETKIND, "WidgetKind {} B exceeds limit", size_of::<WidgetKind>());
     assert!(size_of::<Style>() < LIMIT_STYLE, "Style {} B exceeds limit", size_of::<Style>());
     assert!(size_of::<Node>() < LIMIT_NODE, "Node {} B exceeds limit", size_of::<Node>());
 }

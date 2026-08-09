@@ -42,11 +42,9 @@ use qingui::node::Node;
 use qingui::style::{ResolvedStyle, Style};
 #[cfg(target_arch = "arm")]
 use qingui::widgets::{
-    arc, bar, button, chart, checkbox, custom, dropdown, image, itemlist, label, led, list,
+    arc, bar, button, chart, checkbox, dropdown, image, itemlist, label, led, list,
     msgbox, obj, roller, scrollview, slider, spinbox, spinner, switch, table,
 };
-#[cfg(target_arch = "arm")]
-use qingui::widgets::WidgetKind;
 
 #[cfg(target_arch = "arm")]
 #[panic_handler]
@@ -66,14 +64,13 @@ fn report_static_sizes() {
     hprintln!("ResolvedStyle {:>6} B", size_of::<ResolvedStyle>());
     hprintln!("4 x Style (old inline cost) {:>6} B", 4 * size_of::<Style>());
     hprintln!("Node          {:>6} B", size_of::<Node>());
-    hprintln!("WidgetKind    {:>6} B", size_of::<WidgetKind>());
+    hprintln!("Box<dyn Widget> {:>6} B (per-node kind)", size_of::<alloc::boxed::Box<dyn qingui::widgets::Widget>>());
     let max_state = [
         size_of::<arc::ArcState>(),
         size_of::<bar::BarState>(),
         size_of::<button::ButtonState>(),
         size_of::<chart::ChartState>(),
         size_of::<checkbox::CheckboxState>(),
-        size_of::<custom::CustomState>(),
         size_of::<dropdown::DropdownState>(),
         size_of::<image::ImageState>(),
         size_of::<label::LabelState>(),
@@ -90,9 +87,8 @@ fn report_static_sizes() {
     .into_iter()
     .max()
     .unwrap();
-    hprintln!("  largest inline state  = {} B", max_state);
-    hprintln!("  discriminator overhead = {} B (WidgetKind - largest inline state)", size_of::<WidgetKind>() - max_state);
-    hprintln!("  NOTE: List/ItemList/Roller states are boxed (heap-allocated), so the enum stays small for every node");
+    hprintln!("  largest widget state  = {} B", max_state);
+    hprintln!("  NOTE: every node stores a Box<dyn Widget>; List/ItemList/Roller states were already heap-allocated");
     macro_rules! row {
         ($name:literal, $t:ty) => {
             hprintln!("  {:<14} {:>6} B", $name, size_of::<$t>());
@@ -118,10 +114,8 @@ fn report_static_sizes() {
     row!("Dropdown", dropdown::DropdownState);
     row!("Image", image::ImageState);
     row!("ItemList", itemlist::ItemListState);
-    row!("Custom", custom::CustomState);
     hprintln!("Ui            {:>6} B", size_of::<qingui::Ui>());
     // Regression gates: QEMU 32-bit baselines x2 (see docs/BENCHMARK.md).
-    assert!(size_of::<WidgetKind>() < 48, "WidgetKind {} B exceeds limit", size_of::<WidgetKind>());
     assert!(size_of::<Style>() < 280, "Style {} B exceeds limit", size_of::<Style>());
     assert!(size_of::<Node>() < 560, "Node {} B exceeds limit", size_of::<Node>());
 }

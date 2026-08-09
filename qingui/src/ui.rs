@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
 use crate::geometry::Rect;
 use crate::node::{Flag, Node, State};
-use crate::widgets::WidgetKind;
 
 /// The UI state: owns the widget tree (arena), dirty tracking, animation, focus, and rendering.
 pub struct Ui {
@@ -102,33 +101,15 @@ impl Ui {
         self.arena.contains(obj)
     }
 
-    /// Mounts a user-defined widget (implementing `widgets::custom::Widget`).
-    pub fn create_custom(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::custom::Widget>) -> ObjRef {
-        self.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(WidgetKind::Custom(crate::widgets::custom::CustomState(widget))))
-    }
-
     /// Mounts a user-defined widget (implementing `widgets::Widget`). This is the
     /// same insertion path built-in widgets use: user widgets are first-class.
     pub fn create_widget(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::Widget>) -> ObjRef {
         self.insert_node(parent, Rect::new(0, 0, w, h), widget)
     }
 
-    /// Read-only query of custom widget state (returns `None` on a type mismatch or if the
-    /// object is not a custom widget).
-    pub fn custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
-        self.arena.get(obj)?.kind.as_kind()?.as_custom()?.as_any().downcast_ref::<T>()
-    }
-
     /// Read-only access to widget state by type (returns `None` on type mismatch).
-    /// During migration this also reaches into the legacy `WidgetKind` enum.
     pub fn widget<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
-        let kind = self.arena.get(obj).map(|n| &n.kind)?;
-        if let Some(t) = kind.as_any().downcast_ref::<T>() {
-            return Some(t);
-        }
-        kind.as_any()
-            .downcast_ref::<crate::widgets::WidgetKind>()
-            .and_then(|legacy| legacy.downcast_ref::<T>())
+        self.arena.get(obj)?.kind.as_any().downcast_ref::<T>()
     }
 
     /// Read-only access to the List state (returns `None` for non-List objects).
@@ -140,9 +121,6 @@ impl Ui {
         self.widget::<crate::widgets::roller::RollerState>(obj)
     }
 
-    pub(crate) fn kind(&self, obj: ObjRef) -> Option<&alloc::boxed::Box<dyn crate::widgets::Widget>> {
-        self.arena.get(obj).map(|n| &n.kind)
-    }
     pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut alloc::boxed::Box<dyn crate::widgets::Widget>> {
         self.arena.get_mut(obj).map(|n| &mut n.kind)
     }
@@ -152,36 +130,12 @@ impl Ui {
     /// returning `f`'s result; invalid objects or type mismatches silently return `None`.
     pub fn update<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         let r = match self.arena.get_mut(obj) {
-            Some(n) => {
-                if let Some(t) = n.kind.as_any_mut().downcast_mut::<T>() {
-                    Some(f(t))
-                } else if let Some(legacy) = n.kind.as_any_mut().downcast_mut::<crate::widgets::WidgetKind>() {
-                    legacy.downcast_mut::<T>().map(f)
-                } else {
-                    None
-                }
-            }
+            Some(n) => n.kind.as_any_mut().downcast_mut::<T>().map(f),
             None => None,
         };
         if r.is_some() {
             self.invalidate_obj(obj);
         }
-        r
-    }
-
-    /// Mutably updates custom widget state (dirties before and after).
-    pub fn custom_mut<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
-        self.invalidate_obj(obj);
-        let r = self
-            .arena
-            .get_mut(obj)?
-            .kind
-            .as_kind_mut()?
-            .as_custom_mut()?
-            .as_any_mut()
-            .downcast_mut::<T>()
-            .map(f);
-        self.invalidate_obj(obj);
         r
     }
 

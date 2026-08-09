@@ -1,8 +1,7 @@
 use core::any::Any;
 use qingui::display::Flush;
 use qingui::input::Key;
-use qingui::widgets::custom::Widget;
-use qingui::widgets::WidgetCtx;
+use qingui::widgets::{Canvas, KeyOutcome, TickOut, Widget, WidgetCtx};
 use qingui::{Color, ObjRef, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -12,19 +11,19 @@ struct Gauge {
     ticks: u32,
 }
 impl Widget for Gauge {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut qingui::draw::DrawBuf, clip: Rect) {
+    fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
         d.fill_rect(ctx.abs, Color::RED, 255, clip);
     }
-    fn tick(&mut self, _now: u64) -> qingui::widgets::TickOut {
+    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> TickOut {
         self.ticks += 1;
-        qingui::widgets::TickOut::ACTIVE
+        TickOut::ACTIVE
     }
-    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, key: Key) -> bool {
+    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, key: Key) -> KeyOutcome {
         if key == Key::Up {
             self.v += 1;
-            true
+            KeyOutcome::Consumed
         } else {
-            false
+            KeyOutcome::Pass
         }
     }
     fn as_any(&self) -> &dyn Any {
@@ -60,19 +59,19 @@ fn custom_widget_draws_and_handles_keys() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    let g = ui.create_custom(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
+    let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
     ui.set_pos(g, 5, 5);
     ui.render();
     assert_eq!(px(&rec, 6, 6), Color::RED); // draw was called
 
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 0);
+    assert_eq!(ui.widget::<Gauge>(g).unwrap().v, 0);
     ui.group_add(g);
     ui.keypad_input(Key::Up); // the focused object receives the key → on_key consumes it
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 1);
+    assert_eq!(ui.widget::<Gauge>(g).unwrap().v, 1);
 
-    ui.custom_mut::<Gauge, _>(g, |g| g.v = 42);
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().v, 42);
-    assert!(ui.custom::<String>(g).is_none()); // type mismatch → None
+    ui.update::<Gauge, _>(g, |g| g.v = 42);
+    assert_eq!(ui.widget::<Gauge>(g).unwrap().v, 42);
+    assert!(ui.widget::<String>(g).is_none()); // type mismatch → None
 }
 
 // --- Task 3: take-out dispatch through the unified `widgets::Widget` trait ---
@@ -116,11 +115,11 @@ fn on_key_receives_mut_ui_via_takeout() {
 #[test]
 fn custom_widget_tick_dispatch() {
     let mut ui = Ui::new(160, 120, 120);
-    let g = ui.create_custom(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
+    let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
     // Gauge::tick returns ACTIVE → timer_handler stays awake (returns 0)
     assert_eq!(ui.timer_handler(), 0);
-    // The WidgetKind::Custom(w) => w.tick(now) dispatch is really called: once per frame, counter increments
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().ticks, 1);
+    // The take-out tick dispatch really runs: once per frame, counter increments
+    assert_eq!(ui.widget::<Gauge>(g).unwrap().ticks, 1);
     assert_eq!(ui.timer_handler(), 0);
-    assert_eq!(ui.custom::<Gauge>(g).unwrap().ticks, 2);
+    assert_eq!(ui.widget::<Gauge>(g).unwrap().ticks, 2);
 }

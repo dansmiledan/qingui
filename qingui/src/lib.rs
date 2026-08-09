@@ -25,8 +25,8 @@ pub use event::EventKind;
 pub use geometry::{Color, Point, Rect};
 /// Main UI state and entry point for all object operations.
 pub use ui::Ui;
-/// Trait implemented by user-defined custom widgets.
-pub use widgets::custom::Widget;
+/// The widget behavior trait: implement it and mount via `Ui::create_widget` (the single extension point).
+pub use widgets::Widget;
 /// Per-frame effect result reported by a widget's tick.
 pub use widgets::TickOut;
 
