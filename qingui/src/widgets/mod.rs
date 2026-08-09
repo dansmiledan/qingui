@@ -39,14 +39,13 @@ pub struct WidgetCtx<'a> {
     pub abs: Rect,
     pub resolved: &'a ResolvedStyle,
     pub edited: bool,
-    pub opa: u8, // node opa 0..=255
     pub now: u64, // current time (ms), for interpolating internal widget effects
 }
 
 impl WidgetCtx<'_> {
     /// Opacity after compositing with the node's opa
     pub fn ap(&self, base: u8) -> u8 {
-        (base as u32 * self.opa as u32 / 255) as u8
+        (base as u32 * self.resolved.opa as u32 / 255) as u8
     }
 }
 

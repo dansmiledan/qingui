@@ -149,15 +149,15 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex, content: crate::geo
     let mut info: Vec<Kid> = Vec::with_capacity(order.len());
     for &k in &order {
         let r = ui.rect(k);
-        let ls = ui.layout_props(k);
+        let (sw, sh, aspect) = ui.arena.get(k).map(|n| (n.item_props.sizing_w, n.item_props.sizing_h, n.item_props.aspect_ratio)).unwrap_or((None, None, None));
         let (content_m, content_c) = if is_row { (r.w, r.h) } else { (r.h, r.w) };
-        let (sm, sc) = if is_row { (ls.sizing_w, ls.sizing_h) } else { (ls.sizing_h, ls.sizing_w) };
+        let (sm, sc) = if is_row { (sw, sh) } else { (sh, sw) };
         info.push(Kid {
             main_sz: axis_basis(sm, content_m, area_main),
             cross_sz: axis_basis(sc, content_c, area_cross_total),
             sizing_m: sm,
             sizing_c: sc,
-            aspect: ls.aspect_ratio,
+            aspect,
         });
     }
 
@@ -406,12 +406,12 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid, content: crate::geo
         };
         let (cw, ch) = (span_w(ci, cs), span_h(ri, rs));
         // The sizing strategy decides each child's size inside its cell
-        let st = ui.layout_props(k);
+        let (sw, sh, aspect) = ui.arena.get(k).map(|n| (n.item_props.sizing_w, n.item_props.sizing_h, n.item_props.aspect_ratio)).unwrap_or((None, None, None));
         let cur = ui.rect(k);
-        let mut fw = axis_in_cell(st.sizing_w, cur.w, cw);
-        let mut fh = axis_in_cell(st.sizing_h, cur.h, ch);
+        let mut fw = axis_in_cell(sw, cur.w, cw);
+        let mut fh = axis_in_cell(sh, cur.h, ch);
         // Aspect ratio: fit proportionally within the cell bounds
-        if let Some(ratio) = st.aspect_ratio {
+        if let Some(ratio) = aspect {
             if ratio > 0 {
                 fh = (fw as i64 * 1000 / ratio as i64) as i32;
                 if fh > ch {

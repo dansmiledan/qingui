@@ -7,9 +7,7 @@ use crate::node::{Flag, Node, State};
 pub struct Ui {
     pub(crate) arena: Arena<Node>,
     screen: ObjRef,
-    #[allow(dead_code)]
     width: i32,
-    #[allow(dead_code)]
     height: i32,
     dirty: crate::dirty::DirtyQueue,
     flush: Option<alloc::boxed::Box<dyn crate::display::Flush>>,
@@ -23,22 +21,7 @@ pub struct Ui {
     default_font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
-/// The layout-relevant node props, read directly (they live on Node now: no
-/// overlay resolution — state overlays can no longer change layout, by design).
-#[derive(Clone, Copy, Default)]
-pub(crate) struct LayoutProps {
-    pub sizing_w: Option<crate::layout::Sizing>,
-    pub sizing_h: Option<crate::layout::Sizing>,
-    pub aspect_ratio: Option<u32>,
-    pub transition: Option<(u32, crate::anim::Easing)>,
-}
-
 impl Ui {
-    pub(crate) fn layout_props(&self, obj: ObjRef) -> LayoutProps {
-        let Some(n) = self.arena.get(obj) else { return LayoutProps::default() };
-        LayoutProps { sizing_w: n.item_props.sizing_w, sizing_h: n.item_props.sizing_h, aspect_ratio: n.item_props.aspect_ratio, transition: n.transition }
-    }
-
     /// Sets padding (l, r, t, b).
     pub fn set_pad(&mut self, obj: ObjRef, pad: (i32, i32, i32, i32)) {
         if let Some(n) = self.arena.get_mut(obj) { n.pad = pad; }
@@ -632,7 +615,7 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
         let cur = n.rect;
-        let tr = self.layout_props(obj).transition;
+        let tr = self.arena.get(obj).and_then(|n| n.transition);
         let mut animated = false;
         if laid && (cur.x != x || cur.y != y) {
             if let Some((dur, easing)) = tr {
@@ -666,7 +649,7 @@ impl Ui {
         let Some(n) = self.arena.get(obj) else { return };
         let laid = n.laid_out;
         let cur = n.rect;
-        let tr = self.layout_props(obj).transition;
+        let tr = self.arena.get(obj).and_then(|n| n.transition);
         let mut animated = false;
         if laid && (cur.w != w || cur.h != h) {
             if let Some((dur, easing)) = tr {

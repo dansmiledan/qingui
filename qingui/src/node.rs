@@ -71,7 +71,8 @@ pub struct Node {
     pub parent: Option<ObjRef>,
     /// Direct children, in paint/layout order.
     pub children: Vec<ObjRef>,
-    /// Local rect relative to the parent's content origin.
+    /// Local rect relative to the parent's rect origin (padding is not applied to
+    /// children positioning; layout algorithms position children within the content box).
     pub rect: Rect,
     /// UI state flags (pressed/focused/etc.).
     pub state: State,

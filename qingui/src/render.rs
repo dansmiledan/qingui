@@ -108,7 +108,7 @@ fn draw_node(
         if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
             d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
         }
-        let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, opa: node_opa, now: time_ms };
+        let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, now: time_ms };
         n.kind.draw(&ctx, &mut d, clip);
         // Overlay draw hook (generalized from the old Canvas mechanism)
         if let Some(hook) = n.draw_hook.as_mut() {
