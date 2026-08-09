@@ -94,7 +94,7 @@ struct RecFlush {
     chunks: Vec<(Rect, Vec<Color>)>,
 }
 
-/// Rc is not a fundamental type, so the orphan rule requires wrapping it in a local newtype
+/// Rc is not a fundamental type, so the orphan rule requires wrapping it in a local wrapper struct
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
     fn flush(&mut self, area: Rect, pixels: &[Color]) {

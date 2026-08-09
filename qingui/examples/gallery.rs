@@ -11,7 +11,6 @@ use qingui::prelude::*;
 use qingui::widgets::arc::ArcCfg;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::button::ButtonCfg;
-use qingui::widgets::canvas::CanvasCfg;
 use qingui::widgets::checkbox::CheckboxCfg;
 use qingui::widgets::dropdown::DropdownCfg;
 use qingui::widgets::itemlist::ItemListCfg;
@@ -200,17 +199,20 @@ impl Demo {
         self.table = Some(table);
         kids.push(table);
 
-        // Canvas: an arc spinning with now
-        let cv = CanvasCfg::new(Box::new(|d, abs, clip, now| {
+        // Canvas: an arc spinning with now (a plain Obj with a draw hook; transparent
+        // background like the old canvas widget's default)
+        let cv = ObjCfg::new()
+            .size(36, 36)
+            .style(qingui::style::Style::new().bg_opa(0))
+            .build(ui, screen);
+        ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, now| {
             let c = qingui::Point { x: abs.x + 18, y: abs.y + 18 };
             let end = (now / 10) as i32 % 360;
             d.draw_arc(c, 14, 4, 0, end, Color::rgb(80, 140, 255), 255, clip);
             d.fill_circle(c, 3, Color::WHITE, 255, clip);
-        }))
-        .size(36, 36)
-        .build(ui, screen);
+        })));
         kids.push(cv);
-        // tick_hook drives the Canvas to redraw every frame
+        // tick_hook drives the canvas to redraw every frame
         ui.set_tick_hook(cv, Some(Box::new(|ui, cv, _now| {
             ui.invalidate_obj(cv);
             true // redraw every frame

@@ -1085,10 +1085,6 @@ impl Ui {
                 self.invalidate_obj(obj);
                 true
             }
-            KeyOutcome::Deferred(f, p) => {
-                f(self, obj, p);
-                true
-            }
         }
     }
 

@@ -115,8 +115,7 @@ impl super::Widget for ItemListState {
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> KeyOutcome {
         match key {
             // Navigation needs child nodes/scroll/events; the kind is taken out during
-            // on_key, so mutate `self` directly and operate on the children via ui
-            // (same semantics as the old Deferred nav_select_exec → itemlist_select path).
+            // on_key, so mutate `self` directly and operate on the children via ui.
             Key::Up | Key::Down => {
                 let d = if key == Key::Up { -1 } else { 1 };
                 let kids = ui.children(self.content);

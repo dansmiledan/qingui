@@ -13,7 +13,6 @@ pub use builder::{Layout, WidgetBuilder}; // public return type (XxxCfg::new ret
 pub mod arc;
 pub mod bar;
 pub mod button;
-pub mod canvas;
 pub mod chart;
 pub mod checkbox;
 pub mod dropdown;
@@ -65,24 +64,13 @@ impl TickOut {
     pub const ACTIVE: Self = Self { redraw: true, active: true };
 }
 
-/// Key handling context (collected by Ui from the node/its own state before dispatch)
-pub(crate) struct KeyCtx {
-    pub edited: bool, // node is in the EDITED state
-    pub vis_h: i32,   // node visible height (used by scrolling widgets)
-    pub now: u64,
-}
-
-/// Key handling result: Ui performs the common side effects (dirtying/events/EDITED state);
-/// widget-specific side effects run via `Deferred` in the widget file
+/// Key handling result: Ui performs the common side effects (dirtying/events/EDITED state)
 pub enum KeyOutcome {
     Pass,          // not consumed → fall through to default (focus move / Clicked)
     Consumed,      // consumed, dirty the node
     ValueChanged,  // consumed, dirty the node and send a ValueChanged event
     EnterEdit,     // enter the EDITED state
     ExitEdit,      // leave the EDITED state and dirty the node
-    /// Widget-specific side effect, executed later: a static exec fn provided by the widget file + an i32 payload.
-    /// Ui calls `f(self, obj, p)` after putting the kind back in the arena (clean window, no placeholder); treated as consumed.
-    Deferred(fn(&mut Ui, ObjRef, i32), i32),
 }
 
 /// Measure context: read-only inputs for intrinsic content sizing.
@@ -132,22 +120,6 @@ impl Widget for NoopWidget {
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
-/// Widget behavior interface: `draw` must be implemented (a new widget that forgets to paint fails to compile);
-/// most widgets lack the other behaviors, so they get default no-op implementations.
-///
-/// Legacy migration remnant: no implementors left (the last one was `CustomState`);
-/// kept only so the `define_widgets!` macro below still parses. Swept in Task 22.
-#[allow(dead_code)]
-pub(crate) trait WidgetBehavior {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect);
-    fn tick(&mut self, _now: u64) -> TickOut { TickOut::IDLE }
-    fn on_key(&mut self, _key: Key, _ctx: KeyCtx) -> KeyOutcome { KeyOutcome::Pass }
-    fn value(&self) -> i32 { 0 }
-    fn set_value(&mut self, _v: i32) -> bool { false }
-    fn set_range(&mut self, _min: i32, _max: i32) {}
-    fn overflow(&self) -> i32 { 0 }
-}
-
 /// Shared for `set_value`: clamp to `[min, max]`, return whether the value changed
 pub(crate) fn clamp_val(min: i32, max: i32, value: &mut i32, v: i32) -> bool {
     let nv = v.clamp(min, max);
@@ -163,96 +135,4 @@ pub(crate) fn select_clamp(len: usize, selected: &mut usize, v: i32) -> bool {
     let changed = nv != *selected;
     *selected = nv;
     changed
-}
-
-/// Variant storage: inline = inlined state, boxed = heap-allocated (large states to
-/// avoid the "largest-variant tax").
-#[allow(unused_macros)] // transitional: only used by the dead `define_widgets!` below; swept in Task 22
-macro_rules! wtype {
-    (inline, $state:ty) => { $state };
-    (boxed,  $state:ty) => { alloc::boxed::Box<$state> };
-}
-
-/// Private deref helpers: expand to a `&T`/`&mut T` for both inline (`s: &T`) and
-/// boxed (`s: &Box<T>`) payloads without adding any public trait impls.
-#[allow(unused_macros)] // transitional, see `wtype!`
-macro_rules! wref {
-    (inline, $s:expr) => { $s };
-    (boxed,  $s:expr) => { &**$s };
-}
-#[allow(unused_macros)] // transitional, see `wtype!`
-macro_rules! wmut {
-    (inline, $s:expr) => { $s };
-    (boxed,  $s:expr) => { &mut **$s };
-}
-
-/// Declaratively registers a widget: generates the enum, behavior dispatch, `as_xxx` accessors, and downcast.
-/// Adding a widget requires just one line here.
-///
-/// Legacy migration remnant: the invocation and the generated `WidgetKind` enum were
-/// deleted together with the last variant (`Custom`); the macro itself is swept in Task 22.
-#[allow(unused_macros)]
-macro_rules! define_widgets {
-    ($($variant:ident($state:ty, $as:ident, $as_mut:ident, $store:ident)),+ $(,)?) => {
-        /// Discriminated widget state: one variant per registered widget type.
-        pub enum WidgetKind {
-            $( $variant(wtype!($store, $state)), )+
-        }
-
-        impl WidgetKind {
-            pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-                    match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(wref!($store, s), ctx, d, clip), )+ }
-            }
-            pub(crate) fn overflow(&self) -> i32 {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::overflow(wref!($store, s)), )+ }
-            }
-            pub(crate) fn value(&self) -> i32 {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::value(wref!($store, s)), )+ }
-            }
-            pub(crate) fn set_value(&mut self, v: i32) -> bool {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_value(wmut!($store, s), v), )+ }
-            }
-            pub(crate) fn set_range(&mut self, min: i32, max: i32) {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::set_range(wmut!($store, s), min, max), )+ }
-            }
-            pub(crate) fn tick(&mut self, now: u64) -> TickOut {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::tick(wmut!($store, s), now), )+ }
-            }
-            pub(crate) fn on_key(&mut self, key: Key, ctx: KeyCtx) -> KeyOutcome {
-                match self { $( WidgetKind::$variant(s) => WidgetBehavior::on_key(wmut!($store, s), key, ctx), )+ }
-            }
-            $(
-                /// Returns `Some(&$state)` if this widget is a `$variant`.
-                pub fn $as(&self) -> Option<&$state> {
-                    match self { WidgetKind::$variant(s) => Some(wref!($store, s)), _ => None }
-                }
-                /// Returns `Some(&mut $state)` if this widget is a `$variant`.
-                pub fn $as_mut(&mut self) -> Option<&mut $state> {
-                    match self { WidgetKind::$variant(s) => Some(wmut!($store, s)), _ => None }
-                }
-            )+
-            /// Hands out `&mut` state by type (used by `Ui::update`); TypeId comparison + Any downcast
-            pub(crate) fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
-                $(
-                    if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
-                        if let WidgetKind::$variant(s) = self {
-                            return (wmut!($store, s) as &mut dyn core::any::Any).downcast_mut::<T>();
-                        }
-                    }
-                )+
-                None
-            }
-            /// Read-only counterpart of `downcast_mut` (used by `Ui::widget` during migration).
-            pub(crate) fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-                $(
-                    if core::any::TypeId::of::<T>() == core::any::TypeId::of::<$state>() {
-                        if let WidgetKind::$variant(s) = self {
-                            return (wref!($store, s) as &dyn core::any::Any).downcast_ref::<T>();
-                        }
-                    }
-                )+
-                None
-            }
-        }
-    };
 }

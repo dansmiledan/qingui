@@ -1,6 +1,6 @@
 use qingui::canvas::Canvas;
 use qingui::display::Flush;
-use qingui::widgets::canvas::CanvasCfg;
+use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,8 +26,15 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
     panic!("pixel not flushed");
 }
 
+/// Transparent background style (what the deleted canvas widget defaulted to).
+fn transparent_style() -> qingui::style::Style {
+    let mut s = qingui::style::Style::default();
+    s.bg_opa = Some(0);
+    s
+}
+
 #[test]
-fn canvas_callback_draws_custom_content() {
+fn draw_hook_paints_custom_content() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
@@ -36,7 +43,12 @@ fn canvas_callback_draws_custom_content() {
     let scr = ui.screen();
     ui.set_style(scr, bg);
 
-    let cv = CanvasCfg::new(Box::new(|d, abs, clip, _now| {
+    let cv = ObjCfg::new()
+        .size(30, 30)
+        .style(transparent_style())
+        .build(&mut ui, scr);
+    ui.set_pos(cv, 10, 10);
+    ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x + 2, abs.y + 2, 5, 5), Color::RED, 255, clip);
         d.draw_arc(
             qingui::Point { x: abs.x + 20, y: abs.y + 20 },
@@ -48,32 +60,27 @@ fn canvas_callback_draws_custom_content() {
             255,
             clip,
         );
-    }))
-    .size(30, 30)
-    .build(&mut ui, scr);
-    ui.set_pos(cv, 10, 10);
+    })));
     ui.render();
 
     // Custom rect
     assert_eq!(px(&rec, 12, 12), Color::RED);
     // Custom arc (bottom-right 45° direction)
     assert_eq!(px(&rec, 33, 33), Color::GREEN);
-    // Canvas has a transparent background by default
+    // Transparent background: the screen's black shows through
     assert_eq!(px(&rec, 10, 10), Color::BLACK);
 }
 
 #[test]
-fn canvas_clipped_by_chunk() {
+fn draw_hook_clipped_by_chunk() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 16); // small buffer → multiple chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
-    let cv = CanvasCfg::new(Box::new(|d, abs, clip, _now| {
+    let cv = ObjCfg::new().size(64, 48).build(&mut ui, scr);
+    ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, _now| {
         d.fill_rect(Rect::new(abs.x, abs.y, 64, 48), Color::WHITE, 255, clip);
-    }))
-    .size(64, 48)
-    .build(&mut ui, scr);
-    let _ = cv;
+    })));
     ui.render();
     // Full screen is 3 chunks, each chunk fully white (clip in effect, no out-of-bounds)
     let chunks = &rec.borrow().chunks;
