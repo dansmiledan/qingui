@@ -37,7 +37,7 @@ pub(crate) struct LayoutProps {
 impl Ui {
     pub(crate) fn layout_props(&self, obj: ObjRef) -> LayoutProps {
         let Some(n) = self.arena.get(obj) else { return LayoutProps::default() };
-        LayoutProps { pad: n.pad, sizing_w: n.sizing_w, sizing_h: n.sizing_h, aspect_ratio: n.aspect_ratio, transition: n.transition }
+        LayoutProps { pad: n.pad, sizing_w: n.item_props.sizing_w, sizing_h: n.item_props.sizing_h, aspect_ratio: n.item_props.aspect_ratio, transition: n.transition }
     }
 
     /// Sets padding (l, r, t, b).
@@ -524,14 +524,14 @@ impl Ui {
     }
 
     pub fn grid_cell(&self, obj: ObjRef) -> ((u8, u8), (u8, u8)) {
-        match self.arena.get(obj).map(|n| &n.item_props) {
-            Some(crate::node::ItemProps::Grid { col, row }) => (*col, *row),
+        match self.arena.get(obj).map(|n| &n.item_props.specific) {
+            Some(crate::node::ItemSpecific::Grid { col, row }) => (*col, *row),
             _ => ((0, 1), (0, 1)),
         }
     }
     pub fn set_grid_cell(&mut self, obj: ObjRef, col: (u8, u8), row: (u8, u8)) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.item_props = crate::node::ItemProps::Grid { col: (col.0, col.1.max(1)), row: (row.0, row.1.max(1)) };
+            n.item_props.specific = crate::node::ItemSpecific::Grid { col: (col.0, col.1.max(1)), row: (row.0, row.1.max(1)) };
         }
         self.layout_dirty = true;
     }
@@ -556,8 +556,8 @@ impl Ui {
     /// Sets the width/height sizing strategies (None = content size).
     pub fn set_sizing(&mut self, obj: ObjRef, w: Option<crate::layout::Sizing>, h: Option<crate::layout::Sizing>) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.sizing_w = w;
-            n.sizing_h = h;
+            n.item_props.sizing_w = w;
+            n.item_props.sizing_h = h;
         }
         self.layout_dirty = true;
     }
@@ -565,9 +565,36 @@ impl Ui {
     /// Sets the aspect ratio (per-mille: 1000 = 1:1, 1778 ≈16:9; None clears it).
     pub fn set_aspect(&mut self, obj: ObjRef, ratio: Option<u32>) {
         if let Some(n) = self.arena.get_mut(obj) {
-            n.aspect_ratio = ratio;
+            n.item_props.aspect_ratio = ratio;
         }
         self.layout_dirty = true;
+    }
+
+    /// Attaches third-party layout constraints to `obj` (replaces any existing `specific`).
+    pub fn set_item_custom(&mut self, obj: ObjRef, props: alloc::boxed::Box<dyn core::any::Any>) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.item_props.specific = crate::node::ItemSpecific::Custom(props);
+        }
+        self.layout_dirty = true;
+    }
+    /// Read-only access to a child's third-party layout constraints by type.
+    pub fn item_custom<T: 'static>(&self, obj: ObjRef) -> Option<&T> {
+        match &self.arena.get(obj)?.item_props.specific {
+            crate::node::ItemSpecific::Custom(p) => p.downcast_ref::<T>(),
+            _ => None,
+        }
+    }
+    /// Mutates a child's third-party layout constraints (dirties layout on success).
+    pub fn update_item_custom<T: 'static, R>(&mut self, obj: ObjRef, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+        let r = match self.arena.get_mut(obj) {
+            Some(n) => match &mut n.item_props.specific {
+                crate::node::ItemSpecific::Custom(p) => p.downcast_mut::<T>().map(f),
+                _ => None,
+            },
+            None => None,
+        };
+        if r.is_some() { self.layout_dirty = true; }
+        r
     }
 
     /// Sets the layout transition: (duration ms, easing). Position/size changes from layout

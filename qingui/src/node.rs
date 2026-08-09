@@ -35,13 +35,34 @@ bitflags::bitflags! {
     }
 }
 
-/// Per-child layout constraints, consumed by the parent's layout widget.
-/// Follows the child's lifecycle (no parent-side table to clean up).
-pub enum ItemProps {
-    /// The parent's layout consumes no constraints (default).
+/// Constraints the PARENT's layout interprets for this child.
+/// Shared fields are understood by the built-in layouts (flex/grid);
+/// `specific` carries algorithm-specific or third-party constraints.
+#[derive(Default)]
+pub enum ItemSpecific {
+    /// No algorithm-specific constraints (default).
+    #[default]
     None,
     /// Grid cell placement: (start, span) per axis.
     Grid { col: (u8, u8), row: (u8, u8) },
+    /// Third-party layout constraints: heap-allocated, type-erased,
+    /// follows the child's lifecycle (no parent-side table to clean up).
+    Custom(alloc::boxed::Box<dyn core::any::Any>),
+}
+
+/// Constraints the PARENT's layout interprets for this child.
+/// Shared fields are understood by the built-in layouts (flex/grid);
+/// `specific` carries algorithm-specific or third-party constraints.
+#[derive(Default)]
+pub struct ItemProps {
+    /// Width sizing strategy (None = content size).
+    pub sizing_w: Option<Sizing>,
+    /// Height sizing strategy (None = content size).
+    pub sizing_h: Option<Sizing>,
+    /// Aspect ratio (per-mille: 1000 = 1:1).
+    pub aspect_ratio: Option<u32>,
+    /// Algorithm-specific constraints.
+    pub specific: ItemSpecific,
 }
 
 /// A node in the widget tree: geometry, style, state, and widget behavior.
@@ -74,15 +95,9 @@ pub struct Node {
     pub tick_hook: Option<TickHook>,
     /// Padding (l, r, t, b): layout input, content origin offset.
     pub pad: (i32, i32, i32, i32),
-    /// Width sizing strategy (None = content size).
-    pub sizing_w: Option<Sizing>,
-    /// Height sizing strategy (None = content size).
-    pub sizing_h: Option<Sizing>,
-    /// Aspect ratio (per-mille: 1000 = 1:1).
-    pub aspect_ratio: Option<u32>,
     /// Layout transition: (duration ms, easing).
     pub transition: Option<(u32, crate::anim::Easing)>,
-    /// Per-child layout constraints consumed by the parent.
+    /// Per-child layout constraints consumed by the parent (sizing, aspect, specific).
     pub item_props: ItemProps,
     /// Visual translation offset: applied to the whole subtree at render time, does not
     /// participate in layout (mirrors LVGL translate_x/y).
@@ -111,11 +126,8 @@ impl Node {
             draw_hook: None,
             tick_hook: None,
             pad: (0, 0, 0, 0),
-            sizing_w: None,
-            sizing_h: None,
-            aspect_ratio: None,
             transition: None,
-            item_props: ItemProps::None,
+            item_props: ItemProps::default(),
             translate: crate::geometry::Point::default(),
             floating: None,
             laid_out: false,
