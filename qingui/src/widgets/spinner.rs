@@ -6,7 +6,7 @@ use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
-pub(crate) fn draw(ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+pub(crate) fn draw(line_width: i32, period_ms: u64, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
     let r = abs.w.min(abs.h) / 2 - 2;
@@ -14,36 +14,55 @@ pub(crate) fn draw(ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
         return;
     }
     // Continuous rotation start + triangle-wave sweep length (smooth expanding/contracting, no jumps)
-    let start = (ctx.now / 5) as i32 % 360;
+    let period = period_ms.max(1);
+    let start = ((ctx.now % period) * 360 / period) as i32;
     let phase = (ctx.now / 7) as i32 % 300;
     let tri = if phase < 150 { phase } else { 300 - phase };
     let sweep = 60 + tri;
-    d.draw_arc(c, r, 3, start, start + sweep, Color::rgb(80, 140, 255), ctx.ap(255), clip);
+    d.draw_arc(c, r, line_width, start, start + sweep, Color::rgb(80, 140, 255), ctx.ap(255), clip);
 }
 
 /// Builder for the Spinner widget.
 pub type SpinnerBuilder = WidgetBuilder<SpinnerCfg>;
 
-/// Spinner configuration: no widget-specific fields.
-pub struct SpinnerCfg;
+/// Spinner configuration: arc line width and rotation period.
+pub struct SpinnerCfg {
+    line_width: i32,
+    period_ms: u64,
+}
 
 impl SpinnerCfg {
     /// Creates a builder (default 32x32, transparent bg).
     pub fn new() -> WidgetBuilder<SpinnerCfg> {
-        WidgetBuilder { common: CommonBuilder::default(), cfg: SpinnerCfg }
+        WidgetBuilder { common: CommonBuilder::default(), cfg: SpinnerCfg { line_width: 3, period_ms: 1800 } }
+    }
+}
+
+impl WidgetBuilder<SpinnerCfg> {
+    /// Sets the arc line width in pixels (default 3).
+    pub fn line_width(mut self, w: i32) -> Self {
+        self.cfg.line_width = w;
+        self
+    }
+    /// Sets the rotation period in ms (default 1800).
+    pub fn period_ms(mut self, ms: u64) -> Self {
+        self.cfg.period_ms = ms;
+        self
     }
 }
 
 impl WidgetCfg for SpinnerCfg {
     fn default_style() -> Style {
-        let mut s = Style::default();
-        s.bg_opa = Some(0);
-        s
+        Style { bg_opa: Some(0), ..Style::default() }
     }
 
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
         let (w, h) = common.size.unwrap_or((32, 32));
-        let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(SpinnerState));
+        let r = ui.insert_node(
+            parent,
+            Rect::new(0, 0, w, h),
+            alloc::boxed::Box::new(SpinnerState { line_width: self.line_width, period_ms: self.period_ms }),
+        );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);
@@ -54,11 +73,14 @@ impl WidgetCfg for SpinnerCfg {
     }
 }
 
-/// Spinner state: the widget carries no data, it only rotates with time.
-pub struct SpinnerState;
+/// Spinner state: geometry/timing resolved at build time; the widget only rotates with time.
+pub struct SpinnerState {
+    pub line_width: i32,
+    pub period_ms: u64,
+}
 
 impl super::Widget for SpinnerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.line_width, self.period_ms, ctx, c, clip) }
     // Spinner spins forever
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
     fn as_any(&self) -> &dyn core::any::Any { self }
