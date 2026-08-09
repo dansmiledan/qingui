@@ -1,3 +1,4 @@
+use qingui::canvas::Canvas;
 use qingui::display::Flush;
 use qingui::widgets::canvas::CanvasCfg;
 use qingui::{Color, Rect, Ui};
@@ -80,4 +81,26 @@ fn canvas_clipped_by_chunk() {
     for (area, buf) in chunks {
         assert!(buf.iter().all(|&c| c == Color::WHITE), "chunk {:?} 应全白", area);
     }
+}
+
+#[test]
+fn eg_draw_target_fill_rect_via_primitives() {
+    // Draw a filled Rectangle through eg's primitive pipeline onto a Canvas, assert pixels.
+    let mut buf = [Color::BLACK; 100];
+    let area = Rect::new(0, 0, 10, 10);
+    {
+        let mut c = Canvas { pixels: &mut buf, area, stride: 10 };
+        use embedded_graphics::prelude::*;
+        let r = embedded_graphics::primitives::Rectangle::new(
+            embedded_graphics::geometry::Point::new(2, 2),
+            embedded_graphics::geometry::Size::new(4, 4),
+        );
+        r.into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
+            embedded_graphics::pixelcolor::Rgb888::new(255, 0, 0),
+        ))
+        .draw(&mut c)
+        .unwrap();
+    }
+    assert_eq!(buf[2 * 10 + 2], Color::rgb(255, 0, 0));
+    assert_eq!(buf[0], Color::BLACK);
 }

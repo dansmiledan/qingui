@@ -1,3 +1,5 @@
+use embedded_graphics::pixelcolor::RgbColor;
+
 /// A 2D point in screen coordinates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Point {
@@ -132,5 +134,17 @@ impl Color {
         let g = ((v >> 5) & 0x3F) as u8;
         let b = (v & 0x1F) as u8;
         Color::rgb((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
+    }
+}
+
+impl From<Color> for embedded_graphics::pixelcolor::Rgb888 {
+    fn from(c: Color) -> Self {
+        Self::new(c.r, c.g, c.b)
+    }
+}
+
+impl From<embedded_graphics::pixelcolor::Rgb888> for Color {
+    fn from(c: embedded_graphics::pixelcolor::Rgb888) -> Self {
+        Color::rgb(c.r(), c.g(), c.b())
     }
 }

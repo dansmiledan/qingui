@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
 use crate::style::Style;
@@ -91,7 +91,7 @@ fn lerp_t(start: u64, now: u64) -> f32 {
     (now.saturating_sub(start) as f32 / FX_DUR as f32).clamp(0.0, 1.0)
 }
 
-pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let now = ctx.now;
     let lclip = abs.intersect(&clip).unwrap_or(clip);

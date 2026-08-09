@@ -170,7 +170,7 @@ fn report_render() {
 
 #[cfg(target_arch = "arm")]
 fn report_primitives() {
-    hprintln!("== primitives (DrawBuf 320x240, {} draws each) ==", scenes::PRIM_ITERS);
+    hprintln!("== primitives (Canvas 320x240, {} draws each) ==", scenes::PRIM_ITERS);
     let mut now = || timer::elapsed();
     let p = scenes::run_primitives(&mut now);
     hprintln!("  fill_rect        {:>10} ticks", p.fill_rect);

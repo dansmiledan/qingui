@@ -1,5 +1,5 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::event::EventKind;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
@@ -17,7 +17,7 @@ pub struct CheckboxState {
     pub checked: bool,
 }
 
-pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(text: &str, checked: bool, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let ap = |b: u8| ctx.ap(b);
     let by = abs.y + (abs.h - BOX) / 2;

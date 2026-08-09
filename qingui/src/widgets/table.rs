@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
@@ -22,7 +22,7 @@ pub struct TableState {
     pub cells: Vec<String>,
 }
 
-pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
     let line_c = Color::rgb(70, 70, 90);

@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
 use crate::style::Style;
@@ -38,7 +38,7 @@ pub(crate) fn fx_active(sel_from: Option<(f32, u64)>, now: u64) -> bool {
     sel_from.is_some_and(|(_, s)| now.saturating_sub(s) < ROLL_DUR)
 }
 
-pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64)>, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64)>, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
     let ap = ctx.ap(255);

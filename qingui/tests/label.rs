@@ -30,7 +30,7 @@ fn non_ascii_falls_back_to_question_mark() {
     use embedded_graphics::mono_font::ascii::FONT_6X10;
     let render = |s: &str| -> [Color; 60] {
         let mut buf = [Color::BLACK; 60];
-        let mut d = qingui::draw::DrawBuf { pixels: &mut buf, area: Rect::new(0, 0, 6, 10), stride: 6 };
+        let mut d = qingui::canvas::Canvas { pixels: &mut buf, area: Rect::new(0, 0, 6, 10), stride: 6 };
         d.draw_text(qingui::Point { x: 0, y: 0 }, &FONT_6X10, s, Color::WHITE, Rect::new(0, 0, 6, 10));
         buf
     };

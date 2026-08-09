@@ -1,5 +1,5 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
 use crate::style::Style;
@@ -17,7 +17,7 @@ pub struct SpinboxState {
     pub cursor: u8,
 }
 
-pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let _ = (min, max);
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);

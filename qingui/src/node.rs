@@ -5,7 +5,7 @@ use crate::layout::Sizing;
 
 /// Overlay draw hook: called after the widget draws its own content, with
 /// (draw buffer, widget absolute rect, clip rect, current time ms).
-pub type DrawHook = alloc::boxed::Box<dyn FnMut(&mut crate::draw::DrawBuf, Rect, Rect, u64)>;
+pub type DrawHook = alloc::boxed::Box<dyn FnMut(&mut crate::canvas::Canvas, Rect, Rect, u64)>;
 /// Per-frame hook: returning `true` means still active (dirties the node and keeps the
 /// timer handler awake).
 pub type TickHook = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui, ObjRef, u64) -> bool>;

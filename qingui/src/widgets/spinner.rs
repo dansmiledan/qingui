@@ -1,12 +1,12 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
-pub(crate) fn draw(ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
     let r = abs.w.min(abs.h) / 2 - 2;

@@ -1,5 +1,5 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
@@ -12,7 +12,7 @@ pub struct ButtonState {
     pub text: alloc::string::String,
 }
 
-pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let (tw, th) = crate::font::text_size(ctx.resolved.font, text);
     let p = Point {
         x: ctx.abs.x + (ctx.abs.w - tw) / 2,

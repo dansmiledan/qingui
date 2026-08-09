@@ -1,5 +1,5 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::event::EventKind;
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
@@ -14,7 +14,7 @@ pub struct SwitchState {
     pub on: bool,
 }
 
-pub(crate) fn draw(on: bool, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(on: bool, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let tc = if on { Color::rgb(60, 180, 90) } else { Color::rgb(90, 90, 90) };
     d.fill_rounded(abs, abs.h / 2, tc, ctx.ap(255), clip);

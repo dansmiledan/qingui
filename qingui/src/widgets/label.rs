@@ -1,7 +1,7 @@
 use alloc::string::String;
 
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
@@ -14,7 +14,7 @@ pub struct LabelState {
     pub text: String,
 }
 
-pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     d.draw_text_opa(
         Point { x: ctx.abs.x, y: ctx.abs.y },
         ctx.resolved.font,

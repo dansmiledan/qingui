@@ -1,13 +1,11 @@
-use crate::draw::DrawBuf;
 use crate::geometry::Rect;
 use crate::input::Key;
 use crate::style::ResolvedStyle;
 use crate::arena::ObjRef;
 use crate::ui::Ui;
 
-// Re-exported so user widgets can name the canvas type in `Widget::draw`;
-// Task 21 renames DrawBuf to Canvas and points this at `crate::canvas::Canvas`.
-pub use crate::draw::DrawBuf as Canvas;
+// Re-exported so user widgets can name the canvas type in `Widget::draw`.
+pub use crate::canvas::Canvas;
 
 pub(crate) mod builder;
 pub use builder::{Layout, WidgetBuilder}; // public return type (XxxCfg::new returns it)
@@ -141,7 +139,7 @@ impl Widget for NoopWidget {
 /// kept only so the `define_widgets!` macro below still parses. Swept in Task 22.
 #[allow(dead_code)]
 pub(crate) trait WidgetBehavior {
-    fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect);
+    fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect);
     fn tick(&mut self, _now: u64) -> TickOut { TickOut::IDLE }
     fn on_key(&mut self, _key: Key, _ctx: KeyCtx) -> KeyOutcome { KeyOutcome::Pass }
     fn value(&self) -> i32 { 0 }
@@ -202,7 +200,7 @@ macro_rules! define_widgets {
         }
 
         impl WidgetKind {
-            pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+            pub(crate) fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
                     match self { $( WidgetKind::$variant(s) => WidgetBehavior::draw(wref!($store, s), ctx, d, clip), )+ }
             }
             pub(crate) fn overflow(&self) -> i32 {

@@ -115,7 +115,7 @@ pub fn time_frame(ui: &mut Ui, now: &mut dyn FnMut() -> u64) -> u64 {
 pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
     let full = Rect::new(0, 0, 320, 240);
     let mut pixels = vec![Color::BLACK; 320 * 240];
-    let mut d = qingui::draw::DrawBuf { pixels: &mut pixels, area: full, stride: 320 };
+    let mut d = qingui::canvas::Canvas { pixels: &mut pixels, area: full, stride: 320 };
     let clip = full;
     let iters = PRIM_ITERS;
 

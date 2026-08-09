@@ -56,7 +56,7 @@ fn render_chunk(
     // 1) Background: the screen's resolved bg
     let screen_style = resolved_style(arena, screen, font);
     {
-        let mut d = crate::draw::DrawBuf {
+        let mut d = crate::canvas::Canvas {
             pixels: &mut buf[..len],
             area: chunk,
             stride: chunk.w,
@@ -75,7 +75,7 @@ fn render_chunk(
     }
 }
 
-/// `frame` is the screen region the pixel buffer maps to (the DrawBuf coordinate system/stride),
+/// `frame` is the screen region the pixel buffer maps to (the Canvas coordinate system/stride),
 /// and `clip` is the draw clip rect;
 /// they are the same at the top level; a CLIP_CHILDREN parent shrinks its subtree's clip while
 /// the frame stays unchanged.
@@ -99,7 +99,7 @@ fn draw_node(
         let edited = node_state(arena, obj).contains(State::EDITED);
         // The node's opa acts as a multiplier on everything this object draws
         let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
-        let mut d = crate::draw::DrawBuf {
+        let mut d = crate::canvas::Canvas {
             pixels: &mut buf[..len],
             area: frame,
             stride: frame.w,

@@ -71,7 +71,7 @@ fn main() {
     }
 
     // ---- primitives ----
-    println!("== primitives (DrawBuf 320x240, {} draws each) ==", scenes::PRIM_ITERS);
+    println!("== primitives (Canvas 320x240, {} draws each) ==", scenes::PRIM_ITERS);
     // One run_primitives call measures ALL primitives; sample the whole
     // struct instead of re-running every primitive per reported field.
     let base = Instant::now();

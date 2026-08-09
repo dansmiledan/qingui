@@ -1,5 +1,5 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
@@ -15,7 +15,7 @@ pub struct BarState {
     pub value: i32,
 }
 
-pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
     let iw = (abs.w as f32 * frac) as i32;

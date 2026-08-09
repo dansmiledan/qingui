@@ -2,7 +2,7 @@ use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -39,7 +39,7 @@ pub struct ChartState {
 
 /// Draws only the data lines (background/border are handled by the common draw_node):
 /// adjacent points are connected with lines, a single-point series draws a dot, empty series are skipped. No allocation.
-pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     if abs.w < 1 || abs.h < 1 {
         return;

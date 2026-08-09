@@ -1,5 +1,5 @@
 use crate::arena::ObjRef;
-use crate::draw::DrawBuf;
+use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
@@ -13,7 +13,7 @@ pub struct LedState {
     pub bright: u8,
 }
 
-pub(crate) fn draw(color: Color, bright: u8, ctx: &WidgetCtx, d: &mut DrawBuf, clip: Rect) {
+pub(crate) fn draw(color: Color, bright: u8, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
     let r = abs.w.min(abs.h) / 2 - 1;
