@@ -97,7 +97,8 @@ pub trait Widget {
     /// Intrinsic content size; `(0, 0)` means "no intrinsic size" (layout uses the current rect).
     fn measure(&self, _ctx: &MeasureCtx) -> (i32, i32) { (0, 0) }
     /// Lays out direct children. Default: manual positioning (children keep their rects).
-    /// `content` is the node's content box (rect minus padding), computed by Ui;
+    /// `content` is the node's content box in the node's LOCAL coordinate space
+    /// (origin = padding offsets, size = rect minus padding), computed by Ui;
     /// the layout positions children purely within it.
     fn layout(&mut self, _ui: &mut Ui, _obj: ObjRef, _content: Rect) {}
     /// Per-frame progress. Default: idle.

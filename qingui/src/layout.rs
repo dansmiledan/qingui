@@ -117,7 +117,8 @@ struct Kid {
 }
 
 /// Runs one flex layout pass on `container` (directly modifies the x/y of child rects).
-/// `content` is the container's content box (rect minus padding), computed by Ui.
+/// `content` is the container's content box in its local coordinate space
+/// (origin = padding offsets, size = rect minus padding), computed by Ui.
 pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex, content: crate::geometry::Rect) {
     // Filtered child list, gathered without cloning the children Vec.
     let mut order: Vec<ObjRef> = Vec::new();
@@ -354,7 +355,8 @@ fn track_offset(sizes: &[i32], idx: u8, gap: i32) -> i32 {
 }
 
 /// Runs one grid layout pass on `container`: positions every child in its grid cell.
-/// `content` is the container's content box (rect minus padding), computed by Ui.
+/// `content` is the container's content box in its local coordinate space
+/// (origin = padding offsets, size = rect minus padding), computed by Ui.
 pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid, content: crate::geometry::Rect) {
     let area_w = content.w;
     let area_h = content.h;

@@ -108,3 +108,20 @@ fn reorder_children_relayouts() {
     assert_eq!(ui.rect(kids[0]).x, 20);
     assert_eq!(ui.rect(kids[1]).x, 40);
 }
+
+#[test]
+fn padded_container_at_nonzero_pos() {
+    let mut ui = Ui::new(320, 240, 240);
+    let scr = ui.screen();
+    let c = ObjCfg::new().build(&mut ui, scr);
+    ui.set_pos(c, 50, 30);
+    ui.set_size(c, 200, 100);
+    ui.set_pad(c, (10, 0, 5, 0));
+    let ch = ObjCfg::new().build(&mut ui, c);
+    ui.set_size(ch, 20, 10);
+    ui.set_flex(c, flex(FlexDir::Row, Align::Start, Align::Start, 0));
+    ui.timer_handler();
+    // Child origin is the pad offsets in the container's LOCAL space;
+    // the container's own position (50, 30) must not shift it.
+    assert_eq!((ui.rect(ch).x, ui.rect(ch).y), (10, 5));
+}

@@ -96,3 +96,21 @@ fn ignore_layout_child_not_managed() {
     assert_eq!(ui.rect(b).x, 42); // the content track only counts a (not f's 200)
     assert_eq!(ui.rect(f).x, 0); // f is not repositioned
 }
+
+#[test]
+fn padded_grid_at_nonzero_pos() {
+    let mut ui = Ui::new(320, 240, 240);
+    let scr = ui.screen();
+    let c = ObjCfg::new().build(&mut ui, scr);
+    ui.set_pos(c, 50, 30);
+    ui.set_size(c, 200, 100);
+    ui.set_pad(c, (10, 0, 5, 0));
+    ui.set_grid(c, grid(vec![Track::Px(100)], vec![Track::Px(50)], 0));
+    let a = ObjCfg::new().build(&mut ui, c);
+    ui.set_size(a, 10, 10);
+    ui.set_grid_cell(a, (0, 1), (0, 1));
+    ui.timer_handler();
+    // Child origin is the pad offsets in the container's LOCAL space;
+    // the container's own position (50, 30) must not shift it.
+    assert_eq!((ui.rect(a).x, ui.rect(a).y), (10, 5));
+}
