@@ -9,6 +9,7 @@ use crate::style::Style;
 use crate::ui::Ui;
 
 /// Container layout kind selected via `WidgetBuilder::layout`.
+#[derive(Clone, PartialEq, Debug)]
 pub enum Layout {
     /// Flex layout.
     Flex(crate::layout::Flex),

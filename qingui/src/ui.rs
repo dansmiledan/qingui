@@ -537,6 +537,7 @@ impl Ui {
     }
 
     /// Replaces the node's widget kind with a flex layout (runtime layout change).
+    /// WARNING: this discards the existing widget kind/state (e.g. calling it on a Label destroys the LabelState).
     pub fn set_flex(&mut self, obj: ObjRef, flex: crate::layout::Flex) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind = alloc::boxed::Box::new(crate::widgets::flexbox::FlexLayout { flex });
@@ -544,6 +545,7 @@ impl Ui {
         self.layout_dirty = true;
     }
     /// Replaces the node's widget kind with a grid layout.
+    /// WARNING: this discards the existing widget kind/state (e.g. calling it on a Label destroys the LabelState).
     pub fn set_grid(&mut self, obj: ObjRef, grid: crate::layout::Grid) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.kind = alloc::boxed::Box::new(crate::widgets::gridbox::GridLayout { grid });

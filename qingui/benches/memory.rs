@@ -82,10 +82,13 @@ fn report_static_sizes() {
         size_of::<checkbox::CheckboxState>(),
         size_of::<dropdown::DropdownState>(),
         size_of::<image::ImageState>(),
+        size_of::<itemlist::ItemListState>(),
         size_of::<label::LabelState>(),
         size_of::<led::LedState>(),
+        size_of::<list::ListState>(),
         size_of::<msgbox::MsgboxState>(),
         size_of::<obj::Manual>(),
+        size_of::<roller::RollerState>(),
         size_of::<scrollview::ScrollViewState>(),
         size_of::<slider::SliderState>(),
         size_of::<spinbox::SpinboxState>(),
@@ -97,7 +100,7 @@ fn report_static_sizes() {
     .max()
     .unwrap();
     println!("  largest widget state  = {max_state} B");
-    println!("  NOTE: every node stores a Box<dyn Widget>; List/ItemList/Roller states were already heap-allocated");
+    println!("  NOTE: every node stores a Box<dyn Widget>; each state is heap-allocated at its actual size");
     macro_rules! row {
         ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
     }

@@ -85,10 +85,10 @@ cargo run --example gallery
 | 4 × Style（旧内联成本） | 160 | 560 \* |
 | **Node** | 272 | 280 \* |
 | **kind：`Box<dyn Widget>`** | 16 | 8 \* |
-| largest widget state | 32 | 20 \* |
+| largest widget state | 152 | 112 |
 | Ui | 248 | 152 \* |
 
-\* QEMU 32 位数字为迁移前基线，trait-object 迁移（`WidgetKind` enum → `Box<dyn Widget>`）后未复测；host 为迁移后实测。`Box<dyn Widget>` 定长 2×usize，各控件状态按实际大小单独堆分配。
+\* QEMU 32 位数字为迁移前基线，trait-object 迁移（`WidgetKind` enum → `Box<dyn Widget>`）后未复测（largest widget state 一行除外：该行 QEMU 值为迁移后按 thumbv7em 目标编译期实测）；host 为迁移后实测。`Box<dyn Widget>` 定长 2×usize，各控件状态按实际大小单独堆分配（largest = List 状态）。
 
 各控件状态（每节点一次 Box 堆分配；用户控件状态即其自身结构体大小，原 `Custom` 通道已删除）：
 

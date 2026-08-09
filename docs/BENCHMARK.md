@@ -392,7 +392,7 @@ layout flex 40 children：min 2.2 / median 2.2。
 | 4 × Style | 672 | 160 | -76.2%（同上） |
 | Ui | 248 | 248 | 持平 |
 
-> 各控件状态现按其实际大小单独堆分配（largest widget state = 32 B），不再有
+> 各控件状态现按其实际大小单独堆分配（largest widget state = 152 B，List 状态），不再有
 > "按最大变体均摊"的枚举税；ItemList 状态迁移中同步瘦身 184 → 56 B。
 > 原 benches 中的 WidgetKind 尺寸回归门禁已于 Task 20 移除（`Box<dyn Widget>`
 > 为定长 2×usize，无需门禁）。
