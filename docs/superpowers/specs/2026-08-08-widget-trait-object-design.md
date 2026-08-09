@@ -1,7 +1,7 @@
 # Widget trait object 化重构设计
 
 日期：2026-08-08
-状态：已确认（brainstorming 产出）
+状态：已落地（2026-08-08，branch widget-trait-object）
 
 ## 1. 背景与目标
 

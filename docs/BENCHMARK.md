@@ -365,3 +365,73 @@ layout flex 40 children：min 2.2 / median 2.2。
 > 备注：time bench 首次运行 Minimal/Small 的 median 出现异常尖峰（系统噪声），
 > 第二次运行恢复正常且上表数字复现稳定；render/frame 全面变快的主因推测为
 > Node/Style 变小后缓存局部性改善（LayoutProps 内联进 Node、Style 168→40 B）。
+
+---
+
+## 2026-08-08 — trait-object migration, final (9e47cf2)
+
+> 变更内容（Batch 2/3，相对 batch 1 记录）：全部控件迁到 `widgets::Widget` trait；
+> `WidgetKind` 枚举与 `define_widgets!` 宏整体删除，`Node.kind` 统一为
+> `Box<dyn Widget>`（每节点一次堆分配，定长 2×usize）；Custom 二等公民通道删除，
+> 用户控件走 `ui.create_widget(...)` 与内置控件同权；DrawBuf 提升为公开 `Canvas`
+> 并提供 eg DrawTarget 适配；children 顺序即 z 序（`move_to_front`/`move_to_back`）。
+> 对比基线：顶部"初始基线"记录（memory，与"bench 修复后复测"一致）+ "layout 优化"
+> 记录（runtime）。环境：macOS aarch64，rustc 1.95.0-nightly。
+> 两端 bench 自带阈值断言全部通过（exit 0）。
+
+### Memory — host（64 位）
+
+**静态尺寸（字节）**
+
+| 类型 | 迁移前 | 迁移后 | 变化 |
+|---|---|---|---|
+| Node | 376 | 272 | **-27.7%** |
+| WidgetKind | 40 | 不存在 | enum 删除，改为 `Box<dyn Widget>` = **16 B**（定长 2×usize） |
+| Style | 168 | 40 | **-76.2%**（batch 1 已完成，本轮无变化） |
+| ResolvedStyle | 144 | 32 | **-77.8%**（同上） |
+| 4 × Style | 672 | 160 | -76.2%（同上） |
+| Ui | 248 | 248 | 持平 |
+
+> 各控件状态现按其实际大小单独堆分配（largest widget state = 32 B），不再有
+> "按最大变体均摊"的枚举税；ItemList 状态迁移中同步瘦身 184 → 56 B。
+> 原 benches 中的 WidgetKind 尺寸回归门禁已于 Task 20 移除（`Box<dyn Widget>`
+> 为定长 2×usize，无需门禁）。
+
+**场景峰值堆（B）**
+
+| 档位 | 节点 | peak 前 → 后 | Δ | live 前 → 后 | Δ |
+|---|---|---|---|---|---|
+| minimal | 3 | 5,871 → 5,247 | **-10.6%** | 5,751 → 5,127 | -10.9% |
+| small | 16 | 35,069 → 31,201 | **-11.0%** | 33,045 → 29,125 | -11.9% |
+| medium | 50 | 70,800 → 55,000 | **-22.3%** | 60,736 → 45,960 | -24.3% |
+| large | 140 | 209,576 → 147,496 | **-29.6%** | 159,496 → 109,192 | **-31.5%** |
+
+红线判定：三档场景峰值堆相对原始迁移前基线全部下降（最大 -29.6%），远低于
++15% 红线，不触发 small-kind 内联预案。
+
+### Runtime — host（µs，100 采样 min/median）
+
+| 指标 | 迁移前 | 迁移后 | 变化 |
+|---|---|---|---|
+| layout（flex 40 children） | 1.5 / 1.6 | 1.2 / 1.3 | **约 -19%** |
+| Minimal full | 14.3 / 14.4 | 15.4 / 15.5 | +8%（µs 级小场景噪声，阈值内） |
+| Minimal partial | 3.8 / 3.9 | 3.8 / 4.1 | 持平 |
+| Minimal frame | 14.5 / 15.2 | 14.4 / 14.5 | 持平 |
+| Small full | 77.7 / 78.0 | 63.0 / 65.4 | **-19% / -16%** |
+| Small partial | 22.8 / 22.9 | 19.2 / 19.4 | **-16% / -15%** |
+| Small frame | 78.0 / 78.3 | 61.2 / 61.5 | **-22% / -21%** |
+| Medium full | 138.2 / 138.6 | 111.4 / 111.6 | **-19%** |
+| Medium partial | 74.2 / 74.4 | 63.1 / 63.3 | **-15%** |
+| Medium frame | 138.9 / 139.3 | 112.3 / 112.4 | **-19%** |
+| Large full | 300.2 / 300.7 | 246.9 / 247.2 | **-18%** |
+| Large partial | 210.5 / 210.9 | 181.6 / 188.1 | **-14% / -11%** |
+| Large frame | 302.1 / 303.5 | 248.6 / 249.0 | **-18%** |
+
+绘制原语与"圆/弧原语优化"记录逐项一致（bench 中原语目标已由 DrawBuf 更名为
+`Canvas`），未回退。
+
+> 备注：time bench 首次运行 Minimal/Small 的 full/frame 出现异常尖峰
+> （Minimal full 40.6/40.8、Small full 99.9/113.3，系统噪声，与 batch 1 记录
+> 中的现象相同）；第二次运行恢复正常，上表为复现稳定的数字。
+> 内存大幅下降的主因：每节点不再背负最大变体税（WidgetKind enum 删除），
+> 控件状态按实际大小单独 Box；Node 本身亦瘦身至 272 B。
