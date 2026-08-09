@@ -67,7 +67,22 @@ pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) 
             };
             let p = Point { x, y };
             match prev {
-                Some(q) => d.draw_line(q, p, 2, ser.color, ctx.ap(255), clip),
+                Some(q) => {
+                    // Clip the segment to its half-open x-strip [q.x, p.x): adjacent
+                    // capsules would otherwise overlap at the joint and blend the AA
+                    // fringe twice, leaving a bright bulge at every data point. The
+                    // last segment keeps its end cap (strip extends to the clip edge).
+                    let seg_clip = if p.x > q.x {
+                        let right = if i + 1 == n { clip.right() } else { p.x };
+                        Rect::new(q.x, clip.y, right - q.x, clip.h).intersect(&clip)
+                    } else {
+                        // Same-column points (capacity > width): no strip to claim.
+                        Some(clip)
+                    };
+                    if let Some(sc) = seg_clip {
+                        d.draw_line(q, p, 2, ser.color, ctx.ap(255), sc);
+                    }
+                }
                 None if n == 1 => d.fill_circle(p, 1, ser.color, ctx.ap(255), clip),
                 None => {}
             }

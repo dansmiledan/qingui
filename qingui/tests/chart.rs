@@ -103,6 +103,39 @@ impl Flush for SharedFlush {
 }
 
 #[test]
+fn polyline_has_no_bright_bulge_at_joints() {
+    // A colinear polyline should render with uniform per-column brightness.
+    // Previously each segment was drawn as an independent capsule whose round
+    // caps overlap at the joints, blending the AA fringe twice and leaving a
+    // bright bulge (~+20% ink) at every data point.
+    let rec = Rc::new(RefCell::new(RecFlush::default()));
+    let (w, h) = (190i32, 56i32);
+    let mut ui = Ui::new(w, h, h as u32); // the whole screen is one chunk
+    ui.set_flush(Box::new(SharedFlush(rec.clone())));
+    let s = ui.screen();
+    let c = ChartCfg::new().range(0, 100).size(w, h).series(Color::RED, 48).build(&mut ui, s);
+    // 48 points on the straight line y = 47 - x*43/189 (x = i*189/47)
+    for i in 0..48 {
+        let x = i * (w - 1) / 47;
+        let v = ((47 - (47 - x as i64 * 43 / (w as i64 - 1)) as i32) * 100 + 27) / 55;
+        ui.chart_push(c, 0, v);
+    }
+    ui.render();
+    let chunks = &rec.borrow().chunks;
+    assert_eq!(chunks.len(), 1);
+    let px = &chunks[0].1;
+    // Per-column red sum (stroke ink); interior columns only (skip end caps).
+    let mut max_ink = 0u32;
+    for x in 4..w as usize - 4 {
+        let ink: u32 = (0..h as usize).map(|y| px[y * w as usize + x].r as u32).sum();
+        max_ink = max_ink.max(ink);
+    }
+    // Ideal is ~2.12 * 255; overlapping joint caps pushed columns to ~2.59 * 255.
+    let ink = max_ink as f32 / 255.0;
+    assert!(ink <= 2.45, "joint bulge: max column ink {ink:.3} > 2.45");
+}
+
+#[test]
 fn renders_flat_line_at_bottom_for_min_values() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui = Ui::new(64, 48, 48); // the whole screen is one chunk
