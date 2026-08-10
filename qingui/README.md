@@ -34,7 +34,9 @@ impl Flush for MyFlush {
 let mut ui = Ui::new(320, 240, 24); // 屏幕 320x240，PFB 缓冲 24 行
 ui.set_flush(Box::new(MyFlush));
 
-// Builder：默认尺寸/样式（通用 theme_base + 控件专属）可链式覆盖
+// Builder：默认尺寸/样式（通用 theme_base + 控件专属）可链式覆盖；
+// 控件专属几何/时序参数（行高 row_h、动画时长 roll_dur/fx_dur、线宽 line_width、
+// 旋钮宽 knob_w、弹层 popup_* 等）也各有链式 setter，默认值见各控件源码常量
 let scr = ui.screen();
 let slider = SliderCfg::new(0, 100)
     .size(140, 14)
