@@ -5,7 +5,7 @@ edition = "2021"
 description = "Asset codegen helper for the qingui GUI library: converts images into embedded qingui::Color arrays"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/dansmiledan/qingui"
-keywords = ["gui", "embedded", "no_std", "lvgl", "codegen", "assets"]
+keywords = ["gui", "embedded", "no_std", "codegen", "assets"]
 categories = ["embedded", "graphics", "development-tools::build-utils"]
 
 [dependencies]
