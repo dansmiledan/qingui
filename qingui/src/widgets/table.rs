@@ -20,20 +20,23 @@ pub struct TableState {
     pub cols: u8,
     pub rows: u8,
     pub cells: Vec<String>,
+    pub cell_w: i32,
+    pub cell_h: i32,
 }
 
-pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], cell_w: i32, cell_h: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
     let line_c = Color::rgb(70, 70, 90);
     let ap = ctx.ap(255);
     // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
     for c in 0..=cols as i32 {
-        let x = (abs.x + c * CELL_W).min(abs.right() - 1);
+        let x = (abs.x + c * cell_w).min(abs.right() - 1);
         d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, ap, lclip);
     }
     for r in 0..=rows as i32 {
-        let y = (abs.y + r * CELL_H).min(abs.bottom() - 1);
+        let y = (abs.y + r * cell_h).min(abs.bottom() - 1);
         d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, ap, lclip);
     }
     // Cell text
@@ -43,7 +46,7 @@ pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], ctx: &WidgetCtx, d: &mu
             if let Some(text) = cells.get(idx) {
                 if !text.is_empty() {
                     d.draw_text_opa(
-                        Point { x: abs.x + c as i32 * CELL_W + 4, y: abs.y + r as i32 * CELL_H + 4 },
+                        Point { x: abs.x + c as i32 * cell_w + 4, y: abs.y + r as i32 * cell_h + 4 },
                         ctx.resolved.font,
                         text,
                         ctx.resolved.text_color,
@@ -64,6 +67,8 @@ pub struct TableCfg {
     cols: u8,
     rows: u8,
     cells: Vec<String>,
+    cell_w: i32,
+    cell_h: i32,
 }
 
 impl TableCfg {
@@ -74,6 +79,8 @@ impl TableCfg {
             cfg: TableCfg {
                 cols, rows,
                 cells: alloc::vec![String::new(); cols as usize * rows as usize],
+                cell_w: CELL_W,
+                cell_h: CELL_H,
             },
         }
     }
@@ -87,6 +94,16 @@ impl WidgetBuilder<TableCfg> {
         }
         self
     }
+    /// Sets the cell width in pixels (default `CELL_W` = 60).
+    pub fn cell_w(mut self, w: i32) -> Self {
+        self.cfg.cell_w = w;
+        self
+    }
+    /// Sets the cell height in pixels (default `CELL_H` = 16).
+    pub fn cell_h(mut self, h: i32) -> Self {
+        self.cfg.cell_h = h;
+        self
+    }
 }
 
 impl WidgetCfg for TableCfg {
@@ -98,11 +115,11 @@ impl WidgetCfg for TableCfg {
     }
 
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
-        let (w, h) = common.size.unwrap_or((self.cols as i32 * CELL_W, self.rows as i32 * CELL_H));
+        let (w, h) = common.size.unwrap_or((self.cols as i32 * self.cell_w, self.rows as i32 * self.cell_h));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(TableState { cols: self.cols, rows: self.rows, cells: self.cells }),
+            alloc::boxed::Box::new(TableState { cols: self.cols, rows: self.rows, cells: self.cells, cell_w: self.cell_w, cell_h: self.cell_h }),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
@@ -118,7 +135,7 @@ impl WidgetCfg for TableCfg {
 }
 
 impl super::Widget for TableState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.cols, self.rows, &self.cells, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.cols, self.rows, &self.cells, self.cell_w, self.cell_h, ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

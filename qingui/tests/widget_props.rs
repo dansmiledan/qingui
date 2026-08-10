@@ -1,3 +1,4 @@
+use qingui::widgets::table::{TableCfg, TableState};
 use qingui::prelude::*;
 use qingui::Ui;
 use qingui::widgets::spinner::{SpinnerCfg, SpinnerState};
@@ -99,4 +100,18 @@ fn dropdown_popup_props_default_and_override() {
     let b = DropdownCfg::new(&["x", "y"]).popup_rows(3).popup_row_h(20).popup_min_w(120).build(&mut ui, scr);
     let s = ui.widget::<DropdownState>(b).unwrap();
     assert_eq!((s.popup_rows, s.popup_row_h, s.popup_min_w), (3, 20, 120));
+}
+
+#[test]
+fn table_cell_props_default_and_override() {
+    let mut ui = Ui::new(320, 240, 240);
+    let scr = ui.screen();
+    let a = TableCfg::new(2, 3).build(&mut ui, scr);
+    assert_eq!((ui.rect(a).w, ui.rect(a).h), (2 * qingui::widgets::table::CELL_W, 3 * qingui::widgets::table::CELL_H));
+    let s = ui.widget::<TableState>(a).unwrap();
+    assert_eq!((s.cell_w, s.cell_h), (60, 16));
+    let b = TableCfg::new(2, 3).cell_w(40).cell_h(20).build(&mut ui, scr);
+    assert_eq!((ui.rect(b).w, ui.rect(b).h), (80, 60));
+    let s = ui.widget::<TableState>(b).unwrap();
+    assert_eq!((s.cell_w, s.cell_h), (40, 20));
 }
