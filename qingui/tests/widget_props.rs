@@ -5,6 +5,7 @@ use qingui::widgets::roller::{RollerCfg, RollerState};
 use qingui::widgets::list::{ListCfg, ListState};
 use qingui::widgets::arc::{ArcCfg, ArcState};
 use qingui::widgets::slider::{SliderCfg, SliderState};
+use qingui::widgets::checkbox::{CheckboxCfg, CheckboxState};
 
 #[test]
 fn spinner_props_default_and_override() {
@@ -70,4 +71,19 @@ fn slider_knob_w_default_and_override() {
     assert_eq!(ui.widget::<SliderState>(a).unwrap().knob_w, 8);
     let b = SliderCfg::new(0, 100).knob_w(14).build(&mut ui, scr);
     assert_eq!(ui.widget::<SliderState>(b).unwrap().knob_w, 14);
+}
+
+#[test]
+fn checkbox_props_default_and_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let a = CheckboxCfg::new("ab").build(&mut ui, scr);
+    let s = ui.widget::<CheckboxState>(a).unwrap();
+    assert_eq!((s.box_size, s.gap), (12, 6));
+    let w_default = ui.rect(a).w;
+    let b = CheckboxCfg::new("ab").box_size(20).gap(10).build(&mut ui, scr);
+    let s = ui.widget::<CheckboxState>(b).unwrap();
+    assert_eq!((s.box_size, s.gap), (20, 10));
+    // Same text: default width grows by exactly the box/gap delta
+    assert_eq!(ui.rect(b).w - w_default, (20 - 12) + (10 - 6));
 }
