@@ -1,3 +1,4 @@
+use qingui::widgets::chart::{ChartCfg, ChartState};
 use qingui::widgets::table::{TableCfg, TableState};
 use qingui::prelude::*;
 use qingui::Ui;
@@ -132,4 +133,14 @@ fn scrollview_step_override() {
     ui.group_focus(sv);
     ui.keypad_input(Key::Down);
     assert_eq!(ui.translate(content).y, -8);
+}
+
+#[test]
+fn chart_line_width_default_and_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let a = ChartCfg::new().build(&mut ui, scr);
+    assert_eq!(ui.widget::<ChartState>(a).unwrap().line_width, 2);
+    let b = ChartCfg::new().line_width(4).build(&mut ui, scr);
+    assert_eq!(ui.widget::<ChartState>(b).unwrap().line_width, 4);
 }

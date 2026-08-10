@@ -35,6 +35,7 @@ pub struct ChartState {
     pub min: i32, // fixed Y-axis range
     pub max: i32,
     pub series: Vec<Series>,
+    pub line_width: i32,
 }
 
 /// Draws only the data lines (background/border are handled by the common draw_node):
@@ -80,7 +81,7 @@ pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) 
                         Some(clip)
                     };
                     if let Some(sc) = seg_clip {
-                        d.draw_line(q, p, 2, ser.color, ctx.ap(255), sc);
+                        d.draw_line(q, p, s.line_width, ser.color, ctx.ap(255), sc);
                     }
                 }
                 None if n == 1 => d.fill_circle(p, 1, ser.color, ctx.ap(255), clip),
@@ -99,6 +100,7 @@ pub struct ChartCfg {
     min: i32,
     max: i32,
     series: Vec<(Color, usize)>,
+    line_width: i32,
 }
 
 impl ChartCfg {
@@ -106,7 +108,7 @@ impl ChartCfg {
     pub fn new() -> WidgetBuilder<ChartCfg> {
         WidgetBuilder {
             common: CommonBuilder::default(),
-            cfg: ChartCfg { min: 0, max: 100, series: Vec::new() },
+            cfg: ChartCfg { min: 0, max: 100, series: Vec::new(), line_width: 2 },
         }
     }
 }
@@ -123,6 +125,11 @@ impl WidgetBuilder<ChartCfg> {
         self.cfg.series.push((color, capacity));
         self
     }
+    /// Sets the data line width in pixels (default 2).
+    pub fn line_width(mut self, w: i32) -> Self {
+        self.cfg.line_width = w;
+        self
+    }
 }
 
 impl WidgetCfg for ChartCfg {
@@ -132,6 +139,7 @@ impl WidgetCfg for ChartCfg {
             min: self.min,
             max: self.max,
             series: self.series.into_iter().map(|(c, cap)| Series::new(c, cap)).collect(),
+            line_width: self.line_width,
         };
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(state));
         ui.set_style(r, common.style.take().unwrap_or_default());
