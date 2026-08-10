@@ -4,6 +4,7 @@ use qingui::widgets::spinner::{SpinnerCfg, SpinnerState};
 use qingui::widgets::roller::{RollerCfg, RollerState};
 use qingui::widgets::list::{ListCfg, ListState};
 use qingui::widgets::arc::{ArcCfg, ArcState};
+use qingui::widgets::slider::{SliderCfg, SliderState};
 
 #[test]
 fn spinner_props_default_and_override() {
@@ -59,4 +60,14 @@ fn arc_props_default_and_override() {
     let b = ArcCfg::new(0, 100).track_w(6).start_deg(0).sweep_deg(180).build(&mut ui, scr);
     let s = ui.widget::<ArcState>(b).unwrap();
     assert_eq!((s.track_w, s.start_deg, s.sweep_deg), (6, 0, 180));
+}
+
+#[test]
+fn slider_knob_w_default_and_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let a = SliderCfg::new(0, 100).build(&mut ui, scr);
+    assert_eq!(ui.widget::<SliderState>(a).unwrap().knob_w, 8);
+    let b = SliderCfg::new(0, 100).knob_w(14).build(&mut ui, scr);
+    assert_eq!(ui.widget::<SliderState>(b).unwrap().knob_w, 14);
 }
