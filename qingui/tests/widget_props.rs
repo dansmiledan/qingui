@@ -8,6 +8,9 @@ use qingui::widgets::arc::{ArcCfg, ArcState};
 use qingui::widgets::slider::{SliderCfg, SliderState};
 use qingui::widgets::checkbox::{CheckboxCfg, CheckboxState};
 use qingui::widgets::dropdown::{DropdownCfg, DropdownState};
+use qingui::input::Key;
+use qingui::widgets::obj::ObjCfg;
+use qingui::widgets::scrollview::{ScrollViewCfg, ScrollViewState};
 
 #[test]
 fn spinner_props_default_and_override() {
@@ -114,4 +117,19 @@ fn table_cell_props_default_and_override() {
     assert_eq!((ui.rect(b).w, ui.rect(b).h), (80, 60));
     let s = ui.widget::<TableState>(b).unwrap();
     assert_eq!((s.cell_w, s.cell_h), (40, 20));
+}
+
+#[test]
+fn scrollview_step_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let sv = ScrollViewCfg::new().size(60, 60).step(8).build(&mut ui, scr);
+    assert_eq!(ui.widget::<ScrollViewState>(sv).unwrap().step, 8);
+    let content = ui.scrollview_content(sv).unwrap();
+    // Content taller than the viewport so there is room to scroll
+    let _tall = ObjCfg::new().size(60, 200).build(&mut ui, content);
+    ui.group_add(sv);
+    ui.group_focus(sv);
+    ui.keypad_input(Key::Down);
+    assert_eq!(ui.translate(content).y, -8);
 }

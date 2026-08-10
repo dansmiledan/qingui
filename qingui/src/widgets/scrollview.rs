@@ -28,6 +28,8 @@ const SCROLL_FLEX: Flex = Flex {
 pub struct ScrollViewState {
     pub(crate) content: ObjRef,
     pub scroll: i32, // ≤0
+    /// Scroll step per key press (px)
+    pub step: i32,
 }
 
 impl super::Widget for ScrollViewState {
@@ -37,12 +39,12 @@ impl super::Widget for ScrollViewState {
         // cannot reach this node — mutate `self` directly via `apply_scroll`.
         match key {
             Key::Up => {
-                let y = self.scroll + STEP;
+                let y = self.scroll + self.step;
                 apply_scroll(ui, obj, self, y);
                 super::KeyOutcome::Consumed
             }
             Key::Down => {
-                let y = self.scroll - STEP;
+                let y = self.scroll - self.step;
                 apply_scroll(ui, obj, self, y);
                 super::KeyOutcome::Consumed
             }
@@ -84,13 +86,23 @@ pub(crate) fn apply_scroll(ui: &mut Ui, sv: ObjRef, state: &mut ScrollViewState,
 /// Builder for the ScrollView widget.
 pub type ScrollViewBuilder = WidgetBuilder<ScrollViewCfg>;
 
-/// ScrollView configuration.
-pub struct ScrollViewCfg;
+/// ScrollView configuration: scroll step per key press.
+pub struct ScrollViewCfg {
+    step: i32,
+}
 
 impl ScrollViewCfg {
     /// Creates an empty builder.
     pub fn new() -> WidgetBuilder<ScrollViewCfg> {
-        WidgetBuilder { common: CommonBuilder::default(), cfg: ScrollViewCfg }
+        WidgetBuilder { common: CommonBuilder::default(), cfg: ScrollViewCfg { step: STEP } }
+    }
+}
+
+impl WidgetBuilder<ScrollViewCfg> {
+    /// Sets the scroll step per key press in pixels (default `STEP` = 20).
+    pub fn step(mut self, v: i32) -> Self {
+        self.cfg.step = v;
+        self
     }
 }
 
@@ -110,7 +122,7 @@ impl WidgetCfg for ScrollViewCfg {
         ui.set_sizing(content, Some(Sizing::GROW), None);
         // Replace the placeholder kind with the real one
         if let Some(n) = ui.kind_mut(r) {
-            *n = alloc::boxed::Box::new(ScrollViewState { content, scroll: 0 });
+            *n = alloc::boxed::Box::new(ScrollViewState { content, scroll: 0, step: self.step });
         }
         // Viewport style: transparent by default; focused style gives a default border highlight
         let mut vs = common.style.take().unwrap_or_default();
