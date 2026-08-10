@@ -1,6 +1,4 @@
-use crate::draw::{
-    arc_cov16, circle_cov16, dir_vec, div_ceil_pos, div_floor_pos, eg_rect, isqrt, line_row_span, line_sdf_cov16, COV_MARGIN,
-};
+use crate::draw::{circle_cov16, dir_vec, div_ceil_pos, div_floor_pos, eg_rect, isqrt, ArcGeom, ThickLine, COV_MARGIN};
 use crate::geometry::{Color, Rect};
 
 /// e-g Rectangle → Rect (origin + size; inverse of `crate::draw::eg_rect`)
@@ -332,7 +330,7 @@ impl Canvas<'_> {
     /// Arc (ring sector): per-scanline chord spans; pixels are classified by
     /// squared distance to the ring boundaries and by the wedge half-plane
     /// signs at the pixel center, with a conservative margin — only pixels
-    /// near a boundary (ring or wedge ray) get the exact `arc_cov16`
+    /// near a boundary (ring or wedge ray) get the exact `ArcGeom::cov16`
     /// evaluation. Pixel-identical output (see `COV_MARGIN`).
     pub fn draw_arc(
         &mut self,
@@ -376,6 +374,7 @@ impl Canvas<'_> {
         const MW: i64 = COV_MARGIN * 256;
         let (sx, sy) = (s.0 as i64, s.1 as i64);
         let (ex, ey) = (e.0 as i64, e.1 as i64);
+        let geom = ArcGeom { outer: radius, inner, s, e, and_mode };
         for dy in -radius - 1..=radius + 1 {
             let y = center.y + dy;
             if y < vis.y || y >= vis.bottom() {
@@ -412,7 +411,7 @@ impl Canvas<'_> {
                 } else if ring_zero || w_zero {
                     continue;
                 } else {
-                    let cov = arc_cov16(dx, dy, radius, inner, s, e, and_mode);
+                    let cov = geom.cov16(dx, dy);
                     if cov > 0 {
                         let o = (opa as u32 * cov as u32 / 16) as u8;
                         self.put_fast(center.x + dx, y, c, o);
@@ -468,8 +467,8 @@ impl Canvas<'_> {
 
     /// Line as a thick segment (`width >= 2`): for each scanline, the span
     /// covered by the capsule (segment + round caps of radius `width/2`) is
-    /// computed analytically (`line_row_span`), and only span pixels get a
-    /// signed-distance coverage evaluation (`line_sdf_cov16`, 1px linear AA
+    /// computed analytically (`ThickLine::row_span`), and only span pixels get a
+    /// signed-distance coverage evaluation (`ThickLine::cov16`, 1px linear AA
     /// ramp). Replaces the old Bresenham + per-step `fill_circle` stamp
     /// (which repainted overlapping pixels on thick lines) — and avoids
     /// scanning the full bounding box, which made long diagonals quadratic.
@@ -524,21 +523,13 @@ impl Canvas<'_> {
     fn draw_line_thick(&mut self, p1: crate::geometry::Point, p2: crate::geometry::Point, width: i32, c: Color, opa: u8, clip: Rect) {
         let (x0, y0) = (p1.x, p1.y);
         let (x1, y1) = (p2.x, p2.y);
-        // Segment vector (dx, dy) and its half-width normal radius.
-        let (dx, dy) = (x1 - x0, y1 - y0);
-        let len2 = dx * dx + dy * dy;
-        if len2 == 0 {
+        if (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) == 0 {
             // Degenerate point: single stamped pixel.
             self.put_clipped(x0, y0, c, opa, clip);
             return;
         }
+        let line = ThickLine::new(p1, p2, width);
         let r = width / 2;
-        let rm = (r + 1) as i64; // half-width + 1px AA margin
-        // Per-line invariants for the SDF coverage (1/16 px fixed point).
-        let r16 = (width * 16 / 2) as i64;
-        let (ux, uy) = (16 * dx as i64, 16 * dy as i64);
-        let len2_64 = len2 as i64 * 256;
-        let inv_len = (1i64 << 32) / isqrt(len2_64 as u64) as i64;
         // Visible region: clip once, then the span loop needs no per-pixel
         // bounds checks (put_fast).
         let Some(vis) = clip.intersect(&self.area) else {
@@ -548,13 +539,13 @@ impl Canvas<'_> {
         let miny = (y0.min(y1) - r - 1).max(vis.y);
         let maxy = (y0.max(y1) + r + 1).min(vis.bottom() - 1);
         for y in miny..=maxy {
-            let Some((lo, hi)) = line_row_span(y, x0, y0, x1, y1, dx, dy, len2, rm) else {
+            let Some((lo, hi)) = line.row_span(y) else {
                 continue;
             };
             let lo = lo.max(vis.x);
             let hi = hi.min(vis.right() - 1);
             for x in lo..=hi {
-                let cov = line_sdf_cov16(x, y, x0, y0, ux, uy, len2_64, inv_len, r16);
+                let cov = line.cov16(x, y);
                 if cov > 0 {
                     let o = (opa as u32 * cov as u32 / 16) as u8;
                     self.put_fast(x, y, c, o);
