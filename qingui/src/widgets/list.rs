@@ -316,10 +316,6 @@ impl WidgetCfg for ListCfg {
     }
 }
 
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, items: &[&str]) -> ObjRef {
-    ListCfg::new(items).build(ui, parent)
-}
-
 impl super::Widget for ListState {
     fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, self.scroll, &self.fx, self.row_h, self.fx_dur, ctx, c, clip) }
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {

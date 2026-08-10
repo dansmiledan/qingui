@@ -17,6 +17,9 @@ use super::WidgetCtx;
 pub struct DropdownState {
     pub items: Vec<String>,
     pub selected: usize,
+    pub popup_rows: usize,
+    pub popup_row_h: i32,
+    pub popup_min_w: i32,
 }
 
 impl DropdownState {
@@ -32,9 +35,10 @@ impl DropdownState {
         let prev = ui.focused();
         let screen = ui.screen();
         let refs: Vec<&str> = self.items.iter().map(|s| s.as_str()).collect();
-        let lst = crate::widgets::list::create(ui, screen, &refs);
+        let lst = crate::widgets::list::ListCfg::new(&refs).row_h(self.popup_row_h).build(ui, screen);
         ui.move_to_front(lst); // popups draw on top (children order is the stacking order)
-        ui.set_size(lst, w.max(80), (self.items.len().min(5) * 16 + 2) as i32);
+        let popup_h = self.items.len().min(self.popup_rows) as i32 * self.popup_row_h + 2;
+        ui.set_size(lst, w.max(self.popup_min_w), popup_h);
         ui.list_select(lst, sel);
         ui.set_floating(lst, obj, crate::layout::Attach::Bottom);
         ui.group_add(lst);
@@ -87,10 +91,13 @@ pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut C
 /// Dropdown builder: default 100x20, bg(40,40,52) r4 + white focused border
 pub type DropdownBuilder = WidgetBuilder<DropdownCfg>;
 
-/// Dropdown configuration: items and the initially selected index.
+/// Dropdown configuration: items, the initially selected index, and the popup geometry props.
 pub struct DropdownCfg {
     items: Vec<String>,
     selected: usize,
+    popup_rows: usize,
+    popup_row_h: i32,
+    popup_min_w: i32,
 }
 
 impl DropdownCfg {
@@ -98,7 +105,13 @@ impl DropdownCfg {
     pub fn new(items: &[&str]) -> WidgetBuilder<DropdownCfg> {
         WidgetBuilder {
             common: CommonBuilder::default(),
-            cfg: DropdownCfg { items: items.iter().map(|s| (*s).into()).collect(), selected: 0 },
+            cfg: DropdownCfg {
+                items: items.iter().map(|s| (*s).into()).collect(),
+                selected: 0,
+                popup_rows: 5,
+                popup_row_h: super::list::ROW_H,
+                popup_min_w: 80,
+            },
         }
     }
 }
@@ -107,6 +120,21 @@ impl WidgetBuilder<DropdownCfg> {
     /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.cfg.selected = idx;
+        self
+    }
+    /// Sets the popup's maximum visible rows (default 5).
+    pub fn popup_rows(mut self, n: usize) -> Self {
+        self.cfg.popup_rows = n;
+        self
+    }
+    /// Sets the popup's row height in pixels (default `list::ROW_H` = 16).
+    pub fn popup_row_h(mut self, h: i32) -> Self {
+        self.cfg.popup_row_h = h;
+        self
+    }
+    /// Sets the popup's minimum width in pixels (default 80).
+    pub fn popup_min_w(mut self, w: i32) -> Self {
+        self.cfg.popup_min_w = w;
         self
     }
 }
@@ -126,7 +154,13 @@ impl WidgetCfg for DropdownCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(DropdownState { items: self.items, selected }),
+            alloc::boxed::Box::new(DropdownState {
+                items: self.items,
+                selected,
+                popup_rows: self.popup_rows,
+                popup_row_h: self.popup_row_h,
+                popup_min_w: self.popup_min_w,
+            }),
         );
         let base = common.style.take().unwrap_or_else(Self::default_style);
         ui.set_style(r, base.clone());

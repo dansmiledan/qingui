@@ -6,6 +6,7 @@ use qingui::widgets::list::{ListCfg, ListState};
 use qingui::widgets::arc::{ArcCfg, ArcState};
 use qingui::widgets::slider::{SliderCfg, SliderState};
 use qingui::widgets::checkbox::{CheckboxCfg, CheckboxState};
+use qingui::widgets::dropdown::{DropdownCfg, DropdownState};
 
 #[test]
 fn spinner_props_default_and_override() {
@@ -86,4 +87,16 @@ fn checkbox_props_default_and_override() {
     assert_eq!((s.box_size, s.gap), (20, 10));
     // Same text: default width grows by exactly the box/gap delta
     assert_eq!(ui.rect(b).w - w_default, (20 - 12) + (10 - 6));
+}
+
+#[test]
+fn dropdown_popup_props_default_and_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let a = DropdownCfg::new(&["x", "y"]).build(&mut ui, scr);
+    let s = ui.widget::<DropdownState>(a).unwrap();
+    assert_eq!((s.popup_rows, s.popup_row_h, s.popup_min_w), (5, 16, 80));
+    let b = DropdownCfg::new(&["x", "y"]).popup_rows(3).popup_row_h(20).popup_min_w(120).build(&mut ui, scr);
+    let s = ui.widget::<DropdownState>(b).unwrap();
+    assert_eq!((s.popup_rows, s.popup_row_h, s.popup_min_w), (3, 20, 120));
 }
