@@ -93,155 +93,156 @@ fn lerp_t(start: u64, now: u64, dur: u64) -> f32 {
     (now.saturating_sub(start) as f32 / dur as f32).clamp(0.0, 1.0)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn draw(items: &[String], selected: usize, scroll: i32, fx: &ListFx, row_h: i32, fx_dur: u64, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let now = ctx.now;
-    let lclip = abs.intersect(&clip).unwrap_or(clip);
+impl ListState {
+    fn draw_rows(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let now = ctx.now;
+        let lclip = abs.intersect(&clip).unwrap_or(clip);
 
-    // Effective scroll (smooth-scroll interpolation)
-    let eff_scroll = match fx.scroll_from {
-        Some((from, start)) => from + ((scroll - from) as f32 * lerp_t(start, now, fx_dur)) as i32,
-        None => scroll,
-    };
-    // Highlight row position (slide interpolation, in rows)
-    let hl_row_f = match fx.sel_from {
-        Some((from, start)) => {
-            let t = lerp_t(start, now, fx_dur);
-            from as f32 * (1.0 - t) + selected as f32 * t
-        }
-        None => selected as f32,
-    };
-    if !items.is_empty() {
-        let hl = Rect::new(abs.x, abs.y + (hl_row_f * row_h as f32) as i32 - eff_scroll, abs.w, row_h);
-        if hl.intersects(&lclip) {
-            // Highlight with rounded corners so it doesn't cover the list's own rounded border
-            d.fill_rounded(hl, ctx.resolved.radius.min(row_h / 2), Color::rgb(50, 70, 120), ctx.ap(255), lclip);
-        }
-    }
-    // items (with entry/shift effects)
-    for (i, item) in items.iter().enumerate() {
-        let mut dy = 0;
-        let mut opa = ctx.ap(255);
-        for f in &fx.item_fx {
-            if f.index == i {
-                let t = lerp_t(f.start, now, fx_dur);
-                dy = (f.dy as f32 * (1.0 - t)) as i32;
-                if f.fade_in {
-                    opa = ctx.ap((255.0 * t) as u8);
-                }
+        // Effective scroll (smooth-scroll interpolation)
+        let eff_scroll = match self.fx.scroll_from {
+            Some((from, start)) => from + ((self.scroll - from) as f32 * lerp_t(start, now, self.fx_dur)) as i32,
+            None => self.scroll,
+        };
+        // Highlight row position (slide interpolation, in rows)
+        let hl_row_f = match self.fx.sel_from {
+            Some((from, start)) => {
+                let t = lerp_t(start, now, self.fx_dur);
+                from as f32 * (1.0 - t) + self.selected as f32 * t
+            }
+            None => self.selected as f32,
+        };
+        if !self.items.is_empty() {
+            let hl = Rect::new(abs.x, abs.y + (hl_row_f * self.row_h as f32) as i32 - eff_scroll, abs.w, self.row_h);
+            if hl.intersects(&lclip) {
+                // Highlight with rounded corners so it doesn't cover the list's own rounded border
+                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::rgb(50, 70, 120), ctx.ap(255), lclip);
             }
         }
-        let ry = abs.y + i as i32 * row_h + dy - eff_scroll;
-        let row = Rect::new(abs.x, ry, abs.w, row_h);
-        if !row.intersects(&lclip) {
-            continue;
+        // items (with entry/shift effects)
+        for (i, item) in self.items.iter().enumerate() {
+            let mut dy = 0;
+            let mut opa = ctx.ap(255);
+            for f in &self.fx.item_fx {
+                if f.index == i {
+                    let t = lerp_t(f.start, now, self.fx_dur);
+                    dy = (f.dy as f32 * (1.0 - t)) as i32;
+                    if f.fade_in {
+                        opa = ctx.ap((255.0 * t) as u8);
+                    }
+                }
+            }
+            let ry = abs.y + i as i32 * self.row_h + dy - eff_scroll;
+            let row = Rect::new(abs.x, ry, abs.w, self.row_h);
+            if !row.intersects(&lclip) {
+                continue;
+            }
+            d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, opa, lclip);
         }
-        d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, opa, lclip);
-    }
-    // Fading out of the ghost being deleted
-    if let Some(g) = &fx.ghost {
-        let t = lerp_t(g.start, now, fx_dur);
-        let ry = abs.y + g.index as i32 * row_h - eff_scroll;
-        let row = Rect::new(abs.x, ry, abs.w, row_h);
-        if row.intersects(&lclip) {
-            d.draw_text_opa(
-                Point { x: abs.x + 4, y: ry + 4 },
-                ctx.resolved.font,
-                &g.text,
-                ctx.resolved.text_color,
-                ctx.ap((255.0 * (1.0 - t)) as u8),
-                lclip,
-            );
+        // Fading out of the ghost being deleted
+        if let Some(g) = &self.fx.ghost {
+            let t = lerp_t(g.start, now, self.fx_dur);
+            let ry = abs.y + g.index as i32 * self.row_h - eff_scroll;
+            let row = Rect::new(abs.x, ry, abs.w, self.row_h);
+            if row.intersects(&lclip) {
+                d.draw_text_opa(
+                    Point { x: abs.x + 4, y: ry + 4 },
+                    ctx.resolved.font,
+                    &g.text,
+                    ctx.resolved.text_color,
+                    ctx.ap((255.0 * (1.0 - t)) as u8),
+                    lclip,
+                );
+            }
         }
     }
-}
 
-/// Selects the idx-th item (recording the highlight slide/smooth scroll effects) and adjusts scroll to keep it visible.
-/// scroll is always row-aligned (an integer multiple of row_h) to avoid half-row misalignment.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn select(items: &[String], selected: &mut usize, scroll: &mut i32, fx: &mut ListFx, idx: usize, vis_h: i32, now: u64, row_h: i32) {
-    if items.is_empty() {
-        return;
-    }
-    let nidx = idx.min(items.len() - 1);
-    if nidx != *selected {
-        fx.sel_from = Some((*selected, now));
-        *selected = nidx;
-    }
-    ensure_visible(*selected, items.len(), scroll, fx, vis_h, now, row_h);
-}
-
-/// Adjusts scroll: keeps selected visible and leaves no blank window at the tail (auto-scrolls up after deleting tail items).
-/// scroll is row-aligned; records a smooth scroll effect when it changes.
-pub(crate) fn ensure_visible(selected: usize, item_count: usize, scroll: &mut i32, fx: &mut ListFx, vis_h: i32, now: u64, row_h: i32) {
-    let old = *scroll;
-    if item_count == 0 {
-        *scroll = 0;
-        if old != 0 {
-            fx.scroll_from = Some((old, now));
+    /// Selects the idx-th item (recording the highlight slide/smooth scroll effects) and adjusts scroll to keep it visible.
+    /// scroll is always row-aligned (an integer multiple of row_h) to avoid half-row misalignment.
+    pub(crate) fn select(&mut self, idx: usize, vis_h: i32, now: u64) {
+        if self.items.is_empty() {
+            return;
         }
-        return;
+        let nidx = idx.min(self.items.len() - 1);
+        if nidx != self.selected {
+            self.fx.sel_from = Some((self.selected, now));
+            self.selected = nidx;
+        }
+        self.ensure_visible(vis_h, now);
     }
-    let vis_rows = (vis_h / row_h).max(1);
-    let count = item_count as i32;
-    let sel = selected as i32;
-    let mut first = *scroll / row_h; // the first currently visible row
-    // Tail blank window: pull back up
-    if first + vis_rows > count {
-        first = (count - vis_rows).max(0);
-    }
-    if sel < first {
-        first = sel;
-    } else if sel >= first + vis_rows {
-        first = sel - vis_rows + 1;
-    }
-    *scroll = first * row_h;
-    if *scroll != old {
-        fx.scroll_from = Some((old, now));
-    }
-}
 
-/// Inserts an item at idx: items below slide down to make room, the new item fades in.
-/// (The capacity limit is a business decision left to the caller; the widget itself does not restrict it)
-pub(crate) fn insert(items: &mut Vec<String>, fx: &mut ListFx, idx: usize, text: &str, now: u64, row_h: i32) {
-    let idx = idx.min(items.len());
-    items.insert(idx, text.into());
-    // Shift indices of in-flight fx
-    for f in fx.item_fx.iter_mut() {
-        if f.index >= idx {
-            f.index += 1;
+    /// Adjusts scroll: keeps selected visible and leaves no blank window at the tail (auto-scrolls up after deleting tail items).
+    /// scroll is row-aligned; records a smooth scroll effect when it changes.
+    pub(crate) fn ensure_visible(&mut self, vis_h: i32, now: u64) {
+        let old = self.scroll;
+        let item_count = self.items.len();
+        if item_count == 0 {
+            self.scroll = 0;
+            if old != 0 {
+                self.fx.scroll_from = Some((old, now));
+            }
+            return;
+        }
+        let vis_rows = (vis_h / self.row_h).max(1);
+        let count = item_count as i32;
+        let sel = self.selected as i32;
+        let mut first = self.scroll / self.row_h; // the first currently visible row
+        // Tail blank window: pull back up
+        if first + vis_rows > count {
+            first = (count - vis_rows).max(0);
+        }
+        if sel < first {
+            first = sel;
+        } else if sel >= first + vis_rows {
+            first = sel - vis_rows + 1;
+        }
+        self.scroll = first * self.row_h;
+        if self.scroll != old {
+            self.fx.scroll_from = Some((old, now));
         }
     }
-    // Items below slide from their old position (the row above) into the new position
-    for i in (idx + 1)..items.len() {
-        fx.item_fx.push(ItemFx { index: i, dy: -row_h, fade_in: false, start: now });
-    }
-    fx.item_fx.push(ItemFx { index: idx, dy: 0, fade_in: true, start: now });
-}
 
-/// Deletes the selected item: ghost fades out, items below shift up to fill the gap
-pub(crate) fn remove(items: &mut Vec<String>, fx: &mut ListFx, selected: &mut usize, now: u64, row_h: i32) -> bool {
-    if items.is_empty() || *selected >= items.len() {
-        return false;
-    }
-    let text = items.remove(*selected);
-    fx.ghost = Some(Ghost { text, index: *selected, start: now });
-    // In-flight fx: drop the deleted item, shift those below
-    fx.item_fx.retain(|f| f.index != *selected);
-    for f in fx.item_fx.iter_mut() {
-        if f.index > *selected {
-            f.index -= 1;
+    /// Inserts an item at idx: items below slide down to make room, the new item fades in.
+    /// (The capacity limit is a business decision left to the caller; the widget itself does not restrict it)
+    pub(crate) fn insert(&mut self, idx: usize, text: &str, now: u64) {
+        let idx = idx.min(self.items.len());
+        self.items.insert(idx, text.into());
+        // Shift indices of in-flight fx
+        for f in self.fx.item_fx.iter_mut() {
+            if f.index >= idx {
+                f.index += 1;
+            }
         }
+        // Items below slide from their old position (the row above) into the new position
+        for i in (idx + 1)..self.items.len() {
+            self.fx.item_fx.push(ItemFx { index: i, dy: -self.row_h, fade_in: false, start: now });
+        }
+        self.fx.item_fx.push(ItemFx { index: idx, dy: 0, fade_in: true, start: now });
     }
-    // Items below slide from their old position (the row below) into the new position
-    for i in *selected..items.len() {
-        fx.item_fx.push(ItemFx { index: i, dy: row_h, fade_in: false, start: now });
+
+    /// Deletes the selected item: ghost fades out, items below shift up to fill the gap
+    pub(crate) fn remove(&mut self, now: u64) -> bool {
+        if self.items.is_empty() || self.selected >= self.items.len() {
+            return false;
+        }
+        let text = self.items.remove(self.selected);
+        self.fx.ghost = Some(Ghost { text, index: self.selected, start: now });
+        // In-flight fx: drop the deleted item, shift those below
+        self.fx.item_fx.retain(|f| f.index != self.selected);
+        for f in self.fx.item_fx.iter_mut() {
+            if f.index > self.selected {
+                f.index -= 1;
+            }
+        }
+        // Items below slide from their old position (the row below) into the new position
+        for i in self.selected..self.items.len() {
+            self.fx.item_fx.push(ItemFx { index: i, dy: self.row_h, fade_in: false, start: now });
+        }
+        if self.selected >= self.items.len() && self.selected > 0 {
+            self.selected -= 1;
+        }
+        true
     }
-    if *selected >= items.len() && *selected > 0 {
-        *selected -= 1;
-    }
-    true
 }
 
 /// List builder: default 120 x (min(5,n)*16+2), theme_list/focused
@@ -317,7 +318,7 @@ impl WidgetCfg for ListCfg {
 }
 
 impl super::Widget for ListState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, self.scroll, &self.fx, self.row_h, self.fx_dur, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_rows(ctx, c, clip) }
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {
         let was_active = self.fx.active(now, self.fx_dur);
         let removed = self.fx.prune(now, self.fx_dur);
@@ -332,7 +333,7 @@ impl super::Widget for ListState {
                     let idx = if key == Key::Up { (self.selected + n - 1) % n } else { (self.selected + 1) % n };
                     let vis_h = ui.rect(obj).h;
                     let now = ui.time();
-                    select(&self.items, &mut self.selected, &mut self.scroll, &mut self.fx, idx, vis_h, now, self.row_h);
+                    self.select(idx, vis_h, now);
                 }
                 super::KeyOutcome::Consumed
             }
@@ -363,7 +364,7 @@ impl UiListExt for Ui {
         let now = self.time();
         let vis_h = self.rect(obj).h;
         self.update::<ListState, _>(obj, |s| {
-            select(&s.items, &mut s.selected, &mut s.scroll, &mut s.fx, idx, vis_h, now, s.row_h);
+            s.select(idx, vis_h, now);
         });
     }
 
@@ -379,17 +380,16 @@ impl UiListExt for Ui {
             if !s.items.is_empty() && s.selected >= idx {
                 s.selected += 1;
             }
-            insert(&mut s.items, &mut s.fx, idx, text, now, s.row_h);
-        });
+            s.insert(idx, text, now);        });
     }
 
     fn list_remove(&mut self, obj: ObjRef) -> bool {
         let now = self.time();
         let vis_h = self.rect(obj).h;
         self.update::<ListState, _>(obj, |s| {
-            let ok = remove(&mut s.items, &mut s.fx, &mut s.selected, now, s.row_h);
+            let ok = s.remove(now);
             // Auto-scroll up to fill the window when the tail leaves a blank gap after deletion
-            ensure_visible(s.selected, s.items.len(), &mut s.scroll, &mut s.fx, vis_h, now, s.row_h);
+            s.ensure_visible(vis_h, now);
             ok
         })
         .unwrap_or(false)
