@@ -1,6 +1,6 @@
 [package]
 name = "qingui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A lightweight embedded GUI library (LVGL-inspired subset): PFB rendering, dirty rects, animation, keypad input"
 license = "MIT OR Apache-2.0"

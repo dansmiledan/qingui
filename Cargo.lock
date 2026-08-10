@@ -661,7 +661,7 @@ dependencies = [
 
 [[package]]
 name = "qingui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags 2.13.1",
  "embedded-graphics",
@@ -670,7 +670,7 @@ dependencies = [
 
 [[package]]
 name = "qingui-codegen"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "image",
  "qingui",
