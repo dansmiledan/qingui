@@ -25,60 +25,61 @@ pub struct RollerState {
     pub roll_dur: u64,
 }
 
-/// Scroll position: smoothly transitions from `from` to `selected`
-fn sel_f(selected: usize, sel_from: Option<(f32, u64)>, now: u64, dur: u64) -> f32 {
-    match sel_from {
-        Some((from, start)) => {
-            let t = (now.saturating_sub(start) as f32 / dur as f32).clamp(0.0, 1.0);
-            from * (1.0 - t) + selected as f32 * t
+impl RollerState {
+    /// Scroll position: smoothly transitions from `from` to `selected`
+    fn sel_f(&self, now: u64) -> f32 {
+        match self.sel_from {
+            Some((from, start)) => {
+                let t = (now.saturating_sub(start) as f32 / self.roll_dur as f32).clamp(0.0, 1.0);
+                from * (1.0 - t) + self.selected as f32 * t
+            }
+            None => self.selected as f32,
         }
-        None => selected as f32,
     }
-}
 
-pub(crate) fn fx_active(sel_from: Option<(f32, u64)>, now: u64, dur: u64) -> bool {
-    sel_from.is_some_and(|(_, s)| now.saturating_sub(s) < dur)
-}
+    pub(crate) fn fx_active(&self, now: u64) -> bool {
+        self.sel_from.is_some_and(|(_, s)| now.saturating_sub(s) < self.roll_dur)
+    }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn draw(items: &[String], selected: usize, sel_from: Option<(f32, u64)>, row_h: i32, dur: u64, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let lclip = abs.intersect(&clip).unwrap_or(clip);
-    let ap = ctx.ap(255);
-    let cy = abs.y + abs.h / 2;
-    // Highlight of the center selected row (the wheel slides beneath the row)
-    d.fill_rounded(Rect::new(abs.x, cy - row_h / 2, abs.w, row_h), 3, Color::rgb(50, 70, 120), ap, lclip);
-    let sf = sel_f(selected, sel_from, ctx.now, dur);
-    let lh = crate::font::line_height(ctx.resolved.font);
-    for (i, item) in items.iter().enumerate() {
-        // Vertically center the text within the row height row_h
-        let ry = cy + ((i as f32 - sf) * row_h as f32) as i32 - lh / 2;
-        if ry + lh < lclip.y || ry > lclip.bottom() {
-            continue;
+    fn draw_rows(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let lclip = abs.intersect(&clip).unwrap_or(clip);
+        let ap = ctx.ap(255);
+        let cy = abs.y + abs.h / 2;
+        // Highlight of the center selected row (the wheel slides beneath the row)
+        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Color::rgb(50, 70, 120), ap, lclip);
+        let sf = self.sel_f(ctx.now);
+        let lh = crate::font::line_height(ctx.resolved.font);
+        for (i, item) in self.items.iter().enumerate() {
+            // Vertically center the text within the row height row_h
+            let ry = cy + ((i as f32 - sf) * self.row_h as f32) as i32 - lh / 2;
+            if ry + lh < lclip.y || ry > lclip.bottom() {
+                continue;
+            }
+            let (tw, _) = crate::font::text_size(ctx.resolved.font, item);
+            d.draw_text_opa(
+                Point { x: abs.x + (abs.w - tw) / 2, y: ry },
+                ctx.resolved.font,
+                item,
+                ctx.resolved.text_color,
+                ap,
+                lclip,
+            );
         }
-        let (tw, _) = crate::font::text_size(ctx.resolved.font, item);
-        d.draw_text_opa(
-            Point { x: abs.x + (abs.w - tw) / 2, y: ry },
-            ctx.resolved.font,
-            item,
-            ctx.resolved.text_color,
-            ap,
-            lclip,
-        );
     }
-}
 
-/// Selects the idx-th item (stops at the ends, no wrap-around), with a scroll animation.
-/// Repeats during the animation continue from the current visual position (no jump).
-pub(crate) fn select(items: &[String], selected: &mut usize, sel_from: &mut Option<(f32, u64)>, idx: usize, now: u64, dur: u64) {
-    if items.is_empty() {
-        return;
-    }
-    let nidx = idx.min(items.len() - 1);
-    if nidx != *selected {
-        let cur = sel_f(*selected, *sel_from, now, dur);
-        *sel_from = Some((cur, now));
-        *selected = nidx;
+    /// Selects the idx-th item (stops at the ends, no wrap-around), with a scroll animation.
+    /// Repeats during the animation continue from the current visual position (no jump).
+    pub(crate) fn select(&mut self, idx: usize, now: u64) {
+        if self.items.is_empty() {
+            return;
+        }
+        let nidx = idx.min(self.items.len() - 1);
+        if nidx != self.selected {
+            let cur = self.sel_f(now);
+            self.sel_from = Some((cur, now));
+            self.selected = nidx;
+        }
     }
 }
 
@@ -166,10 +167,10 @@ impl WidgetCfg for RollerCfg {
 }
 
 impl super::Widget for RollerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, self.sel_from, self.row_h, self.roll_dur, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_rows(ctx, c, clip) }
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {
         let had_fx = self.sel_from.is_some();
-        let active = fx_active(self.sel_from, now, self.roll_dur);
+        let active = self.fx_active(now);
         if !active {
             self.sel_from = None;
         }
@@ -181,7 +182,8 @@ impl super::Widget for RollerState {
             Key::Up | Key::Down => {
                 let dir = if key == Key::Up { -1 } else { 1 };
                 let next = (self.selected as i32 + dir).clamp(0, self.items.len().saturating_sub(1) as i32);
-                select(&self.items, &mut self.selected, &mut self.sel_from, next as usize, ui.time(), self.roll_dur);
+                let now = ui.time();
+                self.select(next as usize, now);
                 super::KeyOutcome::Consumed
             }
             _ => super::KeyOutcome::Pass,
