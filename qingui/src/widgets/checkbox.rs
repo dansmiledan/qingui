@@ -19,30 +19,33 @@ pub struct CheckboxState {
     pub gap: i32,
 }
 
-pub(crate) fn draw(text: &str, checked: bool, box_size: i32, gap: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let ap = |b: u8| ctx.ap(b);
-    let by = abs.y + (abs.h - box_size) / 2;
-    let brect = Rect::new(abs.x, by, box_size, box_size);
-    // Box
-    d.draw_border(brect, 1, 2, Color::rgb(150, 150, 160), ap(255), clip);
-    if checked {
-        // Check mark: two lines, the canonical 12px shape scaled to box_size
-        let sc = |v: i32| v * box_size / BOX;
-        let p1 = Point { x: abs.x + sc(2), y: by + sc(6) };
-        let p2 = Point { x: abs.x + sc(5), y: by + sc(9) };
-        let p3 = Point { x: abs.x + sc(10), y: by + sc(3) };
-        d.draw_line(p1, p2, 2, Color::rgb(80, 140, 255), ap(255), clip);
-        d.draw_line(p2, p3, 2, Color::rgb(80, 140, 255), ap(255), clip);
+impl CheckboxState {
+    fn draw_box(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let box_size = self.box_size;
+        let abs = ctx.abs;
+        let ap = |b: u8| ctx.ap(b);
+        let by = abs.y + (abs.h - box_size) / 2;
+        let brect = Rect::new(abs.x, by, box_size, box_size);
+        // Box
+        d.draw_border(brect, 1, 2, Color::rgb(150, 150, 160), ap(255), clip);
+        if self.checked {
+            // Check mark: two lines, the canonical 12px shape scaled to box_size
+            let sc = |v: i32| v * box_size / BOX;
+            let p1 = Point { x: abs.x + sc(2), y: by + sc(6) };
+            let p2 = Point { x: abs.x + sc(5), y: by + sc(9) };
+            let p3 = Point { x: abs.x + sc(10), y: by + sc(3) };
+            d.draw_line(p1, p2, 2, Color::rgb(80, 140, 255), ap(255), clip);
+            d.draw_line(p2, p3, 2, Color::rgb(80, 140, 255), ap(255), clip);
+        }
+        d.draw_text_opa(
+            Point { x: abs.x + box_size + self.gap, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
+            ctx.resolved.font,
+            &self.text,
+            ctx.resolved.text_color,
+            ap(255),
+            clip,
+        );
     }
-    d.draw_text_opa(
-        Point { x: abs.x + box_size + gap, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
-        ctx.resolved.font,
-        text,
-        ctx.resolved.text_color,
-        ap(255),
-        clip,
-    );
 }
 
 /// Builder for the Checkbox widget.
@@ -127,7 +130,7 @@ impl UiCheckboxExt for Ui {
 }
 
 impl super::Widget for CheckboxState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.text, self.checked, self.box_size, self.gap, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_box(ctx, c, clip) }
     fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, key: Key) -> super::KeyOutcome {
         if key == Key::Enter { self.checked = !self.checked; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
     }
