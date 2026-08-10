@@ -24,15 +24,24 @@ pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
 /// Builder for the Button widget.
 pub type ButtonBuilder = WidgetBuilder<ButtonCfg>;
 
-/// Button configuration: label text.
+/// Button configuration: label text and the default content padding.
 pub struct ButtonCfg {
     text: alloc::string::String,
+    content_pad: (i32, i32),
 }
 
 impl ButtonCfg {
     /// Creates a builder with the given label text.
     pub fn new(text: &str) -> WidgetBuilder<ButtonCfg> {
-        WidgetBuilder { common: CommonBuilder::default(), cfg: ButtonCfg { text: text.into() } }
+        WidgetBuilder { common: CommonBuilder::default(), cfg: ButtonCfg { text: text.into(), content_pad: (24, 12) } }
+    }
+}
+
+impl WidgetBuilder<ButtonCfg> {
+    /// Sets the padding added to the text size for the default widget size (default (24, 12)).
+    pub fn content_pad(mut self, x: i32, y: i32) -> Self {
+        self.cfg.content_pad = (x, y);
+        self
     }
 }
 
@@ -45,7 +54,7 @@ impl WidgetCfg for ButtonCfg {
         let (w, h) = common.size.unwrap_or_else(|| {
             let font = crate::font::measure_font(common.style.as_ref(), ui);
             let (tw, th) = crate::font::text_size(font, &self.text);
-            (tw + 24, th + 12)
+            (tw + self.content_pad.0, th + self.content_pad.1)
         });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(ButtonState { text: self.text }));
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));

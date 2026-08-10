@@ -1,3 +1,4 @@
+use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::chart::{ChartCfg, ChartState};
 use qingui::widgets::table::{TableCfg, TableState};
 use qingui::prelude::*;
@@ -143,4 +144,15 @@ fn chart_line_width_default_and_override() {
     assert_eq!(ui.widget::<ChartState>(a).unwrap().line_width, 2);
     let b = ChartCfg::new().line_width(4).build(&mut ui, scr);
     assert_eq!(ui.widget::<ChartState>(b).unwrap().line_width, 4);
+}
+
+#[test]
+fn button_content_pad_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let a = ButtonCfg::new("Go").build(&mut ui, scr);
+    let b = ButtonCfg::new("Go").content_pad(40, 20).build(&mut ui, scr);
+    let (ra, rb) = (ui.rect(a), ui.rect(b));
+    // Same text: the size delta equals the content_pad delta from the default (24, 12)
+    assert_eq!((rb.w - ra.w, rb.h - ra.h), (40 - 24, 20 - 12));
 }
