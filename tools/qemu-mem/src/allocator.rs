@@ -68,7 +68,7 @@ fn align_up(addr: usize, align: usize) -> usize {
 /// Debug-only integrity check: the free list must be sorted, non-overlapping
 /// and inside the arena. Catches double-free / overlap corruption early.
 #[cfg(debug_assertions)]
-unsafe fn validate_free(label: &str) {
+unsafe fn validate_free(label: &str) { unsafe {
     let base = core::ptr::addr_of_mut!(ARENA.0).cast::<u8>() as usize;
     let mut prev_end = base;
     let mut cur = FREE_HEAD;
@@ -83,20 +83,20 @@ unsafe fn validate_free(label: &str) {
         count += 1;
         assert!(count < 1_000_000, "{label}: free list cycle");
     }
-}
+}}
 
-unsafe fn init() {
+unsafe fn init() { unsafe {
     let base = core::ptr::addr_of_mut!(ARENA.0).cast::<u8>() as usize;
     FREE_HEAD = base as *mut usize;
     *FREE_HEAD = ARENA_SIZE;
     *FREE_HEAD.add(1) = 0;
     INIT = true;
-}
+}}
 
 /// Insert a free block, keeping the free list sorted by address and coalescing
 /// adjacent blocks so freed memory can be reused. The next pointer is stored
 /// as a plain usize.
-unsafe fn insert_free(addr: usize, size: usize) {
+unsafe fn insert_free(addr: usize, size: usize) { unsafe {
     debug_assert!(size <= ARENA_SIZE, "insert_free bad size {size}");
     let mut prev: *mut usize = core::ptr::null_mut();
     let mut cur: *mut usize = FREE_HEAD;
@@ -125,9 +125,9 @@ unsafe fn insert_free(addr: usize, size: usize) {
         *b += *next;
         *b.add(1) = *next.add(1);
     }
-}
+}}
 
-unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
+unsafe fn alloc_impl(layout: Layout) -> *mut u8 { unsafe {
     if layout.size() == 0 {
         return core::ptr::NonNull::dangling().as_ptr();
     }
@@ -190,9 +190,9 @@ unsafe fn alloc_impl(layout: Layout) -> *mut u8 {
         cur = *cur.add(1) as *mut usize;
     }
     report_oom(size)
-}
+}}
 
-unsafe fn report_oom(wanted: usize) -> ! {
+unsafe fn report_oom(wanted: usize) -> ! { unsafe {
     let mut n = 0;
     let mut total = 0usize;
     let mut max = 0usize;
@@ -207,9 +207,9 @@ unsafe fn report_oom(wanted: usize) -> ! {
         cur = *cur.add(1) as *mut usize;
     }
     panic!("OOM want {wanted} B: {n} free blocks, total {total}, largest {max}");
-}
+}}
 
-unsafe fn dealloc_impl(ptr: *mut u8, layout: Layout) {
+unsafe fn dealloc_impl(ptr: *mut u8, layout: Layout) { unsafe {
     if layout.size() == 0 {
         return;
     }
@@ -219,17 +219,17 @@ unsafe fn dealloc_impl(ptr: *mut u8, layout: Layout) {
     insert_free(block, size);
     #[cfg(debug_assertions)]
     validate_free("dealloc:exit");
-}
+}}
 
 pub struct Counting;
 
 unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 { unsafe {
         alloc_impl(layout)
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+    }}
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) { unsafe {
         dealloc_impl(ptr, layout);
-    }
+    }}
 }
 
 #[global_allocator]

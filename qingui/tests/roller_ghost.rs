@@ -68,7 +68,7 @@ fn repro_roller_rapid_press_ghost() {
     let reference = rec2.borrow().fb.clone();
 
     let mut bad = None;
-    let (mut n, mut min_x, mut max_x, mut min_y, mut max_y) = (0, i32::MAX, i32::MIN, i32::MAX, i32::MIN);
+    let (mut _n, mut min_x, mut max_x, mut min_y, mut max_y) = (0, i32::MAX, i32::MIN, i32::MAX, i32::MIN);
     for y in 0..120i32 {
         for x in 0..160i32 {
             let idx = (y * 160 + x) as usize;
@@ -76,7 +76,7 @@ fn repro_roller_rapid_press_ghost() {
                 if bad.is_none() {
                     bad = Some((x, y, reference[idx], got[idx]));
                 }
-                n += 1;
+                _n += 1;
                 min_x = min_x.min(x);
                 max_x = max_x.max(x);
                 min_y = min_y.min(y);

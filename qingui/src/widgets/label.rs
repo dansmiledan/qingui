@@ -65,11 +65,11 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     ui.invalidate_obj(obj);
     let font = crate::font::measure_font(ui.arena.get(obj).map(|n| &n.style), ui);
     let (w, h) = crate::font::text_size(font, text);
-    if ui.update::<LabelState, _>(obj, |s| { s.text = text.into(); }).is_some() {
-        if let Some(n) = ui.arena.get_mut(obj) {
-            n.rect.w = w;
-            n.rect.h = h;
-        }
+    if ui.update::<LabelState, _>(obj, |s| { s.text = text.into(); }).is_some()
+        && let Some(n) = ui.arena.get_mut(obj)
+    {
+        n.rect.w = w;
+        n.rect.h = h;
     }
     ui.invalidate_obj(obj);
     ui.layout_dirty = true;

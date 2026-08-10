@@ -118,17 +118,17 @@ impl TableState {
         for r in 0..self.rows as usize {
             for c in 0..self.cols as usize {
                 let idx = r * self.cols as usize + c;
-                if let Some(text) = self.cells.get(idx) {
-                    if !text.is_empty() {
-                        d.draw_text_opa(
-                            Point { x: abs.x + c as i32 * self.cell_w + 4, y: abs.y + r as i32 * self.cell_h + 4 },
-                            ctx.resolved.font,
-                            text,
-                            ctx.resolved.text_color,
-                            ap,
-                            lclip,
-                        );
-                    }
+                if let Some(text) = self.cells.get(idx)
+                    && !text.is_empty()
+                {
+                    d.draw_text_opa(
+                        Point { x: abs.x + c as i32 * self.cell_w + 4, y: abs.y + r as i32 * self.cell_h + 4 },
+                        ctx.resolved.font,
+                        text,
+                        ctx.resolved.text_color,
+                        ap,
+                        lclip,
+                    );
                 }
             }
         }

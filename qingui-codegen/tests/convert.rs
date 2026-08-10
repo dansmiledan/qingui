@@ -26,16 +26,16 @@ fn convert_generates_expected_images_rs() {
     make_assets(&assets);
 
     qingui_codegen::convert(assets.to_str().unwrap(), out.to_str().unwrap()).unwrap();
-    let gen = fs::read_to_string(out.join("images.rs")).unwrap();
+    let output = fs::read_to_string(out.join("images.rs")).unwrap();
 
     // 静态图:单帧、2x2、8 字节、delay 0
-    assert!(gen.contains("pub static LOGO: qingui::widgets::image::ImageData"));
-    assert!(gen.contains("delays_ms: &[0]"));
+    assert!(output.contains("pub static LOGO: qingui::widgets::image::ImageData"));
+    assert!(output.contains("delays_ms: &[0]"));
     // gif:两帧、延时 80/120
-    assert!(gen.contains("pub static ANIM: qingui::widgets::image::ImageData"));
-    assert!(gen.contains("delays_ms: &[80, 120]"));
+    assert!(output.contains("pub static ANIM: qingui::widgets::image::ImageData"));
+    assert!(output.contains("delays_ms: &[80, 120]"));
     // 帧像素:png 的 (0,0) 纯红 → 0xF800 小端 = [0x00, 0xF8] 在最前
-    assert!(gen.contains("0x00, 0xF8"));
+    assert!(output.contains("0x00, 0xF8"));
 
     fs::remove_dir_all(&tmp).ok();
 }

@@ -214,10 +214,10 @@ pub fn layout_flex(ui: &mut Ui, container: ObjRef, f: &Flex, content: crate::geo
         }
         // Aspect ratio: derive the cross size from the final main size (takes priority over cross-axis sizing)
         for k in &mut info[ls..le] {
-            if let Some(ratio) = k.aspect {
-                if ratio > 0 {
-                    k.cross_sz = (k.main_sz as i64 * 1000 / ratio as i64) as i32;
-                }
+            if let Some(ratio) = k.aspect
+                && ratio > 0
+            {
+                k.cross_sz = (k.main_sz as i64 * 1000 / ratio as i64) as i32;
             }
         }
         let line = &info[ls..le];
@@ -321,10 +321,10 @@ fn solve_tracks(
         .collect();
     // Content: take the largest size among the track's span=1 children
     for (start, span, size) in child_sizes {
-        if *span == 1 {
-            if let Some(Track::Content) = tracks.get(*start as usize) {
-                sizes[*start as usize] = sizes[*start as usize].max(*size);
-            }
+        if *span == 1
+            && let Some(Track::Content) = tracks.get(*start as usize)
+        {
+            sizes[*start as usize] = sizes[*start as usize].max(*size);
         }
     }
     let fixed: i32 = sizes.iter().sum::<i32>() + gap * (tracks.len() as i32 - 1).max(0);
@@ -411,13 +411,13 @@ pub fn layout_grid(ui: &mut Ui, container: ObjRef, g: &Grid, content: crate::geo
         let mut fw = axis_in_cell(sw, cur.w, cw);
         let mut fh = axis_in_cell(sh, cur.h, ch);
         // Aspect ratio: fit proportionally within the cell bounds
-        if let Some(ratio) = aspect {
-            if ratio > 0 {
-                fh = (fw as i64 * 1000 / ratio as i64) as i32;
-                if fh > ch {
-                    fh = ch;
-                    fw = (ch as i64 * ratio as i64 / 1000) as i32;
-                }
+        if let Some(ratio) = aspect
+            && ratio > 0
+        {
+            fh = (fw as i64 * 1000 / ratio as i64) as i32;
+            if fh > ch {
+                fh = ch;
+                fw = (ch as i64 * ratio as i64 / 1000) as i32;
             }
         }
         ui.layout_resize(k, fw, fh);

@@ -23,16 +23,23 @@ static PEAK: AtomicUsize = AtomicUsize::new(0);
 
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ptr = System.alloc(layout);
-        if !ptr.is_null() {
-            let cur = CURRENT.fetch_add(layout.size(), Ordering::Relaxed) + layout.size();
-            PEAK.fetch_max(cur, Ordering::Relaxed);
+        // SAFETY: forwarded to the system allocator; deref/alloc contract
+        // is checked on the returned pointer.
+        unsafe {
+            let ptr = System.alloc(layout);
+            if !ptr.is_null() {
+                let cur = CURRENT.fetch_add(layout.size(), Ordering::Relaxed) + layout.size();
+                PEAK.fetch_max(cur, Ordering::Relaxed);
+            }
+            ptr
         }
-        ptr
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        CURRENT.fetch_sub(layout.size(), Ordering::Relaxed);
-        System.dealloc(ptr, layout);
+        // SAFETY: the pointer came from `alloc` with the same layout.
+        unsafe {
+            CURRENT.fetch_sub(layout.size(), Ordering::Relaxed);
+            System.dealloc(ptr, layout);
+        }
     }
 }
 

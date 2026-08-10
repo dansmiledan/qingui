@@ -138,12 +138,11 @@ impl Ui {
             }
         }
         // Unlink from the parent
-        if let Some(n) = self.arena.get(obj) {
-            if let Some(p) = n.parent {
-                if let Some(pn) = self.arena.get_mut(p) {
-                    pn.children.retain(|&c| c != obj);
-                }
-            }
+        if let Some(n) = self.arena.get(obj)
+            && let Some(p) = n.parent
+            && let Some(pn) = self.arena.get_mut(p)
+        {
+            pn.children.retain(|&c| c != obj);
         }
         for r in all.clone() {
             if self.modal == Some(r) {
@@ -167,12 +166,12 @@ impl Ui {
     /// `transition` for smooth reordering).
     pub fn move_child_to_index(&mut self, obj: ObjRef, index: usize) {
         let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
-        if let Some(p) = self.arena.get_mut(parent) {
-            if let Some(pos) = p.children.iter().position(|&c| c == obj) {
-                let c = p.children.remove(pos);
-                let idx = index.min(p.children.len());
-                p.children.insert(idx, c);
-            }
+        if let Some(p) = self.arena.get_mut(parent)
+            && let Some(pos) = p.children.iter().position(|&c| c == obj)
+        {
+            let c = p.children.remove(pos);
+            let idx = index.min(p.children.len());
+            p.children.insert(idx, c);
         }
         self.layout_dirty = true;
     }
@@ -426,11 +425,11 @@ impl Ui {
             if has_hook {
                 // take-call-put-back: the hook signature includes `&mut Ui`
                 let mut hook = self.arena.get_mut(r).and_then(|n| n.tick_hook.take());
-                if let Some(h) = hook.as_mut() {
-                    if h(self, r, now) {
-                        any = true;
-                        self.invalidate_obj(r);
-                    }
+                if let Some(h) = hook.as_mut()
+                    && h(self, r, now)
+                {
+                    any = true;
+                    self.invalidate_obj(r);
                 }
                 if let Some(n) = self.arena.get_mut(r) {
                     n.tick_hook = hook;
@@ -617,23 +616,23 @@ impl Ui {
         let cur = n.rect;
         let tr = self.arena.get(obj).and_then(|n| n.transition);
         let mut animated = false;
-        if laid && (cur.x != x || cur.y != y) {
-            if let Some((dur, easing)) = tr {
-                if dur > 0 {
-                    use crate::anim::AnimProp;
-                    if cur.x != x && self.anim_end_for(obj, AnimProp::X) != Some(x) {
-                        let mut a = crate::anim::Anim::new(obj, AnimProp::X, cur.x, x, dur);
-                        a.easing = easing;
-                        self.anim_start(a);
-                    }
-                    if cur.y != y && self.anim_end_for(obj, AnimProp::Y) != Some(y) {
-                        let mut a = crate::anim::Anim::new(obj, AnimProp::Y, cur.y, y, dur);
-                        a.easing = easing;
-                        self.anim_start(a);
-                    }
-                    animated = true;
-                }
+        if laid
+            && (cur.x != x || cur.y != y)
+            && let Some((dur, easing)) = tr
+            && dur > 0
+        {
+            use crate::anim::AnimProp;
+            if cur.x != x && self.anim_end_for(obj, AnimProp::X) != Some(x) {
+                let mut a = crate::anim::Anim::new(obj, AnimProp::X, cur.x, x, dur);
+                a.easing = easing;
+                self.anim_start(a);
             }
+            if cur.y != y && self.anim_end_for(obj, AnimProp::Y) != Some(y) {
+                let mut a = crate::anim::Anim::new(obj, AnimProp::Y, cur.y, y, dur);
+                a.easing = easing;
+                self.anim_start(a);
+            }
+            animated = true;
         }
         if !animated && (cur.x != x || cur.y != y) {
             self.set_pos(obj, x, y);
@@ -651,23 +650,23 @@ impl Ui {
         let cur = n.rect;
         let tr = self.arena.get(obj).and_then(|n| n.transition);
         let mut animated = false;
-        if laid && (cur.w != w || cur.h != h) {
-            if let Some((dur, easing)) = tr {
-                if dur > 0 {
-                    use crate::anim::AnimProp;
-                    if cur.w != w && self.anim_end_for(obj, AnimProp::W) != Some(w) {
-                        let mut a = crate::anim::Anim::new(obj, AnimProp::W, cur.w, w, dur);
-                        a.easing = easing;
-                        self.anim_start(a);
-                    }
-                    if cur.h != h && self.anim_end_for(obj, AnimProp::H) != Some(h) {
-                        let mut a = crate::anim::Anim::new(obj, AnimProp::H, cur.h, h, dur);
-                        a.easing = easing;
-                        self.anim_start(a);
-                    }
-                    animated = true;
-                }
+        if laid
+            && (cur.w != w || cur.h != h)
+            && let Some((dur, easing)) = tr
+            && dur > 0
+        {
+            use crate::anim::AnimProp;
+            if cur.w != w && self.anim_end_for(obj, AnimProp::W) != Some(w) {
+                let mut a = crate::anim::Anim::new(obj, AnimProp::W, cur.w, w, dur);
+                a.easing = easing;
+                self.anim_start(a);
             }
+            if cur.h != h && self.anim_end_for(obj, AnimProp::H) != Some(h) {
+                let mut a = crate::anim::Anim::new(obj, AnimProp::H, cur.h, h, dur);
+                a.easing = easing;
+                self.anim_start(a);
+            }
+            animated = true;
         }
         if !animated && (cur.w != w || cur.h != h) {
             self.set_size(obj, w, h);
@@ -703,11 +702,11 @@ impl Ui {
     /// Moves `obj` to the end of its parent's children (drawn last = on top).
     pub fn move_to_front(&mut self, obj: ObjRef) {
         let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
-        if let Some(p) = self.arena.get_mut(parent) {
-            if let Some(pos) = p.children.iter().position(|&c| c == obj) {
-                let c = p.children.remove(pos);
-                p.children.push(c);
-            }
+        if let Some(p) = self.arena.get_mut(parent)
+            && let Some(pos) = p.children.iter().position(|&c| c == obj)
+        {
+            let c = p.children.remove(pos);
+            p.children.push(c);
         }
         self.invalidate_obj(obj);
     }
@@ -715,11 +714,11 @@ impl Ui {
     /// Moves `obj` to the start of its parent's children (drawn first = bottom).
     pub fn move_to_back(&mut self, obj: ObjRef) {
         let Some(parent) = self.arena.get(obj).and_then(|n| n.parent) else { return };
-        if let Some(p) = self.arena.get_mut(parent) {
-            if let Some(pos) = p.children.iter().position(|&c| c == obj) {
-                let c = p.children.remove(pos);
-                p.children.insert(0, c);
-            }
+        if let Some(p) = self.arena.get_mut(parent)
+            && let Some(pos) = p.children.iter().position(|&c| c == obj)
+        {
+            let c = p.children.remove(pos);
+            p.children.insert(0, c);
         }
         self.invalidate_obj(obj);
     }
@@ -951,10 +950,10 @@ impl Ui {
                     let f = self.group[ni];
                     self.set_state(f, State::FOCUSED, true);
                 }
-            } else if let Some(fi) = self.focused_idx {
-                if pos < fi {
-                    self.focused_idx = Some(fi - 1);
-                }
+            } else if let Some(fi) = self.focused_idx
+                && pos < fi
+            {
+                self.focused_idx = Some(fi - 1);
             }
         }
     }
@@ -1006,10 +1005,10 @@ impl Ui {
         self.modal = Some(obj);
         let cur = self.focused();
         let cur_in = cur.is_some_and(|f| self.focusable(f));
-        if !cur_in {
-            if let Some(idx) = self.group.iter().position(|&o| self.focusable(o)) {
-                self.focus_to(idx);
-            }
+        if !cur_in
+            && let Some(idx) = self.group.iter().position(|&o| self.focusable(o))
+        {
+            self.focus_to(idx);
         }
     }
 

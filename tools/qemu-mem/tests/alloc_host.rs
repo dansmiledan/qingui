@@ -63,6 +63,7 @@ fn allocator_stays_consistent_across_scenes_and_churn() {
     // Alloc many aligned boxes, free them all, and require the free-list
     // total to come back exactly (orphaned bytes never return).
     #[repr(align(16))]
+    #[allow(dead_code)]
     struct Aligned16(u8);
     let mut v: Vec<Box<Aligned16>> = Vec::with_capacity(10_000);
     let free_before = allocator::free_bytes();

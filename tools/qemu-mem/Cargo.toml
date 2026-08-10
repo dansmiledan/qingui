@@ -1,7 +1,7 @@
 [package]
 name = "qemu-mem"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "no_std memory bench for qingui, run on QEMU mps2-an386 (thumbv7em-none-eabihf)"
 publish = false
 
