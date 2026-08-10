@@ -13,6 +13,7 @@ use qingui::widgets::dropdown::{DropdownCfg, DropdownState};
 use qingui::input::Key;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::scrollview::{ScrollViewCfg, ScrollViewState};
+use qingui::widgets::msgbox::MsgboxBuilder;
 
 #[test]
 fn spinner_props_default_and_override() {
@@ -155,4 +156,18 @@ fn button_content_pad_override() {
     let (ra, rb) = (ui.rect(a), ui.rect(b));
     // Same text: the size delta equals the content_pad delta from the default (24, 12)
     assert_eq!((rb.w - ra.w, rb.h - ra.h), (40 - 24, 20 - 12));
+}
+
+#[test]
+fn msgbox_size_override() {
+    let mut ui = Ui::new(320, 240, 240);
+    let scr = ui.screen();
+    let a = MsgboxBuilder::new("t", "m").buttons(&["OK"]).build(&mut ui, scr);
+    assert_eq!((ui.rect(a).w, ui.rect(a).h), (200, 110));
+    ui.clear_modal();
+    ui.delete(a);
+    let b = MsgboxBuilder::new("t", "m").buttons(&["OK"]).size(240, 140).build(&mut ui, scr);
+    assert_eq!((ui.rect(b).w, ui.rect(b).h), (240, 140));
+    ui.clear_modal();
+    ui.delete(b);
 }

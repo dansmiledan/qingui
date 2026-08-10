@@ -27,6 +27,7 @@ pub struct MsgboxBuilder {
     title: alloc::string::String,
     text: alloc::string::String,
     buttons: alloc::vec::Vec<alloc::string::String>,
+    size: Option<(i32, i32)>,
 }
 
 impl MsgboxBuilder {
@@ -36,6 +37,7 @@ impl MsgboxBuilder {
             title: title.into(),
             text: text.into(),
             buttons: alloc::vec::Vec::new(),
+            size: None,
         }
     }
     /// Sets the button labels.
@@ -44,15 +46,22 @@ impl MsgboxBuilder {
         self
     }
 
+    /// Sets the box size in pixels (default 200x110).
+    pub fn size(mut self, w: i32, h: i32) -> Self {
+        self.size = Some((w, h));
+        self
+    }
+
     /// Builds the message box into the parent node.
     pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
         let refs: alloc::vec::Vec<&str> = self.buttons.iter().map(|s| s.as_str()).collect();
-        create(ui, parent, &self.title, &self.text, &refs)
+        create(ui, parent, &self.title, &self.text, &refs, self.size)
     }
 }
 
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str]) -> ObjRef {
-    let root = ui.insert_node(parent, Rect::new(0, 0, 200, 110), alloc::boxed::Box::new(MsgboxState { selected: -1 }));
+pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str], size: Option<(i32, i32)>) -> ObjRef {
+    let (w, h) = size.unwrap_or((200, 110));
+    let root = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(MsgboxState { selected: -1 }));
     ui.set_floating(root, parent, Attach::Center);
     ui.move_to_front(root); // popups draw on top (children order is the stacking order)
     // Style: dialog + column layout
