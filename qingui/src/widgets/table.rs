@@ -24,41 +24,6 @@ pub struct TableState {
     pub cell_h: i32,
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn draw(cols: u8, rows: u8, cells: &[String], cell_w: i32, cell_h: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let lclip = abs.intersect(&clip).unwrap_or(clip);
-    let line_c = Color::rgb(70, 70, 90);
-    let ap = ctx.ap(255);
-    // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
-    for c in 0..=cols as i32 {
-        let x = (abs.x + c * cell_w).min(abs.right() - 1);
-        d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, ap, lclip);
-    }
-    for r in 0..=rows as i32 {
-        let y = (abs.y + r * cell_h).min(abs.bottom() - 1);
-        d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, ap, lclip);
-    }
-    // Cell text
-    for r in 0..rows as usize {
-        for c in 0..cols as usize {
-            let idx = r * cols as usize + c;
-            if let Some(text) = cells.get(idx) {
-                if !text.is_empty() {
-                    d.draw_text_opa(
-                        Point { x: abs.x + c as i32 * cell_w + 4, y: abs.y + r as i32 * cell_h + 4 },
-                        ctx.resolved.font,
-                        text,
-                        ctx.resolved.text_color,
-                        ap,
-                        lclip,
-                    );
-                }
-            }
-        }
-    }
-}
-
 /// Builder for the Table widget.
 pub type TableBuilder = WidgetBuilder<TableCfg>;
 
@@ -134,8 +99,44 @@ impl WidgetCfg for TableCfg {
     }
 }
 
+impl TableState {
+    fn draw_grid(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let lclip = abs.intersect(&clip).unwrap_or(clip);
+        let line_c = Color::rgb(70, 70, 90);
+        let ap = ctx.ap(255);
+        // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
+        for c in 0..=self.cols as i32 {
+            let x = (abs.x + c * self.cell_w).min(abs.right() - 1);
+            d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, ap, lclip);
+        }
+        for r in 0..=self.rows as i32 {
+            let y = (abs.y + r * self.cell_h).min(abs.bottom() - 1);
+            d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, ap, lclip);
+        }
+        // Cell text
+        for r in 0..self.rows as usize {
+            for c in 0..self.cols as usize {
+                let idx = r * self.cols as usize + c;
+                if let Some(text) = self.cells.get(idx) {
+                    if !text.is_empty() {
+                        d.draw_text_opa(
+                            Point { x: abs.x + c as i32 * self.cell_w + 4, y: abs.y + r as i32 * self.cell_h + 4 },
+                            ctx.resolved.font,
+                            text,
+                            ctx.resolved.text_color,
+                            ap,
+                            lclip,
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
 impl super::Widget for TableState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.cols, self.rows, &self.cells, self.cell_w, self.cell_h, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_grid(ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

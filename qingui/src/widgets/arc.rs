@@ -24,26 +24,6 @@ pub struct ArcState {
     pub sweep_deg: i32,
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn draw(min: i32, max: i32, value: i32, track_w: i32, start_deg: i32, sweep_deg: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
-    let r = abs.w.min(abs.h) / 2 - 3;
-    if r <= 0 {
-        return;
-    }
-    let ap = |b: u8| ctx.ap(b);
-    // Background arc (full track)
-    d.draw_arc(c, r, track_w, start_deg, start_deg + sweep_deg, Color::rgb(70, 70, 80), ap(255), clip);
-    // Indicator arc (turns yellow in edit mode)
-    let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
-    let ind_end = start_deg + (sweep_deg as f32 * frac) as i32;
-    if ind_end > start_deg {
-        let ic = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::rgb(80, 140, 255) };
-        d.draw_arc(c, r, track_w, start_deg, ind_end, ic, ap(255), clip);
-    }
-}
-
 /// Builder for the Arc widget.
 pub type ArcBuilder = WidgetBuilder<ArcCfg>;
 
@@ -109,8 +89,29 @@ impl WidgetCfg for ArcCfg {
     }
 }
 
+impl ArcState {
+    fn draw_dial(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
+        let r = abs.w.min(abs.h) / 2 - 3;
+        if r <= 0 {
+            return;
+        }
+        let ap = |b: u8| ctx.ap(b);
+        // Background arc (full track)
+        d.draw_arc(c, r, self.track_w, self.start_deg, self.start_deg + self.sweep_deg, Color::rgb(70, 70, 80), ap(255), clip);
+        // Indicator arc (turns yellow in edit mode)
+        let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
+        let ind_end = self.start_deg + (self.sweep_deg as f32 * frac) as i32;
+        if ind_end > self.start_deg {
+            let ic = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::rgb(80, 140, 255) };
+            d.draw_arc(c, r, self.track_w, self.start_deg, ind_end, ic, ap(255), clip);
+        }
+    }
+}
+
 impl super::Widget for ArcState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, self.track_w, self.start_deg, self.sweep_deg, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_dial(ctx, c, clip) }
     fn value(&self) -> i32 { self.value }
     fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
     // Arc knob extends ~3px past the edge

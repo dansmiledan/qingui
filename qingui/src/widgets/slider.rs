@@ -16,22 +16,6 @@ pub struct SliderState {
     pub knob_w: i32,
 }
 
-pub(crate) fn draw(min: i32, max: i32, value: i32, knob_w: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
-    let iw = (abs.w as f32 * frac) as i32;
-    if iw > 0 {
-        // Draw the indicator clipped to the full track's shape so the left end stays a half-circle aligned with the track
-        let band = Rect::new(abs.x, abs.y, iw, abs.h);
-        let ind_clip = band.intersect(&clip).unwrap_or(band);
-        d.fill_rounded(abs, ctx.resolved.radius, Color::rgb(80, 140, 255), ctx.ap(255), ind_clip);
-    }
-    let kx = abs.x + iw;
-    let knob = Rect::new(kx - knob_w / 2, abs.y - 2, knob_w, abs.h + 4);
-    let kc = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::WHITE };
-    d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
-}
-
 /// Builder for the Slider widget.
 pub type SliderBuilder = WidgetBuilder<SliderCfg>;
 
@@ -83,8 +67,26 @@ impl WidgetCfg for SliderCfg {
     }
 }
 
+impl SliderState {
+    fn draw_track(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
+        let iw = (abs.w as f32 * frac) as i32;
+        if iw > 0 {
+            // Draw the indicator clipped to the full track's shape so the left end stays a half-circle aligned with the track
+            let band = Rect::new(abs.x, abs.y, iw, abs.h);
+            let ind_clip = band.intersect(&clip).unwrap_or(band);
+            d.fill_rounded(abs, ctx.resolved.radius, Color::rgb(80, 140, 255), ctx.ap(255), ind_clip);
+        }
+        let kx = abs.x + iw;
+        let knob = Rect::new(kx - self.knob_w / 2, abs.y - 2, self.knob_w, abs.h + 4);
+        let kc = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::WHITE };
+        d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
+    }
+}
+
 impl super::Widget for SliderState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, self.knob_w, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_track(ctx, c, clip) }
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         let edited = ui.state(obj).contains(crate::node::State::EDITED);
