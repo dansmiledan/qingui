@@ -19,9 +19,13 @@ pub struct ArcState {
     pub min: i32,
     pub max: i32,
     pub value: i32,
+    pub track_w: i32,
+    pub start_deg: i32,
+    pub sweep_deg: i32,
 }
 
-pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw(min: i32, max: i32, value: i32, track_w: i32, start_deg: i32, sweep_deg: i32, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
     let abs = ctx.abs;
     let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
     let r = abs.w.min(abs.h) / 2 - 3;
@@ -30,13 +34,13 @@ pub(crate) fn draw(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Canv
     }
     let ap = |b: u8| ctx.ap(b);
     // Background arc (full track)
-    d.draw_arc(c, r, TRACK_W, START_DEG, START_DEG + SWEEP_DEG, Color::rgb(70, 70, 80), ap(255), clip);
+    d.draw_arc(c, r, track_w, start_deg, start_deg + sweep_deg, Color::rgb(70, 70, 80), ap(255), clip);
     // Indicator arc (turns yellow in edit mode)
     let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
-    let ind_end = START_DEG + (SWEEP_DEG as f32 * frac) as i32;
-    if ind_end > START_DEG {
+    let ind_end = start_deg + (sweep_deg as f32 * frac) as i32;
+    if ind_end > start_deg {
         let ic = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::rgb(80, 140, 255) };
-        d.draw_arc(c, r, TRACK_W, START_DEG, ind_end, ic, ap(255), clip);
+        d.draw_arc(c, r, track_w, start_deg, ind_end, ic, ap(255), clip);
     }
 }
 
@@ -48,12 +52,15 @@ pub struct ArcCfg {
     min: i32,
     max: i32,
     value: Option<i32>,
+    track_w: i32,
+    start_deg: i32,
+    sweep_deg: i32,
 }
 
 impl ArcCfg {
     /// Creates a builder for the given range.
     pub fn new(min: i32, max: i32) -> WidgetBuilder<ArcCfg> {
-        WidgetBuilder { common: CommonBuilder::default(), cfg: ArcCfg { min, max, value: None } }
+        WidgetBuilder { common: CommonBuilder::default(), cfg: ArcCfg { min, max, value: None, track_w: TRACK_W, start_deg: START_DEG, sweep_deg: SWEEP_DEG } }
     }
 }
 
@@ -63,13 +70,26 @@ impl WidgetBuilder<ArcCfg> {
         self.cfg.value = Some(v);
         self
     }
+    /// Sets the arc line width in pixels (default `TRACK_W` = 4).
+    pub fn track_w(mut self, w: i32) -> Self {
+        self.cfg.track_w = w;
+        self
+    }
+    /// Sets the dial start angle in degrees (default `START_DEG` = 135).
+    pub fn start_deg(mut self, deg: i32) -> Self {
+        self.cfg.start_deg = deg;
+        self
+    }
+    /// Sets the dial sweep range in degrees (default `SWEEP_DEG` = 270).
+    pub fn sweep_deg(mut self, deg: i32) -> Self {
+        self.cfg.sweep_deg = deg;
+        self
+    }
 }
 
 impl WidgetCfg for ArcCfg {
     fn default_style() -> Style {
-        let mut s = Style::default();
-        s.bg_opa = Some(0);
-        s
+        Style { bg_opa: Some(0), ..Style::default() }
     }
 
     fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
@@ -77,7 +97,7 @@ impl WidgetCfg for ArcCfg {
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
-            alloc::boxed::Box::new(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min) }),
+            alloc::boxed::Box::new(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min), track_w: self.track_w, start_deg: self.start_deg, sweep_deg: self.sweep_deg }),
         );
         let mut s = common.style.take().unwrap_or_else(Self::default_style);
         if s.bg_opa.is_none() {
@@ -90,7 +110,7 @@ impl WidgetCfg for ArcCfg {
 }
 
 impl super::Widget for ArcState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, self.track_w, self.start_deg, self.sweep_deg, ctx, c, clip) }
     fn value(&self) -> i32 { self.value }
     fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
     // Arc knob extends ~3px past the edge

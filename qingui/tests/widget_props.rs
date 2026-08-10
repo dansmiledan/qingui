@@ -3,6 +3,7 @@ use qingui::Ui;
 use qingui::widgets::spinner::{SpinnerCfg, SpinnerState};
 use qingui::widgets::roller::{RollerCfg, RollerState};
 use qingui::widgets::list::{ListCfg, ListState};
+use qingui::widgets::arc::{ArcCfg, ArcState};
 
 #[test]
 fn spinner_props_default_and_override() {
@@ -46,4 +47,16 @@ fn list_props_default_and_override() {
     ui.list_insert(b, 0, "x");
     let s = ui.widget::<ListState>(b).unwrap();
     assert!(s.fx.item_fx.iter().any(|f| f.dy == -24));
+}
+
+#[test]
+fn arc_props_default_and_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    let a = ArcCfg::new(0, 100).build(&mut ui, scr);
+    let s = ui.widget::<ArcState>(a).unwrap();
+    assert_eq!((s.track_w, s.start_deg, s.sweep_deg), (4, 135, 270));
+    let b = ArcCfg::new(0, 100).track_w(6).start_deg(0).sweep_deg(180).build(&mut ui, scr);
+    let s = ui.widget::<ArcState>(b).unwrap();
+    assert_eq!((s.track_w, s.start_deg, s.sweep_deg), (6, 0, 180));
 }
