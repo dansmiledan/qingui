@@ -66,26 +66,26 @@ impl DropdownState {
             }
         }));
     }
-}
 
-pub(crate) fn draw(items: &[String], selected: usize, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let lclip = abs.intersect(&clip).unwrap_or(clip);
-    let ap = ctx.ap(255);
-    let text = items.get(selected).map(|s| s.as_str()).unwrap_or("");
-    d.draw_text_opa(
-        Point { x: abs.x + 6, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
-        ctx.resolved.font,
-        text,
-        ctx.resolved.text_color,
-        ap,
-        lclip,
-    );
-    // Dropdown arrow (small triangle)
-    let ax = abs.right() - 10;
-    let ay = abs.y + abs.h / 2;
-    d.draw_line(Point { x: ax - 3, y: ay - 2 }, Point { x: ax, y: ay + 2 }, 1, ctx.resolved.text_color, ap, lclip);
-    d.draw_line(Point { x: ax, y: ay + 2 }, Point { x: ax + 3, y: ay - 2 }, 1, ctx.resolved.text_color, ap, lclip);
+    fn draw_label(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let lclip = abs.intersect(&clip).unwrap_or(clip);
+        let ap = ctx.ap(255);
+        let text = self.items.get(self.selected).map(|s| s.as_str()).unwrap_or("");
+        d.draw_text_opa(
+            Point { x: abs.x + 6, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
+            ctx.resolved.font,
+            text,
+            ctx.resolved.text_color,
+            ap,
+            lclip,
+        );
+        // Dropdown arrow (small triangle)
+        let ax = abs.right() - 10;
+        let ay = abs.y + abs.h / 2;
+        d.draw_line(Point { x: ax - 3, y: ay - 2 }, Point { x: ax, y: ay + 2 }, 1, ctx.resolved.text_color, ap, lclip);
+        d.draw_line(Point { x: ax, y: ay + 2 }, Point { x: ax + 3, y: ay - 2 }, 1, ctx.resolved.text_color, ap, lclip);
+    }
 }
 
 /// Dropdown builder: default 100x20, bg(40,40,52) r4 + white focused border
@@ -177,7 +177,7 @@ impl WidgetCfg for DropdownCfg {
 }
 
 impl super::Widget for DropdownState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.items, self.selected, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_label(ctx, c, clip) }
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
         if key == Key::Enter {
             self.open_popup(ui, obj);

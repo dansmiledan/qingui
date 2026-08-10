@@ -38,56 +38,58 @@ pub struct ChartState {
     pub line_width: i32,
 }
 
-/// Draws only the data lines (background/border are handled by the common draw_node):
-/// adjacent points are connected with lines, a single-point series draws a dot, empty series are skipped. No allocation.
-pub(crate) fn draw(s: &ChartState, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    if abs.w < 1 || abs.h < 1 {
-        return;
-    }
-    let (min, max) = (s.min, s.max);
-    for ser in &s.series {
-        let n = ser.points.len();
-        if n == 0 {
-            continue;
+impl ChartState {
+    /// Draws only the data lines (background/border are handled by the common draw_node):
+    /// adjacent points are connected with lines, a single-point series draws a dot, empty series are skipped. No allocation.
+    fn draw_series(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        if abs.w < 1 || abs.h < 1 {
+            return;
         }
-        let mut prev: Option<Point> = None;
-        for (i, &v) in ser.points.iter().enumerate() {
-            // X: positioned by capacity, filled from the left; with capacity==1 the single point is drawn at the horizontal center
-            let x = if ser.capacity > 1 {
-                abs.x + i as i32 * (abs.w - 1) / (ser.capacity as i32 - 1)
-            } else {
-                abs.x + abs.w / 2
-            };
-            // Y: clamp to [min,max] then map linearly; min==max draws a horizontal midline (avoids division by zero)
-            let y = if max > min {
-                let frac = (v.clamp(min, max) - min) as i64 * (abs.h - 1) as i64 / (max - min) as i64;
-                abs.y + abs.h - 1 - frac as i32
-            } else {
-                abs.y + abs.h / 2
-            };
-            let p = Point { x, y };
-            match prev {
-                Some(q) => {
-                    // Clip the segment to its half-open x-strip [q.x, p.x): adjacent
-                    // capsules would otherwise overlap at the joint and blend the AA
-                    // fringe twice, leaving a bright bulge at every data point. The
-                    // last segment keeps its end cap (strip extends to the clip edge).
-                    let seg_clip = if p.x > q.x {
-                        let right = if i + 1 == n { clip.right() } else { p.x };
-                        Rect::new(q.x, clip.y, right - q.x, clip.h).intersect(&clip)
-                    } else {
-                        // Same-column points (capacity > width): no strip to claim.
-                        Some(clip)
-                    };
-                    if let Some(sc) = seg_clip {
-                        d.draw_line(q, p, s.line_width, ser.color, ctx.ap(255), sc);
-                    }
-                }
-                None if n == 1 => d.fill_circle(p, 1, ser.color, ctx.ap(255), clip),
-                None => {}
+        let (min, max) = (self.min, self.max);
+        for ser in &self.series {
+            let n = ser.points.len();
+            if n == 0 {
+                continue;
             }
-            prev = Some(p);
+            let mut prev: Option<Point> = None;
+            for (i, &v) in ser.points.iter().enumerate() {
+                // X: positioned by capacity, filled from the left; with capacity==1 the single point is drawn at the horizontal center
+                let x = if ser.capacity > 1 {
+                    abs.x + i as i32 * (abs.w - 1) / (ser.capacity as i32 - 1)
+                } else {
+                    abs.x + abs.w / 2
+                };
+                // Y: clamp to [min,max] then map linearly; min==max draws a horizontal midline (avoids division by zero)
+                let y = if max > min {
+                    let frac = (v.clamp(min, max) - min) as i64 * (abs.h - 1) as i64 / (max - min) as i64;
+                    abs.y + abs.h - 1 - frac as i32
+                } else {
+                    abs.y + abs.h / 2
+                };
+                let p = Point { x, y };
+                match prev {
+                    Some(q) => {
+                        // Clip the segment to its half-open x-strip [q.x, p.x): adjacent
+                        // capsules would otherwise overlap at the joint and blend the AA
+                        // fringe twice, leaving a bright bulge at every data point. The
+                        // last segment keeps its end cap (strip extends to the clip edge).
+                        let seg_clip = if p.x > q.x {
+                            let right = if i + 1 == n { clip.right() } else { p.x };
+                            Rect::new(q.x, clip.y, right - q.x, clip.h).intersect(&clip)
+                        } else {
+                            // Same-column points (capacity > width): no strip to claim.
+                            Some(clip)
+                        };
+                        if let Some(sc) = seg_clip {
+                            d.draw_line(q, p, self.line_width, ser.color, ctx.ap(255), sc);
+                        }
+                    }
+                    None if n == 1 => d.fill_circle(p, 1, ser.color, ctx.ap(255), clip),
+                    None => {}
+                }
+                prev = Some(p);
+            }
         }
     }
 }
@@ -149,7 +151,7 @@ impl WidgetCfg for ChartCfg {
 }
 
 impl super::Widget for ChartState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_series(ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

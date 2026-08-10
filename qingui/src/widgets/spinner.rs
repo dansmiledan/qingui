@@ -6,22 +6,6 @@ use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
-pub(crate) fn draw(line_width: i32, period_ms: u64, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-    let abs = ctx.abs;
-    let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
-    let r = abs.w.min(abs.h) / 2 - 2;
-    if r <= 0 {
-        return;
-    }
-    // Continuous rotation start + triangle-wave sweep length (smooth expanding/contracting, no jumps)
-    let period = period_ms.max(1);
-    let start = ((ctx.now % period) * 360 / period) as i32;
-    let phase = (ctx.now / 7) as i32 % 300;
-    let tri = if phase < 150 { phase } else { 300 - phase };
-    let sweep = 60 + tri;
-    d.draw_arc(c, r, line_width, start, start + sweep, Color::rgb(80, 140, 255), ctx.ap(255), clip);
-}
-
 /// Builder for the Spinner widget.
 pub type SpinnerBuilder = WidgetBuilder<SpinnerCfg>;
 
@@ -79,8 +63,26 @@ pub struct SpinnerState {
     pub period_ms: u64,
 }
 
+impl SpinnerState {
+    fn draw_arc_ind(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+        let abs = ctx.abs;
+        let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
+        let r = abs.w.min(abs.h) / 2 - 2;
+        if r <= 0 {
+            return;
+        }
+        // Continuous rotation start + triangle-wave sweep length (smooth expanding/contracting, no jumps)
+        let period = self.period_ms.max(1);
+        let start = ((ctx.now % period) * 360 / period) as i32;
+        let phase = (ctx.now / 7) as i32 % 300;
+        let tri = if phase < 150 { phase } else { 300 - phase };
+        let sweep = 60 + tri;
+        d.draw_arc(c, r, self.line_width, start, start + sweep, Color::rgb(80, 140, 255), ctx.ap(255), clip);
+    }
+}
+
 impl super::Widget for SpinnerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.line_width, self.period_ms, ctx, c, clip) }
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_arc_ind(ctx, c, clip) }
     // Spinner spins forever
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
     fn as_any(&self) -> &dyn core::any::Any { self }
