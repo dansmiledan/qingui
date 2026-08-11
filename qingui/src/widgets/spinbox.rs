@@ -142,7 +142,8 @@ impl super::Widget for SpinboxState {
                 step_digit(self.min, self.max, &mut nv, self.digits, self.cursor, d);
                 if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
             }
-            Key::Enter | Key::Esc => ExitEdit,
+            Key::Enter => Commit, // confirm the value and leave the edit mode
+            Key::Esc => ExitEdit,
             _ => Consumed,
         }
     }

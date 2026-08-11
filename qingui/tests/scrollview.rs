@@ -33,6 +33,7 @@ fn focused_up_down_scrolls_and_clamps() {
     let (mut ui, sv, content) = build();
     ui.group_add(sv);
     ui.group_focus(sv);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Down);
     assert_eq!(ui.translate(content).y, -STEP);
     ui.keypad_input(Key::Down);

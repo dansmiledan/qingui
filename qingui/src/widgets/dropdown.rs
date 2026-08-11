@@ -43,6 +43,9 @@ impl DropdownState {
         ui.set_floating(lst, obj, crate::layout::Attach::Bottom);
         ui.group_add(lst);
         ui.set_modal(lst);
+        // The popup list opens in its inner (EDITED) mode: rotation moves the options,
+        // Enter commits (Commit -> Click on the list), Esc cancels (Key(Esc) above).
+        ui.set_state(lst, crate::node::State::EDITED, true);
         // On select: write back to the dropdown and send ValueChanged, close the popup, restore focus.
         // The callback runs on event dispatch (outside take-out), so `ui.update` reaches the state.
         ui.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |ui, l, _| {

@@ -139,7 +139,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         });
     }));
     // Scrolling content: text + image widget examples (static image + gif frame animation);
-    // When content exceeds the viewport, focus the ScrollView and scroll with Up/Down
+    // When content exceeds the viewport, focus the ScrollView, press Enter, then scroll with Up/Down
     let sv = ScrollViewCfg::new().build(ui, page_about);
     ui.set_sizing(sv, Some(Sizing::GROW), Some(Sizing::GROW));
     let sv_content = ui.scrollview_content(sv).unwrap();
@@ -151,7 +151,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_style(big, big_style);
     let _ = small;
     let la = LabelCfg::new(
-        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit",
+        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows: move focus\nenter: enter & confirm\nesc: exit",
     )
     .build(ui, sv_content);
     let _ = la;
@@ -283,6 +283,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     let chart1 = ChartCfg::new()
         .range(0, 100)
         .series(Color::rgb(80, 140, 255), 48)
+		.line_width(1)
         .build(ui, page_itemlist);
     ui.set_sizing(chart1, Some(Sizing::GROW), None);
     ui.set_size(chart1, 160, 56);
@@ -294,6 +295,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_size(chart2, 160, 56);
     charts.borrow_mut().extend([chart1, chart2]);
 
+	
     // Complex ItemList: each item = LED + Label + Checkbox
     let il = ItemListCfg::new().build(ui, page_itemlist);
     ui.set_sizing(il, Some(Sizing::GROW), Some(Sizing::GROW));

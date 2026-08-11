@@ -133,6 +133,7 @@ fn roller_rapid_select_continues_from_visual_pos() {
     let scr = ui.screen();
     let r = RollerCfg::new(&["One", "Two", "Three", "Four"]).build(&mut ui, scr);
     ui.group_add(r);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Down); // 0 → 1 (animation starts)
     ui.tick_inc(50); // mid-animation (about 1/3)
     ui.keypad_input(Key::Down); // 1 → 2 (rapid press)
@@ -151,6 +152,7 @@ fn roller_navigation_and_fx() {
     let r = RollerCfg::new(&["One", "Two", "Three"]).build(&mut ui, scr);
     ui.add_event_cb(r, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(r);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Down);
     assert_eq!(ui.roller_selected(r), 1);
     assert_eq!(ui.timer_handler(), 0); // scroll animation active

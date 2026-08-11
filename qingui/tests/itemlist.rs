@@ -75,6 +75,7 @@ fn select_moves_selected_state_and_fires_value_changed() {
 fn keyboard_nav_wraps_and_consumes() {
     let (mut ui, il, _items) = build4();
     ui.group_add(il);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Up); // wraps: 0 → 3
     assert_eq!(ui.itemlist_selected(il), 3);
     ui.keypad_input(Key::Down); // wraps: 3 → 0
@@ -131,7 +132,7 @@ fn empty_list_key_does_not_panic_and_consumes() {
     let scr = ui.screen();
     let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     ui.group_add(il);
-    ui.keypad_input(Key::Up); // empty list: no panic, key consumed (focus does not move)
+    ui.keypad_input(Key::Up); // empty list: no panic, focus does not move (only group member)
     assert_eq!(ui.focused(), Some(il));
     assert!(!ui.itemlist_remove_selected(il));
 }
@@ -155,6 +156,7 @@ fn direct_item_delete_does_not_panic_and_clamps_selection() {
     // Delete the last item directly (not selected): select and keyboard navigation do not panic, selected stays legal
     ui.delete(items[2]);
     ui.itemlist_select(il, 0);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Down); // keyboard navigation goes through the same itemlist_select path
     assert!(ui.itemlist_selected(il) < ui.itemlist_len(il));
     assert_eq!(ui.itemlist_selected(il), 1);
@@ -191,16 +193,19 @@ fn uneven_items_scroll_minimally() {
     assert_eq!(ui.abs_rect(items[0]).y, 0);
 }
 
-/// Enter fires Clicked on a focused ItemList; navigation keys (Down) are consumed by the widget and do not fire it
+/// Enter enters the inner mode; confirming inside it fires Clicked; navigation keys
+/// consumed inside the inner mode do not fire it
 #[test]
-fn enter_fires_clicked_but_nav_key_does_not() {
+fn enter_confirms_clicked_inside_inner_mode() {
     let (mut ui, il, _items) = build4();
     ui.group_add(il);
     let hits = Rc::new(Cell::new(0));
     let h = hits.clone();
     ui.add_event_cb(il, EventKind::Clicked, Box::new(move |_, _, _| h.set(h.get() + 1)));
-    ui.keypad_input(Key::Enter);
-    assert_eq!(hits.get(), 1);
+    ui.keypad_input(Key::Enter); // enter the inner mode: no Click yet
+    assert_eq!(hits.get(), 0);
     ui.keypad_input(Key::Down); // navigation key consumed by the ItemList → does not fire Clicked
+    assert_eq!(hits.get(), 0);
+    ui.keypad_input(Key::Enter); // confirm: Click fires
     assert_eq!(hits.get(), 1);
 }

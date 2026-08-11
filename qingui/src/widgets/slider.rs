@@ -92,12 +92,18 @@ impl super::Widget for SliderState {
         let edited = ui.state(obj).contains(crate::node::State::EDITED);
         if edited {
             return match key {
-                Key::Left | Key::Right => {
-                    let d = if key == Key::Left { -1 } else { 1 };
-                    let nv = (self.value + d).clamp(self.min, self.max);
+                // Up/Down adjust the value just like Left/Right, so a single rotary
+                // axis can drive the slider while it is being edited
+                Key::Left | Key::Down => {
+                    let nv = (self.value - 1).clamp(self.min, self.max);
                     if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
                 }
-                Key::Enter | Key::Esc => ExitEdit,
+                Key::Right | Key::Up => {
+                    let nv = (self.value + 1).clamp(self.min, self.max);
+                    if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
+                }
+                Key::Enter => Commit, // confirm the value and leave the edit mode
+                Key::Esc => ExitEdit,
                 _ => Consumed,
             };
         }

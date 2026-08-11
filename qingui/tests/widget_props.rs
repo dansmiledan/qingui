@@ -133,6 +133,7 @@ fn scrollview_step_override() {
     let _tall = ObjCfg::new().size(60, 200).build(&mut ui, content);
     ui.group_add(sv);
     ui.group_focus(sv);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Down);
     assert_eq!(ui.translate(content).y, -8);
 }

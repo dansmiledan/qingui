@@ -70,6 +70,10 @@ pub enum KeyOutcome {
     ValueChanged,  // consumed, dirty the node and send a ValueChanged event
     EnterEdit,     // enter the EDITED state
     ExitEdit,      // leave the EDITED state and dirty the node
+    /// Leave the EDITED state and fire a Clicked (the Enter-confirm of an inner-mode edit).
+    /// The Clicked is dispatched by Ui after the widget is back in the arena, so its
+    /// callbacks can still read the widget's state (e.g. `list_selected`).
+    Commit,
 }
 
 /// Measure context: read-only inputs for intrinsic content sizing.

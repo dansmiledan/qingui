@@ -35,20 +35,29 @@ pub struct ScrollViewState {
 impl super::Widget for ScrollViewState {
     // Container: content is drawn by child nodes (CLIP_CHILDREN handled by the pipeline).
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        use super::KeyOutcome::*;
         // Reentrancy: the kind is taken out during on_key, so `Ui::widget`/`Ui::update`
         // cannot reach this node — mutate `self` directly via `apply_scroll`.
+        // Inner (EDITED) mode: direction keys scroll the content, Enter confirms
+        // (Commit = Click + exit), Esc exits without acting. Outside the inner mode
+        // nothing is consumed, so rotation moves the focus instead.
+        if !ui.state(obj).contains(crate::node::State::EDITED) {
+            return if key == Key::Enter { EnterEdit } else { Pass };
+        }
         match key {
             Key::Up => {
                 let y = self.scroll + self.step;
                 apply_scroll(ui, obj, self, y);
-                super::KeyOutcome::Consumed
+                Consumed
             }
             Key::Down => {
                 let y = self.scroll - self.step;
                 apply_scroll(ui, obj, self, y);
-                super::KeyOutcome::Consumed
+                Consumed
             }
-            _ => super::KeyOutcome::Pass,
+            Key::Enter => Commit,
+            Key::Esc => ExitEdit,
+            _ => Consumed,
         }
     }
     // The viewport arranges its single child (the content node): the column flex

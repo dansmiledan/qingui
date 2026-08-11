@@ -164,8 +164,13 @@ pub(crate) fn abs_rect(arena: &Arena<Node>, obj: ObjRef) -> Rect {
     r
 }
 
+/// Border color of a widget in its inner (EDITED) mode — matches the per-widget edit
+/// accents (slider knob / arc indicator), so focus (white border) and edit are distinct.
+const EDITED_BORDER: Color = Color::rgb(255, 200, 60);
+
 /// Style resolution (pressed > focused > selected, mutually exclusive; shared helper,
-/// delegated to by `Ui`).
+/// delegated to by `Ui`). A widget in its inner (EDITED) mode keeps its focus border
+/// but tinted with the edit color.
 pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static MonoFont<'static>) -> ResolvedStyle {
     let Some(n) = arena.get(obj) else {
         return ResolvedStyle::default();
@@ -179,7 +184,11 @@ pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static Mo
     } else {
         None
     };
-    crate::style::resolve(&n.style, overlay, font)
+    let mut r = crate::style::resolve(&n.style, overlay, font);
+    if n.state.contains(State::EDITED) && r.border_width > 0 {
+        r.border_color = EDITED_BORDER;
+    }
+    r
 }
 
 fn node_state(arena: &Arena<Node>, obj: ObjRef) -> State {
@@ -311,5 +320,24 @@ mod tests {
 
         arena.get_mut(r).unwrap().state = crate::node::State::SELECTED;
         assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(1, 0, 0)); // only SELECTED left
+    }
+
+    #[test]
+    fn edited_tints_focus_border() {
+        // A focused widget keeps its white focus border; while edited the border
+        // turns amber (EDITED_BORDER) so focus and edit are visually distinct
+        let mut arena = Arena::new();
+        let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
+        let mut f = crate::style::Style::default();
+        f.border_color = Some(Color::WHITE);
+        f.border_width = Some(2);
+        arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
+        arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED;
+        assert_eq!(resolved_style(&arena, r, FONT).border_color, Color::WHITE);
+        arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
+        assert_eq!(resolved_style(&arena, r, FONT).border_color, EDITED_BORDER);
+        // Without a border there is nothing to tint
+        arena.get_mut(r).unwrap().style_focused = Some(Box::new(style(Color::rgb(9, 9, 9))));
+        assert_eq!(resolved_style(&arena, r, FONT).border_width, 0);
     }
 }

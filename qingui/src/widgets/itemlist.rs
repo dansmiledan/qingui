@@ -113,6 +113,12 @@ fn default_sel_style() -> Style {
 impl super::Widget for ItemListState {
     // ItemList is also a container: its content is drawn by child nodes (the default draw paints nothing)
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> KeyOutcome {
+        // Inner (EDITED) mode: direction keys move the selection, Enter confirms the
+        // selected item (Commit = Click + exit), Esc exits without acting. Outside the
+        // inner mode nothing is consumed, so rotation moves the focus instead.
+        if !ui.state(obj).contains(State::EDITED) {
+            return if key == Key::Enter { KeyOutcome::EnterEdit } else { KeyOutcome::Pass };
+        }
         match key {
             // Navigation needs child nodes/scroll/events; the kind is taken out during
             // on_key, so mutate `self` directly and operate on the children via ui.
@@ -137,7 +143,9 @@ impl super::Widget for ItemListState {
                 // An empty list is consumed too (matches the old NavSelect semantics)
                 KeyOutcome::Consumed
             }
-            _ => KeyOutcome::Pass,
+            Key::Enter => KeyOutcome::Commit,
+            Key::Esc => KeyOutcome::ExitEdit,
+            _ => KeyOutcome::Consumed,
         }
     }
     fn value(&self) -> i32 { self.selected as i32 }

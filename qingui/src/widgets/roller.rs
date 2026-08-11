@@ -177,16 +177,25 @@ impl super::Widget for RollerState {
         // Redraw if there was fx (including a frame whose fx just expired): the completing frame must render the final settle
         super::TickOut { redraw: had_fx, active }
     }
-    fn on_key(&mut self, ui: &mut Ui, _obj: ObjRef, key: Key) -> super::KeyOutcome {
+    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        use super::KeyOutcome::*;
+        // Inner (EDITED) mode: direction keys roll the selection, Enter confirms the
+        // selected value (Commit = Click + exit), Esc exits without acting. Outside the
+        // inner mode nothing is consumed, so rotation moves the focus instead.
+        if !ui.state(obj).contains(crate::node::State::EDITED) {
+            return if key == Key::Enter { EnterEdit } else { Pass };
+        }
         match key {
             Key::Up | Key::Down => {
                 let dir = if key == Key::Up { -1 } else { 1 };
                 let next = (self.selected as i32 + dir).clamp(0, self.items.len().saturating_sub(1) as i32);
                 let now = ui.time();
                 self.select(next as usize, now);
-                super::KeyOutcome::Consumed
+                Consumed
             }
-            _ => super::KeyOutcome::Pass,
+            Key::Enter => Commit,
+            Key::Esc => ExitEdit,
+            _ => Consumed,
         }
     }
     fn value(&self) -> i32 { self.selected as i32 }

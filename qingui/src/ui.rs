@@ -1046,7 +1046,11 @@ impl Ui {
     }
 
     /// Routes a key to the focused widget: sends the Key event, then the widget's `on_key`;
-    /// unconsumed keys fall through to focus navigation / Clicked.
+    /// unconsumed keys fall through to focus navigation / Clicked. Direction keys move the
+    /// focus between widgets by default; a widget in its inner (EDITED) mode consumes them
+    /// instead, so a single rotary axis can both navigate and operate the focused widget.
+    /// `Enter` enters a widget's inner mode, confirms it (Commit), or clicks it when it has
+    /// no inner mode; `Esc` exits the inner mode.
     pub fn keypad_input(&mut self, key: crate::input::Key) {
         use crate::input::Key;
         let Some(f) = self.focused() else { return };
@@ -1062,8 +1066,16 @@ impl Ui {
         }
         // Default: keys not consumed by a widget drive focus navigation / Clicked
         match key {
-            Key::Next | Key::Right | Key::Down => self.group_focus_next(),
-            Key::Prev | Key::Left | Key::Up => self.group_focus_prev(),
+            Key::Next | Key::Right | Key::Down | Key::Prev | Key::Left | Key::Up => {
+                // While the focused widget is in its inner (EDITED) mode, direction keys
+                // must never steal the focus — swallow them so the edit stays intact.
+                if !self.state(f).contains(crate::node::State::EDITED) {
+                    match key {
+                        Key::Next | Key::Right | Key::Down => self.group_focus_next(),
+                        _ => self.group_focus_prev(),
+                    }
+                }
+            }
             Key::Enter => self.send_event(f, crate::event::EventKind::Clicked),
             Key::Esc => {}
         }
@@ -1107,6 +1119,16 @@ impl Ui {
                 self.invalidate_obj(obj);
                 true
             }
+            KeyOutcome::Commit => {
+                // Confirm an inner-mode edit: leave the EDITED state, then fire Clicked.
+                // The widget is already back in the arena, so Clicked callbacks can read
+                // its state (e.g. `list_selected`) and may delete it (deletion is safe
+                // here: nothing touches `obj` afterwards).
+                self.set_state(obj, State::EDITED, false);
+                self.invalidate_obj(obj);
+                self.send_event(obj, crate::event::EventKind::Clicked);
+                true
+            }
         }
     }
 
@@ -1123,6 +1145,9 @@ fn stored_label(kind: crate::event::EventKind) -> crate::event::EventKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::boxed::Box;
+    use alloc::rc::Rc;
+    use core::cell::Cell;
 
     #[test]
     fn layout_runs_flex_pass() {
@@ -1144,5 +1169,131 @@ mod tests {
         ui.layout();
         let (ra, rb) = (ui.rect(a), ui.rect(b));
         assert!(rb.y > ra.y, "B should be below A in a column flex (a.y={} b.y={})", ra.y, rb.y);
+    }
+
+    #[test]
+    fn list_inner_mode_enter_confirm_click() {
+        use crate::input::Key;
+        use crate::node::State;
+        use crate::widgets::list::{ListCfg, UiListExt};
+        let mut ui = Ui::new(320, 240, 24);
+        let scr = ui.screen();
+        let lst = ListCfg::new(&["A", "B", "C"]).size(60, 60).build(&mut ui, scr);
+        let clicked = Rc::new(Cell::new(false));
+        let clicked2 = clicked.clone();
+        ui.add_event_cb(lst, crate::event::EventKind::Clicked, Box::new(move |_, _, _| clicked2.set(true)));
+        ui.group_add(lst); // auto-focuses the list
+        // Enter enters the list's inner (EDITED) mode
+        ui.keypad_input(Key::Enter);
+        assert!(ui.state(lst).contains(State::EDITED));
+        // Rotation moves the selection without moving the focus
+        ui.keypad_input(Key::Down);
+        ui.keypad_input(Key::Down);
+        assert_eq!(ui.list_selected(lst), 2);
+        assert_eq!(ui.focused(), Some(lst));
+        // Enter confirms: the Click fires and the inner mode is left
+        ui.keypad_input(Key::Enter);
+        assert!(!ui.state(lst).contains(State::EDITED));
+        assert!(clicked.get());
+    }
+
+    #[test]
+    fn direction_keys_move_focus_outside_inner_mode() {
+        use crate::input::Key;
+        use crate::node::State;
+        use crate::widgets::label::LabelCfg;
+        use crate::widgets::list::ListCfg;
+        let mut ui = Ui::new(320, 240, 24);
+        let scr = ui.screen();
+        let lst = ListCfg::new(&["A", "B", "C"]).size(60, 60).build(&mut ui, scr);
+        let other = LabelCfg::new("x").size(10, 10).build(&mut ui, scr);
+        ui.group_add(lst);
+        ui.group_add(other);
+        // Outside the inner mode a direction key moves the focus to the next widget
+        ui.keypad_input(Key::Down);
+        assert_eq!(ui.focused(), Some(other));
+        // Enter enters the inner mode; Esc leaves it without acting
+        ui.group_focus(lst);
+        ui.keypad_input(Key::Enter);
+        assert!(ui.state(lst).contains(State::EDITED));
+        ui.keypad_input(Key::Esc);
+        assert!(!ui.state(lst).contains(State::EDITED));
+    }
+
+    #[test]
+    fn edited_guard_swallows_unconsumed_direction_keys() {
+        use crate::input::Key;
+        use crate::node::State;
+        use crate::widgets::label::LabelCfg;
+        let mut ui = Ui::new(320, 240, 24);
+        let scr = ui.screen();
+        // A widget whose on_key never consumes anything
+        struct Dummy;
+        impl crate::widgets::Widget for Dummy {
+            fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, _key: crate::input::Key) -> crate::widgets::KeyOutcome {
+                crate::widgets::KeyOutcome::Pass
+            }
+            fn as_any(&self) -> &dyn core::any::Any { self }
+            fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
+        }
+        let d = ui.insert_node(scr, crate::geometry::Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Dummy));
+        let other = LabelCfg::new("x").size(10, 10).build(&mut ui, scr);
+        ui.group_add(d);
+        ui.group_add(other);
+        // Edited: an unconsumed direction key is swallowed, the focus stays put
+        ui.set_state(d, State::EDITED, true);
+        ui.keypad_input(Key::Down);
+        assert_eq!(ui.focused(), Some(d));
+        // Not edited: the same key moves the focus
+        ui.set_state(d, State::EDITED, false);
+        ui.keypad_input(Key::Down);
+        assert_eq!(ui.focused(), Some(other));
+    }
+
+    #[test]
+    fn dropdown_popup_opens_in_inner_mode() {
+        use crate::input::Key;
+        use crate::node::State;
+        use crate::widgets::dropdown::DropdownCfg;
+        use crate::widgets::list::UiListExt;
+        let mut ui = Ui::new(320, 240, 24);
+        let scr = ui.screen();
+        let dd = DropdownCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
+        ui.group_add(dd);
+        ui.keypad_input(Key::Enter); // open the popup
+        let popup = ui.focused().expect("popup list is focused");
+        assert_ne!(popup, dd);
+        assert!(ui.state(popup).contains(State::EDITED));
+        // Rotation moves the popup selection
+        ui.keypad_input(Key::Down);
+        assert_eq!(ui.list_selected(popup), 1);
+        // Enter commits: the popup closes, focus returns to the dropdown, value updates
+        ui.keypad_input(Key::Enter);
+        assert_eq!(ui.focused(), Some(dd));
+        assert_eq!(ui.widget::<crate::widgets::dropdown::DropdownState>(dd).map(|s| s.selected), Some(1));
+    }
+
+    #[test]
+    fn slider_rotation_axis_edits_value() {
+        use crate::input::Key;
+        use crate::node::State;
+        use crate::widgets::slider::{SliderCfg, SliderState};
+        let mut ui = Ui::new(320, 240, 24);
+        let scr = ui.screen();
+        let sl = SliderCfg::new(0, 10).build(&mut ui, scr);
+        let clicked = Rc::new(Cell::new(false));
+        let clicked2 = clicked.clone();
+        ui.add_event_cb(sl, crate::event::EventKind::Clicked, Box::new(move |_, _, _| clicked2.set(true)));
+        ui.group_add(sl);
+        // Enter enters the edit mode; the rotation axis (Up/Down) adjusts the value
+        ui.keypad_input(Key::Enter);
+        assert!(ui.state(sl).contains(State::EDITED));
+        ui.keypad_input(Key::Up);
+        ui.keypad_input(Key::Up);
+        assert_eq!(ui.widget::<SliderState>(sl).map(|s| s.value), Some(2));
+        // Enter commits: Click fires and the edit mode is left
+        ui.keypad_input(Key::Enter);
+        assert!(!ui.state(sl).contains(State::EDITED));
+        assert!(clicked.get());
     }
 }

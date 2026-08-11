@@ -326,6 +326,13 @@ impl super::Widget for ListState {
         super::TickOut { redraw: was_active || removed, active: self.fx.active(now, self.fx_dur) }
     }
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+        use super::KeyOutcome::*;
+        // Inner (EDITED) mode: direction keys move the selection, Enter confirms the
+        // selected item (Commit = Click + exit), Esc exits without acting. Outside the
+        // inner mode the list consumes nothing, so rotation moves the focus instead.
+        if !ui.state(obj).contains(crate::node::State::EDITED) {
+            return if key == Key::Enter { EnterEdit } else { Pass };
+        }
         let n = self.items.len();
         match key {
             Key::Up | Key::Down => {
@@ -335,9 +342,11 @@ impl super::Widget for ListState {
                     let now = ui.time();
                     self.select(idx, vis_h, now);
                 }
-                super::KeyOutcome::Consumed
+                Consumed
             }
-            _ => super::KeyOutcome::Pass,
+            Key::Enter => Commit,
+            Key::Esc => ExitEdit,
+            _ => Consumed,
         }
     }
     fn as_any(&self) -> &dyn core::any::Any { self }

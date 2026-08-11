@@ -15,6 +15,7 @@ fn up_down_navigates_items_not_focus() {
     ui.group_add(l);
     ui.group_add(btn);
     assert_eq!(ui.focused(), Some(l));
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     ui.keypad_input(Key::Down);
     assert_eq!(ui.list_selected(l), 1);
     assert_eq!(ui.focused(), Some(l)); // focus does not move
@@ -23,6 +24,7 @@ fn up_down_navigates_items_not_focus() {
     assert_eq!(ui.list_selected(l), 0);
     ui.keypad_input(Key::Up);
     assert_eq!(ui.list_selected(l), 2);
+    ui.keypad_input(Key::Esc); // leave the inner mode
     ui.keypad_input(Key::Next); // Next still moves focus
     assert_eq!(ui.focused(), Some(btn));
 }
@@ -36,8 +38,9 @@ fn enter_on_list_fires_clicked() {
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.add_event_cb(l, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
     ui.group_add(l);
+    ui.keypad_input(Key::Enter); // enter the inner mode: no Click yet
     ui.keypad_input(Key::Down);
-    ui.keypad_input(Key::Enter);
+    ui.keypad_input(Key::Enter); // confirm the selection: Click
     assert_eq!(*log.borrow(), vec![EventKind::Clicked]);
     assert_eq!(ui.list_selected(l), 1);
 }
@@ -49,6 +52,7 @@ fn selection_keeps_visible_with_scroll() {
     let scr = ui.screen();
     let l = ListCfg::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
     ui.group_add(l);
+    ui.keypad_input(Key::Enter); // enter the inner (EDITED) mode
     for _ in 0..7 {
         ui.keypad_input(Key::Down);
     }
