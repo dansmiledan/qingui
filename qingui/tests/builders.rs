@@ -109,6 +109,24 @@ fn list_builder_size_and_style() {
 }
 
 #[test]
+fn list_edited_style_default_and_override() {
+    let mut ui = Ui::new(160, 120, 120);
+    let scr = ui.screen();
+    // Default: edited style derives from the focused overlay (amber accent).
+    let l = ListCfg::new(&["x", "y", "z"]).build(&mut ui, scr);
+    ui.set_state(l, qingui::node::State::FOCUSED | qingui::node::State::EDITED, true);
+    let st = ui.resolved_style(l);
+    assert_eq!(st.border_color, qingui::style::EDIT_ACCENT);
+    assert_eq!(st.border_width, 1); // width falls back to theme_list's 1px
+    // Explicit style_edited wins over the theme_edited default.
+    let l2 = ListCfg::new(&["x"]).style_edited(Style::new().border(Color::GREEN, 3)).build(&mut ui, scr);
+    ui.set_state(l2, qingui::node::State::FOCUSED | qingui::node::State::EDITED, true);
+    let st = ui.resolved_style(l2);
+    assert_eq!(st.border_color, Color::GREEN);
+    assert_eq!(st.border_width, 3);
+}
+
+#[test]
 fn roller_dropdown_builders() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();

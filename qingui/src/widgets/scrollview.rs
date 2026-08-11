@@ -139,7 +139,7 @@ impl WidgetCfg for ScrollViewCfg {
         ui.set_style(r, vs);
         let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused);
         ui.set_style_focused(r, focused.clone());
-        ui.set_style_edited(r, crate::style::theme_edited(&focused));
+        ui.set_style_edited(r, common.style_edited.take().unwrap_or_else(|| crate::style::theme_edited(&focused)));
         common.apply_tail(ui, r);
         r
     }

@@ -23,6 +23,7 @@ pub(crate) struct CommonBuilder {
     pub size: Option<(i32, i32)>,
     pub style: Option<Style>,
     pub style_focused: Option<Style>,
+    pub style_edited: Option<Style>,
     pub layout: Option<Layout>,
     pub pad: Option<(i32, i32, i32, i32)>,
     pub sizing: Option<(Option<Sizing>, Option<Sizing>)>,
@@ -72,6 +73,10 @@ impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
     }
     /// Sets the focused style. Only honored by widgets that have a focused-state style (currently Button, Checkbox, Dropdown, ItemList, List, Roller, ScrollView, Slider, Spinbox, Switch).
     pub fn style_focused(mut self, s: Style) -> Self { self.common.style_focused = Some(s); self }
+    /// Sets the edited (inner-mode) style. Only honored by widgets with an inner mode
+    /// (ItemList, List, Roller, ScrollView, Slider, Spinbox); when unset it falls back
+    /// to `style::theme_edited` derived from the focused style.
+    pub fn style_edited(mut self, s: Style) -> Self { self.common.style_edited = Some(s); self }
     /// Sets the container layout. Layout is a widget kind, not a common property:
     /// only `ObjCfg` honors it (it becomes the node's FlexLayout/GridLayout kind);
     /// every other widget silently ignores it.
