@@ -22,7 +22,6 @@ pub enum Layout {
 pub(crate) struct CommonBuilder {
     pub size: Option<(i32, i32)>,
     pub style: Option<Style>,
-    pub style_pressed: Option<Style>,
     pub style_focused: Option<Style>,
     pub layout: Option<Layout>,
     pub pad: Option<(i32, i32, i32, i32)>,
@@ -71,8 +70,6 @@ impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
         self.common.style = Some(f(self.common.style.take().unwrap_or_else(Cfg::default_style)));
         self
     }
-    /// Sets the pressed style. Only honored by widgets that have a pressed-state style (currently Button).
-    pub fn style_pressed(mut self, s: Style) -> Self { self.common.style_pressed = Some(s); self }
     /// Sets the focused style. Only honored by widgets that have a focused-state style (currently Button, Checkbox, Dropdown, ItemList, List, Roller, ScrollView, Slider, Spinbox, Switch).
     pub fn style_focused(mut self, s: Style) -> Self { self.common.style_focused = Some(s); self }
     /// Sets the container layout. Layout is a widget kind, not a common property:

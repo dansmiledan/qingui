@@ -104,7 +104,7 @@ impl ArcState {
         let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
         let ind_end = self.start_deg + (self.sweep_deg as f32 * frac) as i32;
         if ind_end > self.start_deg {
-            let ic = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::rgb(80, 140, 255) };
+            let ic = if ctx.edited { crate::style::EDIT_ACCENT } else { Color::rgb(80, 140, 255) };
             d.draw_arc(c, r, self.track_w, self.start_deg, ind_end, ic, ap(255), clip);
         }
     }

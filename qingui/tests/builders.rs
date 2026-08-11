@@ -62,7 +62,7 @@ fn slider_builder_overrides() {
 }
 
 #[test]
-fn button_builder_pressed_focused_styles() {
+fn button_builder_focused_styles() {
     let mut ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = ButtonCfg::new("OK").build(&mut ui, scr);
@@ -76,13 +76,6 @@ fn button_builder_pressed_focused_styles() {
     assert_eq!(st.border_color, Color::rgb(90, 120, 200));
     assert_eq!(st.border_width, 1);
     assert_eq!(st.text_color, Color::WHITE);
-    // theme_button_pressed: only overrides background, other fields fall back to theme_button
-    ui.set_state(b, qingui::node::State::PRESSED, true);
-    let st = ui.resolved_style(b);
-    assert_eq!(st.bg_color, Color::rgb(40, 60, 110));
-    assert_eq!(st.radius, 6);
-    assert_eq!(st.border_color, Color::rgb(90, 120, 200));
-    ui.set_state(b, qingui::node::State::PRESSED, false);
     // theme_button_focused: white 2px border, other fields fall back to theme_button
     ui.set_state(b, qingui::node::State::FOCUSED, true);
     let st = ui.resolved_style(b);

@@ -13,7 +13,7 @@
 - **控件**：Obj、Label、Button、Slider、Switch、Bar、List、Arc、Checkbox、Chart、Dropdown、Image、ItemList、Led、Msgbox、Roller、ScrollView、Spinbox、Spinner、Table
 - **用户控件**：实现 `widgets::Widget` trait 后经 `ui.create_widget(parent, w, h, Box::new(w))` 挂载，与内置控件完全同权；查询/更新状态用 `ui.widget::<T>(obj)` / `ui.update::<T, _>(obj, |w| ...)`（示例见 `tests/custom_widget.rs`）
 - **布局**：手动定位 + Flex（row/column、wrap、对齐）+ Grid（px/fr/content 轨道）
-- **样式**：扁平样式结构 + 按状态（Pressed/Focused/Disabled）覆盖
+- **样式**：扁平样式结构 + 按状态（Focused/Edited/Selected/Disabled）覆盖
 - **字体**：多字体——embedded-graphics MonoFont，内置 FONT_6X10 默认，可插 eg 生态字体（ASCII，非 ASCII 回落 `?`）
 
 ## 快速开始

@@ -160,7 +160,8 @@ impl WidgetCfg for RollerCfg {
             s.border_width = Some(1);
             s
         });
-        ui.set_style_focused(r, focused);
+        ui.set_style_focused(r, focused.clone());
+        ui.set_style_edited(r, crate::style::theme_edited(&focused));
         common.apply_tail(ui, r);
         r
     }

@@ -164,19 +164,17 @@ pub(crate) fn abs_rect(arena: &Arena<Node>, obj: ObjRef) -> Rect {
     r
 }
 
-/// Border color of a widget in its inner (EDITED) mode — matches the per-widget edit
-/// accents (slider knob / arc indicator), so focus (white border) and edit are distinct.
-const EDITED_BORDER: Color = Color::rgb(255, 200, 60);
-
-/// Style resolution (pressed > focused > selected, mutually exclusive; shared helper,
-/// delegated to by `Ui`). A widget in its inner (EDITED) mode keeps its focus border
-/// but tinted with the edit color.
+/// Style resolution (edited > focused > selected, mutually exclusive; shared helper,
+/// delegated to by `Ui`). While edited, a custom `style_edited` overlay wins; without
+/// one the focus overlay applies. The edited look itself is a style concern: widgets
+/// set their `style_edited` at build time (see `style::theme_edited`).
 pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static MonoFont<'static>) -> ResolvedStyle {
     let Some(n) = arena.get(obj) else {
         return ResolvedStyle::default();
     };
-    let overlay = if n.state.contains(State::PRESSED) {
-        n.style_pressed.as_deref()
+    let edited = n.state.contains(State::EDITED);
+    let overlay = if edited {
+        n.style_edited.as_deref().or(n.style_focused.as_deref())
     } else if n.state.contains(State::FOCUSED) {
         n.style_focused.as_deref()
     } else if n.state.contains(State::SELECTED) {
@@ -184,11 +182,7 @@ pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static Mo
     } else {
         None
     };
-    let mut r = crate::style::resolve(&n.style, overlay, font);
-    if n.state.contains(State::EDITED) && r.border_width > 0 {
-        r.border_color = EDITED_BORDER;
-    }
-    r
+    crate::style::resolve(&n.style, overlay, font)
 }
 
 fn node_state(arena: &Arena<Node>, obj: ObjRef) -> State {
@@ -305,39 +299,55 @@ mod tests {
 
     #[test]
     fn resolved_style_state_precedence() {
-        // Three states are mutually exclusive: pressed > focused > selected
+        // The two states are mutually exclusive: focused > selected
         let mut arena = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let n = arena.get_mut(r).unwrap();
-        n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED | crate::node::State::PRESSED;
+        n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED;
         n.style_selected = Some(Box::new(style(Color::rgb(1, 0, 0))));
         n.style_focused = Some(Box::new(style(Color::rgb(2, 0, 0))));
-        n.style_pressed = Some(Box::new(style(Color::rgb(3, 0, 0))));
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(3, 0, 0)); // PRESSED takes priority
-
-        arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::SELECTED;
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(2, 0, 0)); // no PRESSED → FOCUSED
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(2, 0, 0)); // FOCUSED takes priority
 
         arena.get_mut(r).unwrap().state = crate::node::State::SELECTED;
         assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(1, 0, 0)); // only SELECTED left
     }
 
     #[test]
-    fn edited_tints_focus_border() {
-        // A focused widget keeps its white focus border; while edited the border
-        // turns amber (EDITED_BORDER) so focus and edit are visually distinct
+    fn edited_falls_back_to_focus_overlay() {
+        // Without a custom style_edited the focus overlay applies while edited;
+        // the edited look itself is a style concern, not a render rule
         let mut arena = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let mut f = crate::style::Style::default();
         f.border_color = Some(Color::WHITE);
         f.border_width = Some(2);
         arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
-        arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED;
-        assert_eq!(resolved_style(&arena, r, FONT).border_color, Color::WHITE);
         arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
-        assert_eq!(resolved_style(&arena, r, FONT).border_color, EDITED_BORDER);
-        // Without a border there is nothing to tint
-        arena.get_mut(r).unwrap().style_focused = Some(Box::new(style(Color::rgb(9, 9, 9))));
-        assert_eq!(resolved_style(&arena, r, FONT).border_width, 0);
+        let rs = resolved_style(&arena, r, FONT);
+        assert_eq!(rs.border_color, Color::WHITE); // falls back to the focus overlay
+        assert_eq!(rs.border_width, 2);
+    }
+
+    #[test]
+    fn style_edited_overlay_wins_while_edited() {
+        // A custom style_edited overlay takes precedence over the focus overlay and
+        // disables the default amber border tint
+        let mut arena = Arena::new();
+        let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
+        let mut f = crate::style::Style::default();
+        f.border_color = Some(Color::WHITE);
+        f.border_width = Some(2);
+        let mut e = crate::style::Style::default();
+        e.border_color = Some(Color::rgb(1, 2, 3));
+        e.border_width = Some(4);
+        e.bg_color = Some(Color::rgb(4, 5, 6));
+        e.bg_opa = Some(255);
+        arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
+        arena.get_mut(r).unwrap().style_edited = Some(Box::new(e));
+        arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
+        let rs = resolved_style(&arena, r, FONT);
+        assert_eq!(rs.border_color, Color::rgb(1, 2, 3)); // edited overlay wins, no amber tint
+        assert_eq!(rs.border_width, 4);
+        assert_eq!(rs.bg_color, Color::rgb(4, 5, 6));
     }
 }

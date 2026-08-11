@@ -130,7 +130,7 @@ pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded
 }
 
 /// The common base style: foundation for every widget's default style.
-/// Note: only for composing the "base style"; state-overlay styles (pressed/focused) stay
+/// Note: only for composing the "base style"; state-overlay styles (edited/focused/selected) stay
 /// sparse — do not build them from this.
 pub fn theme_base() -> Style {
     Style::new().text_color(Color::WHITE).bg_opa(255).radius(4)
@@ -157,13 +157,6 @@ pub fn theme_button() -> Style {
         .bg(Color::rgb(60, 90, 160))
         .radius(6)
         .border(Color::rgb(90, 120, 200), 1)
-}
-
-/// Pressed-state overlay style for a button.
-pub fn theme_button_pressed() -> Style {
-    let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(40, 60, 110));
-    s
 }
 
 /// Focused-state overlay style for a button.
@@ -216,5 +209,19 @@ pub fn theme_list() -> Style {
 pub fn theme_list_focused() -> Style {
     let mut s = Style::default();
     s.border_color = Some(Color::WHITE);
+    s
+}
+
+/// Edit accent color: the amber used while a widget is in its inner (EDITED) mode.
+/// The edited border (`theme_edited`) and the per-widget edit accents (slider knob,
+/// arc indicator) share this so they stay visually consistent.
+pub const EDIT_ACCENT: Color = Color::rgb(255, 200, 60);
+
+/// Edited (inner-mode) overlay derived from a focus overlay: same fields, border
+/// recolored to the edit accent (see `EDIT_ACCENT`), so focus (white) and edit are
+/// visually distinct.
+pub fn theme_edited(focused: &Style) -> Style {
+    let mut s = focused.clone();
+    s.border_color = Some(EDIT_ACCENT);
     s
 }

@@ -61,7 +61,9 @@ impl WidgetCfg for SliderCfg {
             alloc::boxed::Box::new(SliderState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min), knob_w: self.knob_w }),
         );
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
-        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_slider_focused));
+        let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_slider_focused);
+        ui.set_style_focused(r, focused.clone());
+        ui.set_style_edited(r, crate::style::theme_edited(&focused));
         common.apply_tail(ui, r);
         r
     }
@@ -80,7 +82,7 @@ impl SliderState {
         }
         let kx = abs.x + iw;
         let knob = Rect::new(kx - self.knob_w / 2, abs.y - 2, self.knob_w, abs.h + 4);
-        let kc = if ctx.edited { Color::rgb(255, 200, 60) } else { Color::WHITE };
+        let kc = if ctx.edited { crate::style::EDIT_ACCENT } else { Color::WHITE };
         d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
     }
 }

@@ -53,18 +53,17 @@ fn selected_state_applies_style_selected() {
 }
 
 #[test]
-fn overlay_priority_pressed_over_focused_over_selected() {
+fn overlay_priority_focused_over_selected() {
     let (rec, mut ui, o) = build();
     ui.set_style_selected(o, Style::new().bg(Color::BLUE));
     ui.set_style_focused(o, Style::new().bg(Color::GREEN));
-    ui.set_style_pressed(o, Style::new().bg(Color::WHITE));
     // selected < focused
     ui.set_state(o, State::SELECTED, true);
     ui.set_state(o, State::FOCUSED, true);
     ui.render();
     assert_eq!(px(&rec, 1, 1), Color::GREEN);
-    // pressed has the highest priority
-    ui.set_state(o, State::PRESSED, true);
+    // only selected
+    ui.set_state(o, State::FOCUSED, false);
     ui.render();
-    assert_eq!(px(&rec, 1, 1), Color::WHITE);
+    assert_eq!(px(&rec, 1, 1), Color::BLUE);
 }

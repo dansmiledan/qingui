@@ -96,7 +96,9 @@ impl WidgetCfg for ItemListCfg {
             if vs.bg_opa.is_none() { vs.bg_opa = Some(255); }
             vs
         });
-        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
+        let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused);
+        ui.set_style_focused(r, focused.clone());
+        ui.set_style_edited(r, crate::style::theme_edited(&focused));
         common.apply_tail(ui, r);
         r
     }

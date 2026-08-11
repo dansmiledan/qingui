@@ -311,7 +311,9 @@ impl WidgetCfg for ListCfg {
             alloc::boxed::Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default(), row_h: self.row_h, fx_dur: self.fx_dur }),
         );
         ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
-        ui.set_style_focused(r, common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused));
+        let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused);
+        ui.set_style_focused(r, focused.clone());
+        ui.set_style_edited(r, crate::style::theme_edited(&focused));
         common.apply_tail(ui, r);
         r
     }

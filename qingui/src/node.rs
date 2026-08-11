@@ -14,11 +14,10 @@ bitflags::bitflags! {
     /// Object state (mirrors LVGL's state).
     #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
     pub struct State: u8 {
-        const PRESSED = 1 << 0;
         const FOCUSED = 1 << 1;
         const DISABLED = 1 << 2;
         const EDITED = 1 << 3;
-        /// Selected state: used for list item/entry highlighting; takes priority below pressed/focused.
+        /// Selected state: used for list item/entry highlighting; takes priority below focused.
         const SELECTED = 1 << 4;
     }
 
@@ -82,10 +81,11 @@ pub struct Node {
     pub kind: alloc::boxed::Box<dyn crate::widgets::Widget>,
     /// Base style.
     pub style: crate::style::Style,
-    /// Style overlay while pressed.
-    pub style_pressed: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Style overlay while focused.
     pub style_focused: Option<alloc::boxed::Box<crate::style::Style>>,
+    /// Style overlay while edited (the widget's inner mode; falls back to the focused
+    /// overlay with an amber border tint when unset).
+    pub style_edited: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Style overlay while selected.
     pub style_selected: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Registered event callbacks, in order.
@@ -120,8 +120,8 @@ impl Node {
             flags: Flag::empty(),
             kind,
             style: crate::style::Style::default(),
-            style_pressed: None,
             style_focused: None,
+            style_edited: None,
             style_selected: None,
             events: Vec::new(),
             draw_hook: None,

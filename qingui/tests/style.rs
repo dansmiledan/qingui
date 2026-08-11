@@ -1,4 +1,4 @@
-use qingui::style::{theme_base, theme_button, theme_button_pressed, Style};
+use qingui::style::{theme_base, theme_button, theme_button_focused, Style};
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Ui};
 
@@ -77,13 +77,13 @@ fn state_override_wins_then_falls_back() {
     let mut base = theme_button();
     base.bg_color = Some(Color::BLUE);
     ui.set_style(b, base.clone());
-    let mut pressed = theme_button_pressed();
-    pressed.bg_color = Some(Color::GREEN);
-    ui.set_style_pressed(b, pressed);
+    let mut focused = theme_button_focused();
+    focused.bg_color = Some(Color::GREEN);
+    ui.set_style_focused(b, focused);
     assert_eq!(ui.resolved_style(b).bg_color, Color::BLUE);
 
-    ui.set_state(b, qingui::node::State::PRESSED, true);
+    ui.set_state(b, qingui::node::State::FOCUSED, true);
     assert_eq!(ui.resolved_style(b).bg_color, Color::GREEN);
-    // fields not overridden by pressed still fall back to base
+    // fields not overridden by the focused overlay still fall back to base
     assert_eq!(ui.resolved_style(b).radius, base.radius.unwrap());
 }

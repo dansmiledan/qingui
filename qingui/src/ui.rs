@@ -298,18 +298,18 @@ impl Ui {
         self.invalidate_obj(obj);
         self.layout_dirty = true;
     }
-    /// Replaces the pressed-state overlay style of `obj`.
-    pub fn set_style_pressed(&mut self, obj: ObjRef, style: crate::style::Style) {
-        if let Some(n) = self.arena.get_mut(obj) {
-            n.style_pressed = Some(alloc::boxed::Box::new(style));
-        }
-        self.invalidate_obj(obj);
-        self.layout_dirty = true;
-    }
     /// Replaces the focused-state overlay style of `obj`.
     pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_focused = Some(alloc::boxed::Box::new(style));
+        }
+        self.invalidate_obj(obj);
+        self.layout_dirty = true;
+    }
+    /// Replaces the edited-state overlay style of `obj` (the widget's inner mode).
+    pub fn set_style_edited(&mut self, obj: ObjRef, style: crate::style::Style) {
+        if let Some(n) = self.arena.get_mut(obj) {
+            n.style_edited = Some(alloc::boxed::Box::new(style));
         }
         self.invalidate_obj(obj);
         self.layout_dirty = true;
@@ -1295,5 +1295,19 @@ mod tests {
         ui.keypad_input(Key::Enter);
         assert!(!ui.state(sl).contains(State::EDITED));
         assert!(clicked.get());
+    }
+
+    #[test]
+    fn list_edited_border_from_build_style() {
+        // The edited look is a style the widget sets at build time (style::theme_edited),
+        // not a render rule: entering the inner mode turns the list border amber
+        use crate::widgets::list::ListCfg;
+        let mut ui = Ui::new(160, 120, 120);
+        let scr = ui.screen();
+        let l = ListCfg::new(&["a", "b"]).build(&mut ui, scr);
+        ui.set_state(l, crate::node::State::FOCUSED | crate::node::State::EDITED, true);
+        let rs = ui.resolved_style(l);
+        assert_eq!(rs.border_color, crate::style::EDIT_ACCENT);
+        assert_eq!(rs.border_width, 1); // width follows the list's own 1px border
     }
 }
