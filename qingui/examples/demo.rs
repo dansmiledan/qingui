@@ -151,7 +151,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     ui.set_style(big, big_style);
     let _ = small;
     let la = LabelCfg::new(
-        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows: move focus\nenter: enter & confirm\nesc: exit",
+        "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows: move focus\nenter: enter & confirm\nesc: exit\nspinbox: enter sets each digit",
     )
     .build(ui, sv_content);
     let _ = la;

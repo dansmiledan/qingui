@@ -109,7 +109,7 @@ impl WidgetCfg for SpinboxCfg {
                 max: self.max,
                 value: self.value.unwrap_or(self.min),
                 digits: self.digits,
-                cursor: self.digits - 1,
+                cursor: 0, // combination-lock editing starts at the most significant digit
             }),
         );
         let base = common.style.take().unwrap_or_else(Self::base_style);
@@ -132,9 +132,17 @@ impl super::Widget for SpinboxState {
     fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         if !ui.state(obj).contains(crate::node::State::EDITED) {
-            return if key == Key::Enter { EnterEdit } else { Pass };
+            return if key == Key::Enter {
+                // Combination-lock editing: start at the most significant digit, so a
+                // rotary encoder (rotation + Enter) can reach every digit in turn
+                self.cursor = 0;
+                EnterEdit
+            } else {
+                Pass
+            };
         }
         match key {
+            // Free cursor movement (full keyboard): Left/Right step between digits.
             Key::Left => { move_cursor(self.digits, &mut self.cursor, -1); Consumed }
             Key::Right => { move_cursor(self.digits, &mut self.cursor, 1); Consumed }
             Key::Up | Key::Down => {
@@ -143,7 +151,17 @@ impl super::Widget for SpinboxState {
                 step_digit(self.min, self.max, &mut nv, self.digits, self.cursor, d);
                 if nv != self.value { self.value = nv; ValueChanged } else { Consumed }
             }
-            Key::Enter => Commit, // confirm the value and leave the edit mode
+            // Combination-lock: Enter locks the digit under the cursor and advances to
+            // the next one; on the last digit it confirms (Commit = Click + exit). With
+            // rotation (step) + Enter (advance) a rotary encoder edits every digit.
+            Key::Enter => {
+                if self.cursor as i32 >= self.digits.max(1) as i32 - 1 {
+                    Commit
+                } else {
+                    self.cursor += 1;
+                    Consumed
+                }
+            }
             Key::Esc => ExitEdit,
             _ => Consumed,
         }

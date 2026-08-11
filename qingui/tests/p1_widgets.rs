@@ -93,21 +93,52 @@ fn spinbox_digit_edit() {
     assert_eq!(ui.value(sb), 0);
     assert_eq!(ui.focused(), Some(other));
     ui.keypad_input(Key::Prev);
-    // Enter enters edit mode: Up → +1; Left to tens, Up → +10; Left to hundreds, Down → clamped to min
+    // Combination-lock editing: Enter starts at the most significant digit (hundreds).
+    // Up → +100; Enter locks the current digit and advances to the next; on the last
+    // digit Enter confirms. Keyboard users can still move the cursor freely with Left/Right.
     ui.keypad_input(Key::Enter);
     ui.keypad_input(Key::Up);
-    assert_eq!(ui.value(sb), 1);
-    ui.keypad_input(Key::Left);
-    ui.keypad_input(Key::Up);
-    assert_eq!(ui.value(sb), 11);
-    ui.keypad_input(Key::Left);
-    ui.keypad_input(Key::Down);
+    assert_eq!(ui.value(sb), 100);
+    ui.keypad_input(Key::Enter); // lock hundreds, cursor → tens
+    ui.keypad_input(Key::Left);  // cursor → hundreds (free movement)
+    ui.keypad_input(Key::Down);  // -100
     assert_eq!(ui.value(sb), 0);
-    assert_eq!(log.borrow().len(), 3);
-    // Esc exits edit mode, arrow keys can move focus out again
+    assert_eq!(log.borrow().len(), 2);
+    // Enter advances the cursor one digit at a time; only the last digit commits
+    ui.keypad_input(Key::Enter); // lock hundreds → tens
+    ui.keypad_input(Key::Enter); // lock tens → units
+    assert!(ui.state(sb).contains(qingui::node::State::EDITED)); // still editing
+    ui.keypad_input(Key::Enter); // units → Commit (Click + exit edit)
+    assert!(!ui.state(sb).contains(qingui::node::State::EDITED));
+    // Esc exits edit mode without committing; arrow keys move focus out again
+    ui.keypad_input(Key::Enter); // re-enter edit
     ui.keypad_input(Key::Esc);
+    assert!(!ui.state(sb).contains(qingui::node::State::EDITED));
     ui.keypad_input(Key::Right);
     assert_eq!(ui.focused(), Some(other));
+}
+
+#[test]
+fn spinbox_rotary_encoder_combination_lock() {
+    let (mut ui, _) = setup();
+    let scr = ui.screen();
+    let sb = SpinboxCfg::new(0, 999, 3).build(&mut ui, scr);
+    ui.group_add(sb);
+    // A rotary encoder produces only rotation (Up/Down) and Enter — no Left/Right/Esc:
+    // rotation sets the current digit, Enter locks it and advances to the next digit,
+    // so every digit is reachable with a single axis + one confirm button.
+    ui.keypad_input(Key::Enter); // edit, cursor at hundreds
+    for _ in 0..5 { ui.keypad_input(Key::Up); }
+    assert_eq!(ui.value(sb), 500); // hundreds set to 5
+    ui.keypad_input(Key::Enter); // lock hundreds, cursor → tens
+    for _ in 0..5 { ui.keypad_input(Key::Down); }
+    assert_eq!(ui.value(sb), 450); // tens set to 4
+    ui.keypad_input(Key::Enter); // lock tens, cursor → units
+    for _ in 0..5 { ui.keypad_input(Key::Up); }
+    assert_eq!(ui.value(sb), 455); // units set to 5
+    ui.keypad_input(Key::Enter); // last digit → Commit
+    assert!(!ui.state(sb).contains(qingui::node::State::EDITED));
+    assert_eq!(ui.value(sb), 455);
 }
 
 #[test]
@@ -120,11 +151,10 @@ fn spinbox_cursor_highlight() {
     ui.set_state(sb, qingui::node::State::EDITED, true); // the cursor highlight only shows in edit mode
     ui.render();
     // Layout (FONT_6X10: advance 6, line height 10): spinbox default 30x18, starting at (10,10);
-    // digits '0','0','5' are at x=16/22/28, glyph top row y=14; the ones-digit highlight block is (27,11,8,16)
-    // The ones digit (3rd from the right) is highlighted: sample a pixel above the glyph inside the highlight block (28,12)
-    assert_eq!(px(&rec, 28, 12), Color::rgb(80, 140, 255));
-    // Hundreds digit has no highlight: '0' glyph row 1 is ..#... → (18,15) is text white (not the highlight color)
-    assert_eq!(px(&rec, 18, 15), Color::WHITE);
+    // digits '0','0','5' are at x=16/22/28, glyph top row y=14. Combination-lock editing starts
+    // at the most significant digit, so the hundreds highlight block is (15,11,8,16):
+    assert_eq!(px(&rec, 17, 12), Color::rgb(80, 140, 255)); // hundreds digit highlighted
+    assert_ne!(px(&rec, 28, 12), Color::rgb(80, 140, 255)); // ones digit not highlighted
 }
 
 #[test]
