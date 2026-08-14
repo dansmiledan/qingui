@@ -6,7 +6,7 @@ use qingui::{Rect, Ui};
 
 /// Builds a 60px viewport + 3 40px items (content 120px)
 fn build() -> (Ui, qingui::ObjRef, qingui::ObjRef) {
-    let mut ui = Ui::new(160, 120, 24);
+    let mut ui: Ui = Ui::new(160, 120, 24);
     let s = ui.screen();
     let sv = ScrollViewCfg::new().size(80, 60).build(&mut ui, s);
     let content = ui.scrollview_content(sv).unwrap();
@@ -50,7 +50,7 @@ fn focused_up_down_scrolls_and_clamps() {
 
 #[test]
 fn short_content_never_scrolls() {
-    let mut ui = Ui::new(160, 120, 24);
+    let mut ui: Ui = Ui::new(160, 120, 24);
     let s = ui.screen();
     let sv = ScrollViewCfg::new().size(80, 60).build(&mut ui, s);
     let content = ui.scrollview_content(sv).unwrap();

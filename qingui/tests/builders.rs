@@ -13,7 +13,7 @@ use qingui::{Color, EventKind, Ui};
 
 #[test]
 fn slider_builder_defaults() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     let r = ui.rect(s);
@@ -35,7 +35,7 @@ fn slider_builder_defaults() {
 
 #[test]
 fn slider_builder_overrides() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     // A flex parent so the child's GROW sizing is observable after a layout pass.
     let parent = ObjCfg::new()
@@ -63,7 +63,7 @@ fn slider_builder_overrides() {
 
 #[test]
 fn button_builder_focused_styles() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = ButtonCfg::new("OK").build(&mut ui, scr);
     // Default size = text size + (24, 12); "OK" is 2 FONT_6X10 glyphs (6x10)
@@ -86,7 +86,7 @@ fn button_builder_focused_styles() {
 
 #[test]
 fn list_builder_size_and_style() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["x", "y", "z"]).build(&mut ui, scr);
     // Default size: width 120, height min(5, n)*16 + 2
@@ -110,7 +110,7 @@ fn list_builder_size_and_style() {
 
 #[test]
 fn list_edited_style_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     // Default: edited style derives from the focused overlay (amber accent).
     let l = ListCfg::new(&["x", "y", "z"]).build(&mut ui, scr);
@@ -128,7 +128,7 @@ fn list_edited_style_default_and_override() {
 
 #[test]
 fn roller_dropdown_builders() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     // Roller default size: 80 x (min(3, n)*16 + 8)
     let ro = RollerCfg::new(&["A", "B"]).build(&mut ui, scr);
@@ -162,7 +162,7 @@ fn roller_dropdown_builders() {
 
 #[test]
 fn msgbox_builder_structure() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let mb = MsgboxBuilder::new("Title", "Body").buttons(&["OK"]).build(&mut ui, scr);
     assert!(ui.is_valid(mb));
@@ -173,7 +173,7 @@ fn msgbox_builder_structure() {
 
 #[test]
 fn generic_style_with_composes_with_prior_style() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     // .style_with(f) alone bases on the widget's default_style() (theme_button).
     let a = ButtonCfg::new("A").style_with(|s| s.bg(Color::RED)).build(&mut ui, scr);
@@ -197,7 +197,7 @@ fn builder_event_registration() {
     use std::rc::Rc;
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = ButtonCfg::new("OK")
         .on(EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)))

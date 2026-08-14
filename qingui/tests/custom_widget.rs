@@ -57,7 +57,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 #[test]
 fn custom_widget_draws_and_handles_keys() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
     ui.set_pos(g, 5, 5);
@@ -102,7 +102,7 @@ impl qingui::widgets::Widget for KeyProbe {
 
 #[test]
 fn on_key_receives_mut_ui_via_takeout() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let before = ui.children(scr).len();
     let w = ui.create_widget(scr, 10, 10, Box::new(KeyProbe { hit: false }));
@@ -114,7 +114,7 @@ fn on_key_receives_mut_ui_via_takeout() {
 
 #[test]
 fn custom_widget_tick_dispatch() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
     // Gauge::tick returns ACTIVE → timer_handler stays awake (returns 0)
     assert_eq!(ui.timer_handler(), 0);

@@ -4,6 +4,7 @@ use crate::arena::ObjRef;
 use crate::event::EventKind;
 use crate::geometry::Rect;
 use crate::layout::{Align, Attach, Flex, FlexDir};
+use crate::pixel::PixelFormat;
 use crate::ui::Ui;
 
 /// Msgbox widget state: index of the clicked button (-1 if none).
@@ -53,13 +54,13 @@ impl MsgboxBuilder {
     }
 
     /// Builds the message box into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
+    pub fn build<C: PixelFormat>(self, ui: &mut Ui<C>, parent: ObjRef) -> ObjRef {
         let refs: alloc::vec::Vec<&str> = self.buttons.iter().map(|s| s.as_str()).collect();
         create(ui, parent, &self.title, &self.text, &refs, self.size)
     }
 }
 
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, buttons: &[&str], size: Option<(i32, i32)>) -> ObjRef {
+pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, title: &str, text: &str, buttons: &[&str], size: Option<(i32, i32)>) -> ObjRef {
     let (w, h) = size.unwrap_or((200, 110));
     let root = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(MsgboxState { selected: -1 }));
     ui.set_floating(root, parent, Attach::Center);
@@ -106,11 +107,11 @@ pub(crate) fn create(ui: &mut Ui, parent: ObjRef, title: &str, text: &str, butto
     root
 }
 
-impl super::Widget for MsgboxState {
+impl<C: PixelFormat> super::Widget<C> for MsgboxState {
     // Msgbox is an ordinary container (child objects are drawn normally)
-    fn draw(&self, _ctx: &super::WidgetCtx, _c: &mut super::Canvas, _clip: Rect) {}
+    fn draw(&self, _ctx: &super::WidgetCtx, _c: &mut super::Canvas<'_, C>, _clip: Rect) {}
     // The root's fixed column flex arrangement
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef, content: Rect) {
+    fn layout(&mut self, ui: &mut Ui<C>, obj: ObjRef, content: Rect) {
         crate::layout::layout_flex(ui, obj, &ROOT_FLEX, content);
     }
     fn as_any(&self) -> &dyn core::any::Any { self }
@@ -123,7 +124,7 @@ pub trait UiMsgboxExt {
     fn msgbox_selected(&self, obj: ObjRef) -> i32;
 }
 
-impl UiMsgboxExt for Ui {
+impl<C: PixelFormat> UiMsgboxExt for Ui<C> {
     fn msgbox_selected(&self, obj: ObjRef) -> i32 {
         self.widget::<MsgboxState>(obj).map(|s| s.selected).unwrap_or(-1)
     }

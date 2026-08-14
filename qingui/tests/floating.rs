@@ -36,7 +36,7 @@ fn solid(ui: &mut Ui, parent: qingui::ObjRef, c: Color) -> qingui::ObjRef {
 
 #[test]
 fn floating_center_on_target() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let target = solid(&mut ui, scr, Color::BLUE);
     ui.set_pos(target, 50, 50);
@@ -51,7 +51,7 @@ fn floating_center_on_target() {
 
 #[test]
 fn floating_bottom_of_target() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let target = solid(&mut ui, scr, Color::BLUE);
     ui.set_pos(target, 50, 50);
@@ -66,7 +66,7 @@ fn floating_bottom_of_target() {
 
 #[test]
 fn floating_follows_target_move() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let target = solid(&mut ui, scr, Color::BLUE);
     ui.set_pos(target, 50, 50);
@@ -83,7 +83,7 @@ fn floating_follows_target_move() {
 #[test]
 fn move_to_back_changes_draw_order() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);

@@ -11,7 +11,7 @@ fn flex(main: Align) -> Flex {
 }
 
 fn setup() -> (Ui, ObjRef, ObjRef) {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);

@@ -1,25 +1,26 @@
 use crate::arena::ObjRef;
 use crate::geometry::Rect;
+use crate::pixel::PixelFormat;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::Widget;
 
 /// Builder for the generic container Obj (hosts layout and child objects).
-pub type ObjBuilder = WidgetBuilder<ObjCfg>;
+pub type ObjBuilder<C = crate::geometry::Color> = WidgetBuilder<ObjCfg, C>;
 
 pub struct ObjCfg;
 
 impl ObjCfg {
-    pub fn new() -> WidgetBuilder<ObjCfg> {
+    pub fn new<C: PixelFormat>() -> WidgetBuilder<ObjCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ObjCfg }
     }
 }
 
-impl WidgetCfg for ObjCfg {
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+impl<C: PixelFormat> WidgetCfg<C> for ObjCfg {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((0, 0));
         // The layout config decides the widget kind at insert time (layout is a kind).
-        let kind: alloc::boxed::Box<dyn super::Widget> = match common.layout.take() {
+        let kind: alloc::boxed::Box<dyn super::Widget<C>> = match common.layout.take() {
             Some(super::builder::Layout::Flex(f)) => alloc::boxed::Box::new(super::flexbox::FlexLayout { flex: f }),
             Some(super::builder::Layout::Grid(g)) => alloc::boxed::Box::new(super::gridbox::GridLayout { grid: g }),
             _ => alloc::boxed::Box::new(Manual),

@@ -20,7 +20,7 @@ fn easing_bounds() {
 
 #[test]
 fn linear_anim_progresses_with_tick() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 0, 0);
@@ -39,7 +39,7 @@ fn linear_anim_progresses_with_tick() {
 
 #[test]
 fn anim_with_delay() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 100, 100);
@@ -55,7 +55,7 @@ fn anim_with_delay() {
 
 #[test]
 fn playback_reverses() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 100, 100);
@@ -76,7 +76,7 @@ fn playback_reverses() {
 
 #[test]
 fn anim_stop_removes() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     ui.anim_start(anim_to(o, AnimProp::X, 100, 1000));
@@ -90,7 +90,7 @@ fn on_done_callback_fires() {
     use std::rc::Rc;
     let fired = Rc::new(Cell::new(false));
     let fired2 = fired.clone();
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     let mut a = anim_to(o, AnimProp::X, 10, 10);
@@ -103,7 +103,7 @@ fn on_done_callback_fires() {
 
 #[test]
 fn anim_value_updates_widget_and_dirty() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.take_dirty();
@@ -118,7 +118,7 @@ fn anim_value_updates_widget_and_dirty() {
 #[test]
 fn anim_x_on_flex_child_not_reset_by_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
@@ -141,7 +141,7 @@ fn anim_x_on_flex_child_not_reset_by_layout() {
 fn translate_offsets_abs_rect_and_survives_layout() {
     use qingui::layout::{Align, Flex, FlexDir};
     use qingui::Rect;
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 200, 100);
@@ -162,7 +162,7 @@ fn translate_offsets_abs_rect_and_survives_layout() {
 
 #[test]
 fn anim_translate_x() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     ui.anim_start(anim_to(o, AnimProp::TranslateX, 100, 100));

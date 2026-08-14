@@ -1156,7 +1156,7 @@ mod tests {
         use crate::widgets::label::LabelCfg;
         use crate::widgets::obj::ObjCfg;
         use crate::widgets::Layout;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let container = ObjCfg::new()
             .size(320, 240)
@@ -1177,7 +1177,7 @@ mod tests {
         use crate::input::Key;
         use crate::node::State;
         use crate::widgets::list::{ListCfg, UiListExt};
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let lst = ListCfg::new(&["A", "B", "C"]).size(60, 60).build(&mut ui, scr);
         let clicked = Rc::new(Cell::new(false));
@@ -1204,7 +1204,7 @@ mod tests {
         use crate::node::State;
         use crate::widgets::label::LabelCfg;
         use crate::widgets::list::ListCfg;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let lst = ListCfg::new(&["A", "B", "C"]).size(60, 60).build(&mut ui, scr);
         let other = LabelCfg::new("x").size(10, 10).build(&mut ui, scr);
@@ -1226,7 +1226,7 @@ mod tests {
         use crate::input::Key;
         use crate::node::State;
         use crate::widgets::label::LabelCfg;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         // A widget whose on_key never consumes anything
         struct Dummy;
@@ -1257,7 +1257,7 @@ mod tests {
         use crate::node::State;
         use crate::widgets::dropdown::DropdownCfg;
         use crate::widgets::list::UiListExt;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let dd = DropdownCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
         ui.group_add(dd);
@@ -1279,7 +1279,7 @@ mod tests {
         use crate::input::Key;
         use crate::node::State;
         use crate::widgets::slider::{SliderCfg, SliderState};
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let sl = SliderCfg::new(0, 10).build(&mut ui, scr);
         let clicked = Rc::new(Cell::new(false));
@@ -1303,7 +1303,7 @@ mod tests {
         // The edited look is a style the widget sets at build time (style::theme_edited),
         // not a render rule: entering the inner mode turns the list border amber
         use crate::widgets::list::ListCfg;
-        let mut ui = Ui::new(160, 120, 120);
+        let mut ui: Ui = Ui::new(160, 120, 120);
         let scr = ui.screen();
         let l = ListCfg::new(&["a", "b"]).build(&mut ui, scr);
         ui.set_state(l, crate::node::State::FOCUSED | crate::node::State::EDITED, true);

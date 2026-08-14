@@ -19,7 +19,7 @@ fn container(ui: &mut Ui, w: i32, h: i32) -> qingui::ObjRef {
 
 #[test]
 fn flex_grow_fills_remaining() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 40);
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 50, 10);
@@ -32,7 +32,7 @@ fn flex_grow_fills_remaining() {
 
 #[test]
 fn flex_two_grow_share_equally() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 40);
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_sizing(a, Some(Sizing::GROW), None);
@@ -46,7 +46,7 @@ fn flex_two_grow_share_equally() {
 
 #[test]
 fn flex_grow_respects_max() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 40);
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_sizing(a, Some(Sizing::Grow { min: 0, max: 100 }), None);
@@ -56,7 +56,7 @@ fn flex_grow_respects_max() {
 
 #[test]
 fn flex_grow_cross_axis_fills_line() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 40);
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 50, 10);
@@ -68,7 +68,7 @@ fn flex_grow_cross_axis_fills_line() {
 
 #[test]
 fn flex_percent_sizing() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 40);
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_sizing(a, Some(Sizing::Percent(50)), None);
@@ -78,7 +78,7 @@ fn flex_percent_sizing() {
 
 #[test]
 fn grid_child_grow_fills_cell() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
@@ -100,7 +100,7 @@ fn grid_child_grow_fills_cell() {
 
 #[test]
 fn flex_aspect_ratio_derives_cross() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 100);
     let a = ObjCfg::new().build(&mut ui, c);
     ui.set_size(a, 100, 10);
@@ -111,7 +111,7 @@ fn flex_aspect_ratio_derives_cross() {
 
 #[test]
 fn grid_aspect_ratio_fits_cell() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);

@@ -3,6 +3,7 @@ use alloc::string::String;
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Point, Rect};
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -14,7 +15,7 @@ pub struct LabelState {
     pub text: String,
 }
 
-pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+pub(crate) fn draw<C: PixelFormat>(text: &str, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
     d.draw_text_opa(
         Point { x: ctx.abs.x, y: ctx.abs.y },
         ctx.resolved.font,
@@ -26,7 +27,7 @@ pub(crate) fn draw(text: &str, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
 }
 
 /// Builder for the Label widget.
-pub type LabelBuilder = WidgetBuilder<LabelCfg>;
+pub type LabelBuilder<C = crate::geometry::Color> = WidgetBuilder<LabelCfg, C>;
 
 /// Label configuration: text content.
 pub struct LabelCfg {
@@ -35,33 +36,33 @@ pub struct LabelCfg {
 
 impl LabelCfg {
     /// Creates a builder with the given text.
-    pub fn new(text: &str) -> WidgetBuilder<LabelCfg> {
+    pub fn new<C: PixelFormat>(text: &str) -> WidgetBuilder<LabelCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: LabelCfg { text: text.into() } }
     }
 }
 
-impl WidgetCfg for LabelCfg {
+impl<C: PixelFormat> WidgetCfg<C> for LabelCfg {
     fn default_style() -> Style {
         crate::style::theme_label()
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or_else(|| {
             let font = crate::font::measure_font(common.style.as_ref(), ui);
             crate::font::text_size(font, &self.text)
         });
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(LabelState { text: self.text }));
-        ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
+        ui.set_style(r, common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style));
         common.apply_tail(ui, r);
         r
     }
 }
 
-pub(crate) fn create(ui: &mut Ui, parent: ObjRef, text: &str) -> ObjRef {
+pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, text: &str) -> ObjRef {
     LabelCfg::new(text).build(ui, parent)
 }
 
-pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
+pub(crate) fn set_text<C: PixelFormat>(ui: &mut Ui<C>, obj: ObjRef, text: &str) {
     ui.invalidate_obj(obj);
     let font = crate::font::measure_font(ui.arena.get(obj).map(|n| &n.style), ui);
     let (w, h) = crate::font::text_size(font, text);
@@ -75,12 +76,12 @@ pub(crate) fn set_text(ui: &mut Ui, obj: ObjRef, text: &str) {
     ui.layout_dirty = true;
 }
 
-pub(crate) fn text(ui: &Ui, obj: ObjRef) -> String {
+pub(crate) fn text<C: PixelFormat>(ui: &Ui<C>, obj: ObjRef) -> String {
     ui.widget::<LabelState>(obj).map(|s| s.text.clone()).unwrap_or_default()
 }
 
-impl super::Widget for LabelState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(&self.text, ctx, c, clip) }
+impl<C: PixelFormat> super::Widget<C> for LabelState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(&self.text, ctx, c, clip) }
     fn measure(&self, ctx: &MeasureCtx) -> (i32, i32) {
         if self.text.is_empty() { return ctx.cur; }
         crate::font::text_size(ctx.font, &self.text)
@@ -97,7 +98,7 @@ pub trait UiTextExt {
     fn text(&self, obj: ObjRef) -> String;
 }
 
-impl UiTextExt for Ui {
+impl<C: PixelFormat> UiTextExt for Ui<C> {
     fn set_text(&mut self, obj: ObjRef, text: &str) {
         set_text(self, obj, text);
     }

@@ -32,7 +32,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 fn move_to_front_raises_stacking() {
     // Two overlapping siblings: the later-created B covers A; after move_to_front(A), A covers B
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(20, 20, 20);
+    let mut ui: Ui = Ui::new(20, 20, 20);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     let a = ObjCfg::new().size(10, 10).build(&mut ui, scr);
@@ -51,7 +51,7 @@ fn move_to_front_raises_stacking() {
 #[test]
 fn chunked_render_covers_dirty_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 16); // 16-row buffer → 48-row full screen = 3 chunks
+    let mut ui: Ui = Ui::new(64, 48, 16); // 16-row buffer → 48-row full screen = 3 chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     ui.set_style(scr, theme_screen());
@@ -79,7 +79,7 @@ fn chunked_render_covers_dirty_area() {
 #[test]
 fn partial_last_chunk_height() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 50, 16); // 48 + 2 rows
+    let mut ui: Ui = Ui::new(64, 50, 16); // 48 + 2 rows
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.render();
     let chunks = &rec.borrow().chunks;
@@ -91,7 +91,7 @@ fn partial_last_chunk_height() {
 #[test]
 fn no_dirty_no_flush() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 16);
+    let mut ui: Ui = Ui::new(64, 48, 16);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     ui.render();
     assert_eq!(rec.borrow().chunks.len(), 3);
@@ -102,7 +102,7 @@ fn no_dirty_no_flush() {
 #[test]
 fn small_dirty_flushes_only_that_area() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 16);
+    let mut ui: Ui = Ui::new(64, 48, 16);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     ui.set_style(scr, theme_screen());

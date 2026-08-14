@@ -36,7 +36,7 @@ fn transparent_style() -> qingui::style::Style {
 #[test]
 fn draw_hook_paints_custom_content() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
@@ -74,7 +74,7 @@ fn draw_hook_paints_custom_content() {
 #[test]
 fn draw_hook_clipped_by_chunk() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 16); // small buffer → multiple chunks
+    let mut ui: Ui = Ui::new(64, 48, 16); // small buffer → multiple chunks
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     let cv = ObjCfg::new().size(64, 48).build(&mut ui, scr);

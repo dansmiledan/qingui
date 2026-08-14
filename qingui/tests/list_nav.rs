@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 #[test]
 fn up_down_navigates_items_not_focus() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     let btn = ButtonCfg::new("x").build(&mut ui, scr);
@@ -33,7 +33,7 @@ fn up_down_navigates_items_not_focus() {
 fn enter_on_list_fires_clicked() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.add_event_cb(l, EventKind::Clicked, Box::new(move |_ui, _t, k| l2.borrow_mut().push(k)));
@@ -47,7 +47,7 @@ fn enter_on_list_fires_clicked() {
 
 #[test]
 fn selection_keeps_visible_with_scroll() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     // 8 items, 5 rows visible (ListCfg default height cap is 5 rows = 88px)
     let scr = ui.screen();
     let l = ListCfg::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);

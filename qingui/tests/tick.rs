@@ -6,7 +6,7 @@ use qingui::Ui;
 
 #[test]
 fn spinner_keeps_timer_awake() {
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     let s = ui.screen();
     SpinnerCfg::new().build(&mut ui, s);
     ui.tick_inc(16);
@@ -15,7 +15,7 @@ fn spinner_keeps_timer_awake() {
 
 #[test]
 fn hidden_parent_stops_spinner_dirty() {
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     let s = ui.screen();
     let panel = qingui::widgets::obj::ObjCfg::new().build(&mut ui, s);
     SpinnerCfg::new().build(&mut ui, panel);
@@ -31,7 +31,7 @@ fn hidden_parent_stops_spinner_dirty() {
 
 #[test]
 fn static_ui_sleeps_after_first_frame() {
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     let s = ui.screen();
     LabelCfg::new("hi").build(&mut ui, s);
     ui.tick_inc(16);
@@ -41,7 +41,7 @@ fn static_ui_sleeps_after_first_frame() {
 
 #[test]
 fn list_fx_expires_and_sleeps() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let s = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, s);
     ui.list_select(l, 2); // triggers the highlight-slide fx (FX_DUR=200ms)

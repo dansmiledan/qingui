@@ -22,7 +22,7 @@ fn row_of(ui: &mut Ui, n: usize, w: i32, h: i32) -> Vec<qingui::ObjRef> {
 
 #[test]
 fn row_start_gap() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let kids = row_of(&mut ui, 3, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
@@ -35,7 +35,7 @@ fn row_start_gap() {
 
 #[test]
 fn row_space_between() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let kids = row_of(&mut ui, 3, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
@@ -49,7 +49,7 @@ fn row_space_between() {
 
 #[test]
 fn row_center_cross_center() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let kids = row_of(&mut ui, 1, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
@@ -64,7 +64,7 @@ fn row_center_cross_center() {
 
 #[test]
 fn column_wrap() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let kids = row_of(&mut ui, 4, 20, 40); // container height 100 → 2 per column
     let scr = ui.screen();
     let c = ui.children(scr)[0];
@@ -80,7 +80,7 @@ fn column_wrap() {
 
 #[test]
 fn layout_reruns_on_size_change() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let kids = row_of(&mut ui, 2, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
@@ -94,7 +94,7 @@ fn layout_reruns_on_size_change() {
 
 #[test]
 fn reorder_children_relayouts() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let kids = row_of(&mut ui, 3, 20, 10);
     let scr = ui.screen();
     let c = ui.children(scr)[0];
@@ -111,7 +111,7 @@ fn reorder_children_relayouts() {
 
 #[test]
 fn padded_container_at_nonzero_pos() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(c, 50, 30);

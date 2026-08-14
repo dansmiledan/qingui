@@ -31,7 +31,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 
 /// Builds a 60x40 viewport + 4 items (each 20 high: Label 8px + top/bottom padding)
 fn build4() -> (Ui, ObjRef, Vec<ObjRef>) {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     let mut items = Vec::new();
@@ -94,7 +94,7 @@ fn ensure_visible_scrolls_content() {
 #[test]
 fn viewport_clips_scrolled_items() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut ss = Style::default();
     ss.bg_color = Some(Color::BLACK);
@@ -128,7 +128,7 @@ fn remove_selected_clamps_and_reselects() {
 
 #[test]
 fn empty_list_key_does_not_panic_and_consumes() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     ui.group_add(il);
@@ -141,7 +141,7 @@ fn empty_list_key_does_not_panic_and_consumes() {
 /// select/keyboard navigation must not panic; itemlist_select clamps the out-of-range selected back into a legal range and writes it back
 #[test]
 fn direct_item_delete_does_not_panic_and_clamps_selection() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     let mut items = Vec::new();
@@ -171,7 +171,7 @@ fn direct_item_delete_does_not_panic_and_clamps_selection() {
 /// Viewport 60x40, item heights 10/30/20 (gap 0 → rect y is 0..10 / 10..40 / 40..60 respectively, total height 60 > 40)
 #[test]
 fn uneven_items_scroll_minimally() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
     let mut items = Vec::new();

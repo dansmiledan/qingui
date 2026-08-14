@@ -19,7 +19,7 @@ fn style_builder_chain() {
 
 #[test]
 fn widget_builder_pads() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().pads(8).build(&mut ui, scr);
     assert_eq!(ui.pad(o), (8, 8, 8, 8));
@@ -27,7 +27,7 @@ fn widget_builder_pads() {
 
 #[test]
 fn anim_builder_chain() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     ui.anim_start(
@@ -49,7 +49,7 @@ fn anim_builder_chain() {
 fn widget_mut_chain() {
     let log = Rc::new(RefCell::new(Vec::new()));
     let l2 = log.clone();
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = ButtonCfg::new("OK").build(&mut ui, scr);
     ui.set_pos(b, 10, 20);

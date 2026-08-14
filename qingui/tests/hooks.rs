@@ -28,7 +28,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 #[test]
 fn draw_hook_overlays_builtin_widget() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     let btn = ButtonCfg::new("ok").build(&mut ui, scr);
@@ -44,7 +44,7 @@ fn draw_hook_overlays_builtin_widget() {
 
 #[test]
 fn tick_hook_drives_wakeup_and_redraw() {
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     let hits = Rc::new(Cell::new(0u32));
