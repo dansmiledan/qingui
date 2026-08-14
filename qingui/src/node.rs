@@ -5,9 +5,11 @@ use crate::layout::Sizing;
 
 /// Overlay draw hook: called after the widget draws its own content, with
 /// (draw buffer, widget absolute rect, clip rect, current time ms).
-pub type DrawHook = alloc::boxed::Box<dyn FnMut(&mut crate::canvas::Canvas, Rect, Rect, u64)>;
+pub type DrawHook<C = crate::geometry::Color> = alloc::boxed::Box<dyn FnMut(&mut crate::canvas::Canvas<'_, C>, Rect, Rect, u64)>;
 /// Per-frame hook: returning `true` means still active (dirties the node and keeps the
 /// timer handler awake).
+// NOTE: stays non-generic until Task 5 genericizes `Ui`; a type alias cannot carry
+// an unused `C` (E0091), so `TickHook<C>` = `FnMut(&mut Ui<C>, ...)` lands with `Ui<C>`.
 pub type TickHook = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui, ObjRef, u64) -> bool>;
 
 bitflags::bitflags! {
@@ -65,7 +67,7 @@ pub struct ItemProps {
 }
 
 /// A node in the widget tree: geometry, style, state, and widget behavior.
-pub struct Node {
+pub struct Node<C = crate::geometry::Color> {
     /// Parent object, or `None` for the screen root.
     pub parent: Option<ObjRef>,
     /// Direct children, in paint/layout order.
@@ -78,7 +80,7 @@ pub struct Node {
     /// Behavior flags (hidden/clickable/etc.).
     pub flags: Flag,
     /// The widget behavior carried by this node.
-    pub kind: alloc::boxed::Box<dyn crate::widgets::Widget>,
+    pub kind: alloc::boxed::Box<dyn crate::widgets::Widget<C>>,
     /// Base style.
     pub style: crate::style::Style,
     /// Style overlay while focused.
@@ -91,7 +93,7 @@ pub struct Node {
     /// Registered event callbacks, in order.
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
     /// Overlay draw hook, drawn after the widget's own content.
-    pub draw_hook: Option<DrawHook>,
+    pub draw_hook: Option<DrawHook<C>>,
     /// Per-frame hook.
     pub tick_hook: Option<TickHook>,
     /// Padding (l, r, t, b): layout input, content origin offset.
@@ -109,9 +111,9 @@ pub struct Node {
     pub laid_out: bool,
 }
 
-impl Node {
+impl<C> Node<C> {
     /// Creates a node with the given parent, local rect, and widget kind.
-    pub fn new(parent: Option<ObjRef>, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget>) -> Self {
+    pub fn new(parent: Option<ObjRef>, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget<C>>) -> Self {
         Self {
             parent,
             children: Vec::new(),

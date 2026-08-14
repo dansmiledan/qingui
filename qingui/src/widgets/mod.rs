@@ -1,4 +1,4 @@
-use crate::geometry::Rect;
+use crate::geometry::{Color, Rect};
 use crate::input::Key;
 use crate::style::ResolvedStyle;
 use crate::arena::ObjRef;
@@ -94,15 +94,17 @@ pub struct MeasureCtx {
 /// - mutate your own state directly on `self`;
 /// - `ui.update(self_obj, ...)` is a silent no-op (your kind is not in the arena);
 /// - deleting your own node is allowed (Ui treats the outcome as consumed).
-pub trait Widget {
+/// `C` is the framebuffer pixel format (default RGB888 `Color`); widget drawing code always works in `Color`, the canvas converts.
+pub trait Widget<C = Color> {
     /// Content drawing (background/border/opa are handled uniformly by Ui). Default: draws nothing.
-    fn draw(&self, _ctx: &WidgetCtx, _c: &mut Canvas, _clip: Rect) {}
+    fn draw(&self, _ctx: &WidgetCtx, _c: &mut Canvas<'_, C>, _clip: Rect) {}
     /// Intrinsic content size; `(0, 0)` means "no intrinsic size" (layout uses the current rect).
     fn measure(&self, _ctx: &MeasureCtx) -> (i32, i32) { (0, 0) }
     /// Lays out direct children. Default: manual positioning (children keep their rects).
     /// `content` is the node's content box in the node's LOCAL coordinate space
     /// (origin = padding offsets, size = rect minus padding), computed by Ui;
     /// the layout positions children purely within it.
+    // NOTE: `Ui` is not generic yet (Task 5); these become `&mut Ui<C>` then.
     fn layout(&mut self, _ui: &mut Ui, _obj: ObjRef, _content: Rect) {}
     /// Per-frame progress. Default: idle.
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> TickOut { TickOut::IDLE }
@@ -121,7 +123,7 @@ pub trait Widget {
 /// Zero-sized placeholder swapped in during take-out (Box of a ZST does not allocate).
 pub struct NoopWidget;
 
-impl Widget for NoopWidget {
+impl<C> Widget<C> for NoopWidget {
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
