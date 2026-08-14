@@ -1,13 +1,14 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
 /// Builder for the Spinner widget.
-pub type SpinnerBuilder = WidgetBuilder<SpinnerCfg>;
+pub type SpinnerBuilder<C = crate::geometry::Color> = WidgetBuilder<SpinnerCfg, C>;
 
 /// Spinner configuration: arc line width and rotation period.
 pub struct SpinnerCfg {
@@ -17,12 +18,12 @@ pub struct SpinnerCfg {
 
 impl SpinnerCfg {
     /// Creates a builder (default 32x32, transparent bg).
-    pub fn new() -> WidgetBuilder<SpinnerCfg> {
+    pub fn new<C: PixelFormat>() -> WidgetBuilder<SpinnerCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: SpinnerCfg { line_width: 3, period_ms: 1800 } }
     }
 }
 
-impl WidgetBuilder<SpinnerCfg> {
+impl<C> WidgetBuilder<SpinnerCfg, C> {
     /// Sets the arc line width in pixels (default 3).
     pub fn line_width(mut self, w: i32) -> Self {
         self.cfg.line_width = w;
@@ -35,19 +36,19 @@ impl WidgetBuilder<SpinnerCfg> {
     }
 }
 
-impl WidgetCfg for SpinnerCfg {
+impl<C: PixelFormat> WidgetCfg<C> for SpinnerCfg {
     fn default_style() -> Style {
         Style { bg_opa: Some(0), ..Style::default() }
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((32, 32));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(SpinnerState { line_width: self.line_width, period_ms: self.period_ms }),
         );
-        let mut s = common.style.take().unwrap_or_else(Self::default_style);
+        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);
         }
@@ -64,7 +65,7 @@ pub struct SpinnerState {
 }
 
 impl SpinnerState {
-    fn draw_arc_ind(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_arc_ind<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
         let r = abs.w.min(abs.h) / 2 - 2;
@@ -81,10 +82,10 @@ impl SpinnerState {
     }
 }
 
-impl super::Widget for SpinnerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_arc_ind(ctx, c, clip) }
+impl<C: PixelFormat> super::Widget<C> for SpinnerState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_arc_ind(ctx, c, clip) }
     // Spinner spins forever
-    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
+    fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

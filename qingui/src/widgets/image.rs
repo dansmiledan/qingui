@@ -1,5 +1,6 @@
 use crate::arena::ObjRef;
 use crate::geometry::Rect;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -25,12 +26,12 @@ pub struct ImageState {
     pub last_switch: u64,
 }
 
-impl super::Widget for ImageState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) {
+impl<C: PixelFormat> super::Widget<C> for ImageState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) {
         let Some(f) = self.data.frames.get(self.cur) else { return };
         c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, ctx.ap(255), clip);
     }
-    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> TickOut {
+    fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> TickOut {
         if self.data.frames.len() <= 1 {
             return TickOut::IDLE;
         }
@@ -48,7 +49,7 @@ impl super::Widget for ImageState {
 }
 
 /// Builder for the Image widget.
-pub type ImageBuilder = WidgetBuilder<ImageCfg>;
+pub type ImageBuilder<C = crate::geometry::Color> = WidgetBuilder<ImageCfg, C>;
 
 /// Image configuration: the static image data to display.
 pub struct ImageCfg {
@@ -57,25 +58,25 @@ pub struct ImageCfg {
 
 impl ImageCfg {
     /// Creates a builder for the given image data (default size = first frame size, transparent bg).
-    pub fn new(data: &'static ImageData) -> WidgetBuilder<ImageCfg> {
+    pub fn new<C: PixelFormat>(data: &'static ImageData) -> WidgetBuilder<ImageCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ImageCfg { data } }
     }
 }
 
-impl WidgetCfg for ImageCfg {
+impl<C: PixelFormat> WidgetCfg<C> for ImageCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
         s.bg_opa = Some(0);
         s
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (fw, fh) = self.data.frames.first().map(|f| (f.w, f.h)).unwrap_or((0, 0));
         let (w, h) = common.size.unwrap_or((fw, fh));
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(
             ImageState { data: self.data, cur: 0, last_switch: ui.time() },
         ));
-        let mut s = common.style.take().unwrap_or_else(Self::default_style);
+        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);
         }
