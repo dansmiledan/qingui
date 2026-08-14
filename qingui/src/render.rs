@@ -1,19 +1,20 @@
 use crate::arena::{Arena, ObjRef};
 use crate::dirty::DirtyQueue;
 use crate::display::Flush;
-use crate::geometry::{Color, Rect};
+use crate::geometry::Rect;
 use crate::node::{Flag, Node, State};
+use crate::pixel::PixelFormat;
 use crate::style::ResolvedStyle;
 use embedded_graphics::mono_font::MonoFont;
 
 /// Takes the dirty rects and renders each in chunks (PFB). A plain free function: `Ui` calls
 /// it with disjoint fields.
-pub(crate) fn render(
+pub(crate) fn render<C: PixelFormat>(
     screen: ObjRef,
-    arena: &mut Arena<Node>,
-    buf: &mut [Color],
+    arena: &mut Arena<Node<C>>,
+    buf: &mut [C],
     dirty: &mut DirtyQueue,
-    flush: &mut Option<alloc::boxed::Box<dyn Flush>>,
+    flush: &mut Option<alloc::boxed::Box<dyn Flush<C>>>,
     font: &'static MonoFont<'static>,
     time_ms: u64,
 ) {
@@ -23,11 +24,11 @@ pub(crate) fn render(
     }
 }
 
-fn render_area(
+fn render_area<C: PixelFormat>(
     screen: ObjRef,
-    arena: &mut Arena<Node>,
-    buf: &mut [Color],
-    flush: &mut Option<alloc::boxed::Box<dyn Flush>>,
+    arena: &mut Arena<Node<C>>,
+    buf: &mut [C],
+    flush: &mut Option<alloc::boxed::Box<dyn Flush<C>>>,
     area: Rect,
     font: &'static MonoFont<'static>,
     time_ms: u64,
@@ -43,11 +44,11 @@ fn render_area(
     }
 }
 
-fn render_chunk(
+fn render_chunk<C: PixelFormat>(
     screen: ObjRef,
-    arena: &mut Arena<Node>,
-    buf: &mut [Color],
-    flush: &mut Option<alloc::boxed::Box<dyn Flush>>,
+    arena: &mut Arena<Node<C>>,
+    buf: &mut [C],
+    flush: &mut Option<alloc::boxed::Box<dyn Flush<C>>>,
     chunk: Rect,
     font: &'static MonoFont<'static>,
     time_ms: u64,
@@ -79,9 +80,9 @@ fn render_chunk(
 /// and `clip` is the draw clip rect;
 /// they are the same at the top level; a CLIP_CHILDREN parent shrinks its subtree's clip while
 /// the frame stays unchanged.
-fn draw_node(
-    arena: &mut Arena<Node>,
-    buf: &mut [Color],
+fn draw_node<C: PixelFormat>(
+    arena: &mut Arena<Node<C>>,
+    buf: &mut [C],
     obj: ObjRef,
     frame: Rect,
     clip: Rect,
@@ -137,8 +138,8 @@ fn draw_node(
     }
 }
 
-fn node_draw_info(
-    arena: &Arena<Node>,
+fn node_draw_info<C>(
+    arena: &Arena<Node<C>>,
     obj: ObjRef,
     font: &'static MonoFont<'static>,
 ) -> Option<(Rect, Flag, u8, ResolvedStyle)> {
@@ -150,7 +151,7 @@ fn node_draw_info(
 
 /// Absolute coordinates: accumulates local coordinates and translates up the parent chain
 /// (shared helper, delegated to by `Ui`).
-pub(crate) fn abs_rect(arena: &Arena<Node>, obj: ObjRef) -> Rect {
+pub(crate) fn abs_rect<C>(arena: &Arena<Node<C>>, obj: ObjRef) -> Rect {
     let mut r = arena.get(obj).map(|n| n.rect).unwrap_or_default();
     let mut cur = arena.get(obj).and_then(|n| n.parent);
     while let Some(p) = cur {
@@ -168,7 +169,7 @@ pub(crate) fn abs_rect(arena: &Arena<Node>, obj: ObjRef) -> Rect {
 /// delegated to by `Ui`). While edited, a custom `style_edited` overlay wins; without
 /// one the focus overlay applies. The edited look itself is a style concern: widgets
 /// set their `style_edited` at build time (see `style::theme_edited`).
-pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static MonoFont<'static>) -> ResolvedStyle {
+pub(crate) fn resolved_style<C>(arena: &Arena<Node<C>>, obj: ObjRef, font: &'static MonoFont<'static>) -> ResolvedStyle {
     let Some(n) = arena.get(obj) else {
         return ResolvedStyle::default();
     };
@@ -185,13 +186,14 @@ pub(crate) fn resolved_style(arena: &Arena<Node>, obj: ObjRef, font: &'static Mo
     crate::style::resolve(&n.style, overlay, font)
 }
 
-fn node_state(arena: &Arena<Node>, obj: ObjRef) -> State {
+fn node_state<C>(arena: &Arena<Node<C>>, obj: ObjRef) -> State {
     arena.get(obj).map(|n| n.state).unwrap_or_default()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::Color;
     use crate::widgets::obj::Manual;
     use alloc::boxed::Box;
     use alloc::rc::Rc;
