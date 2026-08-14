@@ -103,7 +103,7 @@ fn eg_draw_target_fill_rect_via_primitives() {
             embedded_graphics::geometry::Size::new(4, 4),
         );
         r.into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
-            embedded_graphics::pixelcolor::Rgb888::new(255, 0, 0),
+            Color::rgb(255, 0, 0),
         ))
         .draw(&mut c)
         .unwrap();

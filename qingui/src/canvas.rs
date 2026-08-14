@@ -1,5 +1,6 @@
 use crate::draw::{circle_cov16, dir_vec, div_ceil_pos, div_floor_pos, eg_rect, isqrt, ArcGeom, ThickLine, COV_MARGIN};
 use crate::geometry::{Color, Rect};
+use crate::pixel::PixelFormat;
 
 /// e-g Rectangle → Rect (origin + size; inverse of `crate::draw::eg_rect`)
 fn from_eg_rect(r: embedded_graphics::primitives::Rectangle) -> Rect {
@@ -8,19 +9,21 @@ fn from_eg_rect(r: embedded_graphics::primitives::Rectangle) -> Rect {
 
 /// Pixel buffer covering a screen region. All coordinates are absolute screen coordinates;
 /// writes are offset by the `area` origin.
-pub struct Canvas<'a> {
+/// The pixel type `C` defaults to RGB888 `Color`; set it to the display's native
+/// format (e.g. `Rgb565`) to render directly in device format.
+pub struct Canvas<'a, C = Color> {
     /// The backing pixel storage.
-    pub pixels: &'a mut [Color],
+    pub pixels: &'a mut [C],
     /// The absolute screen region this buffer covers.
     pub area: Rect,
     /// Row length in pixels (usually `area.w`).
     pub stride: i32,
 }
 
-impl Canvas<'_> {
+impl<C: PixelFormat> Canvas<'_, C> {
     /// Fills the whole buffer with `c`.
     pub fn clear(&mut self, c: Color) {
-        self.pixels.fill(c);
+        self.pixels.fill(C::from_color(c));
     }
 
     pub(crate) fn put(&mut self, x: i32, y: i32, c: Color, opa: u8) {
@@ -31,9 +34,9 @@ impl Canvas<'_> {
         let ly = y - self.area.y;
         let idx = (ly * self.stride + lx) as usize;
         if opa >= 255 {
-            self.pixels[idx] = c;
+            self.pixels[idx] = C::from_color(c);
         } else if opa > 0 {
-            self.pixels[idx] = self.pixels[idx].blend(c, opa);
+            self.pixels[idx] = C::from_color(self.pixels[idx].to_color().blend(c, opa));
         }
     }
 
@@ -51,9 +54,9 @@ impl Canvas<'_> {
         let ly = y - self.area.y;
         let idx = (ly * self.stride + lx) as usize;
         if opa >= 255 {
-            self.pixels[idx] = c;
+            self.pixels[idx] = C::from_color(c);
         } else if opa > 0 {
-            self.pixels[idx] = self.pixels[idx].blend(c, opa);
+            self.pixels[idx] = C::from_color(self.pixels[idx].to_color().blend(c, opa));
         }
     }
 
@@ -65,6 +68,7 @@ impl Canvas<'_> {
         if opa >= 255 {
             // Opaque fast path: batch-fill whole rows (no per-pixel bounds check,
             // no per-pixel blending).
+            let c = C::from_color(c);
             let area_x = self.area.x;
             let area_y = self.area.y;
             let stride = self.stride;
@@ -236,7 +240,7 @@ impl Canvas<'_> {
             if fl <= fh {
                 if opa >= 255 {
                     let row = ((y - self.area.y) * self.stride + (center.x + fl - self.area.x)) as usize;
-                    self.pixels[row..row + (fh - fl + 1) as usize].fill(c);
+                    self.pixels[row..row + (fh - fl + 1) as usize].fill(C::from_color(c));
                 } else {
                     for dx in fl..=fh {
                         self.put_fast(center.x + dx, y, c, opa);
@@ -425,12 +429,12 @@ impl Canvas<'_> {
     pub fn draw_text_opa(&mut self, pos: crate::geometry::Point, font: &'static embedded_graphics::mono_font::MonoFont, s: &str, c: Color, opa: u8, clip: Rect) {
         use embedded_graphics::draw_target::DrawTarget;
         use embedded_graphics::Drawable;
-        struct EgTarget<'a, 'b> {
-            d: &'a mut Canvas<'b>,
+        struct EgTarget<'a, 'b, C> {
+            d: &'a mut Canvas<'b, C>,
             c: Color,
             opa: u8,
         }
-        impl DrawTarget for EgTarget<'_, '_> {
+        impl<C: PixelFormat> DrawTarget for EgTarget<'_, '_, C> {
             type Color = embedded_graphics::pixelcolor::BinaryColor;
             type Error = core::convert::Infallible;
             fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
@@ -448,7 +452,7 @@ impl Canvas<'_> {
         // `Dimensions` must be implemented manually rather than `OriginDimensions`: the latter
         // always reports origin (0,0), while `clipped()` intersects the clip with the bounding
         // box, so a non-zero `area` origin would incorrectly crop the text
-        impl embedded_graphics::geometry::Dimensions for EgTarget<'_, '_> {
+        impl<C> embedded_graphics::geometry::Dimensions for EgTarget<'_, '_, C> {
             fn bounding_box(&self) -> embedded_graphics::primitives::Rectangle {
                 eg_rect(self.d.area)
             }
@@ -555,8 +559,8 @@ impl Canvas<'_> {
     }
 }
 
-impl embedded_graphics::draw_target::DrawTarget for Canvas<'_> {
-    type Color = embedded_graphics::pixelcolor::Rgb888;
+impl<C: PixelFormat> embedded_graphics::draw_target::DrawTarget for Canvas<'_, C> {
+    type Color = C;
     type Error = core::convert::Infallible;
 
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
@@ -565,7 +569,7 @@ impl embedded_graphics::draw_target::DrawTarget for Canvas<'_> {
     {
         // Per-pixel path: ecosystem compatibility, no performance promise.
         for embedded_graphics::Pixel(p, color) in pixels {
-            self.put(p.x, p.y, color.into(), 255);
+            self.put(p.x, p.y, color.to_color(), 255);
         }
         Ok(())
     }
@@ -573,12 +577,12 @@ impl embedded_graphics::draw_target::DrawTarget for Canvas<'_> {
     fn fill_solid(&mut self, area: &embedded_graphics::primitives::Rectangle, color: Self::Color) -> Result<(), Self::Error> {
         // Fast path: route through the batch row fill (eg's default would fall back to draw_iter).
         let clip = self.area;
-        self.fill_rect(from_eg_rect(*area), color.into(), 255, clip);
+        self.fill_rect(from_eg_rect(*area), color.to_color(), 255, clip);
         Ok(())
     }
 
     fn clear(&mut self, color: Self::Color) -> Result<(), Self::Error> {
-        Canvas::clear(self, color.into());
+        Canvas::clear(self, color.to_color());
         Ok(())
     }
 }
@@ -586,8 +590,71 @@ impl embedded_graphics::draw_target::DrawTarget for Canvas<'_> {
 // `Dimensions` is implemented manually rather than `OriginDimensions`: the latter always
 // reports origin (0,0), which would make eg clip/coordinate reasoning wrong for a canvas
 // whose `area` has a non-zero screen origin.
-impl embedded_graphics::geometry::Dimensions for Canvas<'_> {
+impl<C> embedded_graphics::geometry::Dimensions for Canvas<'_, C> {
     fn bounding_box(&self) -> embedded_graphics::primitives::Rectangle {
         eg_rect(self.area)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::Point;
+    use embedded_graphics::pixelcolor::raw::RawU16;
+    use embedded_graphics::pixelcolor::Rgb565;
+    use embedded_graphics::prelude::*;
+    use embedded_graphics::primitives::{Circle, PrimitiveStyle};
+
+    fn canvas565(buf: &mut [Rgb565]) -> Canvas<'_, Rgb565> {
+        Canvas { pixels: buf, area: Rect::new(0, 0, 10, 10), stride: 10 }
+    }
+
+    #[test]
+    fn rgb565_opaque_fill_quantizes() {
+        let mut buf = [Rgb565::BLACK; 100];
+        let mut d = canvas565(&mut buf);
+        let clip = Rect::new(0, 0, 10, 10);
+        d.fill_rect(Rect::new(0, 0, 10, 10), Color::rgb(255, 0, 0), 255, clip);
+        assert!(d.pixels.iter().all(|&p| p == Rgb565::RED));
+    }
+
+    #[test]
+    fn rgb565_fill_circle_quantizes() {
+        let mut buf = [Rgb565::BLACK; 100];
+        let mut d = canvas565(&mut buf);
+        let clip = Rect::new(0, 0, 10, 10);
+        d.fill_circle(Point { x: 5, y: 5 }, 3, Color::WHITE, 255, clip);
+        assert_eq!(d.pixels[5 * 10 + 5], Rgb565::WHITE); // center pixel
+    }
+
+    #[test]
+    fn rgb565_blend_roundtrips_through_rgb888() {
+        let mut buf = [Rgb565::BLACK; 100];
+        let mut d = canvas565(&mut buf);
+        // Blend pure white at 50% over black: internal math yields ~(128,128,128),
+        // stored quantized to 565.
+        d.put(2, 2, Color::WHITE, 128);
+        let expected = Color::BLACK.blend(Color::WHITE, 128);
+        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), expected.to_rgb565());
+    }
+
+    #[test]
+    fn draw_target_accepts_native_rgb565() {
+        let mut buf = [Rgb565::BLACK; 100];
+        let mut d = canvas565(&mut buf);
+        Circle::new(embedded_graphics::geometry::Point::new(0, 0), 5)
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::GREEN))
+            .draw(&mut d)
+            .unwrap();
+        assert_eq!(d.pixels[1 * 10 + 1], Rgb565::GREEN); // pixel (1, 1)
+    }
+
+    #[test]
+    fn default_canvas_still_rgb888() {
+        let mut buf = [Color::BLACK; 100];
+        let mut d: Canvas<'_> = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
+        let clip = Rect::new(0, 0, 10, 10);
+        d.fill_rect(Rect::new(0, 0, 10, 10), Color::rgb(80, 140, 255), 255, clip);
+        assert!(d.pixels.iter().all(|&p| p == Color::rgb(80, 140, 255)));
     }
 }
