@@ -4,7 +4,9 @@ use alloc::vec::Vec;
 use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::event::{EventCb, EventKind};
+use crate::geometry::Color;
 use crate::layout::Sizing;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 
@@ -18,8 +20,7 @@ pub enum Layout {
 }
 
 /// Common fields shared by every widget builder.
-#[derive(Default)]
-pub(crate) struct CommonBuilder {
+pub(crate) struct CommonBuilder<C = Color> {
     pub size: Option<(i32, i32)>,
     pub style: Option<Style>,
     pub style_focused: Option<Style>,
@@ -29,15 +30,25 @@ pub(crate) struct CommonBuilder {
     pub sizing: Option<(Option<Sizing>, Option<Sizing>)>,
     pub aspect: Option<u32>,
     pub transition: Option<(u32, Easing)>,
-    pub events: Vec<(EventKind, EventCb)>,
+    pub events: Vec<(EventKind, EventCb<C>)>,
 }
 
-impl CommonBuilder {
+impl<C> Default for CommonBuilder<C> {
+    fn default() -> Self {
+        Self {
+            size: None, style: None, style_focused: None, style_edited: None,
+            layout: None, pad: None, sizing: None, aspect: None,
+            transition: None, events: Vec::new(),
+        }
+    }
+}
+
+impl<C: PixelFormat> CommonBuilder<C> {
     /// Applies the sizing/transition/events tail to an inserted node.
     /// Style defaults are widget-specific and stay in each `WidgetCfg::build`;
     /// `layout` is consumed by `ObjCfg::build` (it decides the widget kind) and
     /// never reaches this tail.
-    pub fn apply_tail(self, ui: &mut Ui, r: ObjRef) {
+    pub fn apply_tail(self, ui: &mut Ui<C>, r: ObjRef) {
         if let Some(p) = self.pad { ui.set_pad(r, p); }
         if let Some((sw, sh)) = self.sizing { ui.set_sizing(r, sw, sh); }
         if let Some(a) = self.aspect { ui.set_aspect(r, Some(a)); }
@@ -47,27 +58,33 @@ impl CommonBuilder {
 }
 
 /// Widget-specific build logic: default size/style and post-insert setup.
-pub(crate) trait WidgetCfg {
-    fn build(self, ui: &mut Ui, parent: ObjRef, common: CommonBuilder) -> ObjRef;
+pub(crate) trait WidgetCfg<C = Color> {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, common: CommonBuilder<C>) -> ObjRef;
     fn default_style() -> Style {
         Style::default()
     }
 }
 
 /// A fluent builder for any widget. Common setters live here once.
-pub struct WidgetBuilder<Cfg> {
-    pub(crate) common: CommonBuilder,
+///
+/// `C` is the target UI's pixel format; it is inferred at `build` from the
+/// `Ui` being built into, so constructors do not name it.
+pub struct WidgetBuilder<Cfg, C = Color> {
+    pub(crate) common: CommonBuilder<C>,
     pub(crate) cfg: Cfg,
 }
 
-#[allow(private_bounds)]
-impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
+impl<Cfg, C> WidgetBuilder<Cfg, C> {
     /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self { self.common.size = Some((w, h)); self }
     /// Sets the style.
     pub fn style(mut self, s: Style) -> Self { self.common.style = Some(s); self }
     /// Modifies on top of the default style.
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self {
+    #[allow(private_bounds)]
+    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self
+    where
+        Cfg: WidgetCfg<C>,
+    {
         self.common.style = Some(f(self.common.style.take().unwrap_or_else(Cfg::default_style)));
         self
     }
@@ -98,12 +115,17 @@ impl<Cfg: WidgetCfg> WidgetBuilder<Cfg> {
         self
     }
     /// Registers an event callback.
-    pub fn on(mut self, kind: EventKind, cb: EventCb) -> Self {
+    pub fn on(mut self, kind: EventKind, cb: EventCb<C>) -> Self {
         self.common.events.push((kind, cb));
         self
     }
     /// Builds the widget into the parent node.
-    pub fn build(self, ui: &mut Ui, parent: ObjRef) -> ObjRef {
+    #[allow(private_bounds)]
+    pub fn build(self, ui: &mut Ui<C>, parent: ObjRef) -> ObjRef
+    where
+        Cfg: WidgetCfg<C>,
+        C: PixelFormat,
+    {
         Cfg::build(self.cfg, ui, parent, self.common)
     }
 }
