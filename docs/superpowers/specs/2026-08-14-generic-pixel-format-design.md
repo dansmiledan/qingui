@@ -47,7 +47,21 @@ pub trait PixelFormat: PixelColor + Copy + PartialEq + Default {
 - **所有绘制方法签名不变**（仍收 `Color` + opa），转换收敛在 `put`/`put_fast`/`fill_rect` 内部：
   - opaque 路径：`pixels[idx] = C::from_color(c)`（`fill_rect` 的行填充只转换一次再批量填充）；
   - 混合路径：`C::from_color(pixels[idx].to_color().blend(c, opa))`。
-- 因此 800+ 处 widget/样式调用点零改动。
+- 因此 widget 的**绘制逻辑**（800+ 处 `Color` 调用点）零改动。
+
+### 2b. 泛型沿绘制链路传播（`Widget<C>` / `Node<C>` / `Ui<C>`）
+
+`Widget::draw` 的签名持有 `&mut Canvas`（`qingui/src/widgets/mod.rs:99`），`Node.kind: Box<dyn Widget>`、`DrawHook`/`TickHook`/`EventCb` 均持有 `Canvas` 或 `Ui`（`qingui/src/node.rs:8-11`、`qingui/src/event.rs:22`），因此泛型参数必须沿整条链路传播：
+
+- `pub trait Widget<C = Color>`：`draw` 收 `&mut Canvas<'_, C>`，`layout`/`tick`/`on_key` 收 `&mut Ui<C>`；
+- `pub struct Node<C = Color>`：`kind: Box<dyn Widget<C>>`，`DrawHook<C>`、`TickHook<C>`、`EventCb<C>` 同步泛型化；
+- `pub struct Ui<C = Color>`：`arena: Arena<Node<C>>`、`buf: Vec<C>`、`flush: Option<Box<dyn Flush<C>>>`；`anim.rs` 的 `RunningAnim<C>`/`Anim<C>`（`on_done` 回调持 `&mut Ui<C>`）、`layout.rs` 的 `layout_flex`/`layout_grid` 同步泛型化。
+
+** containment 决策**：采用「静态泛型 + 默认参数」而非「`dyn` 非通用绘制 trait」——后者会破坏所有下游自定义 widget 的 `impl Widget` 签名，且在绘制热路径引入动态分发。静态方案下：
+
+- 所有泛型参数默认 `C = Color`，现有用户代码（自定义 widget、事件回调、`impl Flush`）**零修改编译**，行为不变；
+- 内置 widget 改为机械性的泛型实现（`impl<C: PixelFormat> Widget<C> for ButtonState`），绘制逻辑一行不动；
+- 单态化，零运行时开销；每个应用只实例化一个 `C`，代码体积不受影响。
 
 ### 3. e-g `DrawTarget` 泛型实现
 
@@ -71,11 +85,12 @@ impl<C: PixelFormat> DrawTarget for Canvas<'_, C> {
 
 ### 5. 兼容性
 
-三处泛型参数默认值均为 `Color`：
+泛型参数默认值均为 `Color`：
 
 - `impl Flush for X`（不带参数即 `Flush<Color>`）——现有实现无需修改。
 - `Canvas { pixels, area, stride }` 字面量——`pixels: &mut [Color]` 时推断为默认。
 - `Ui::new(...)`——返回 `Ui<Color>`。
+- 用户自定义 widget 的 `impl Widget for MyWidget`（即 `Widget<Color>`）——无需修改，可用于 `Ui<Color>`；想支持其他格式的用户可自行把实现泛型化。
 
 现有用户代码零修改、行为零变化。
 
@@ -92,10 +107,12 @@ impl<C: PixelFormat> DrawTarget for Canvas<'_, C> {
 
 - `pixel.rs`：各格式的 `to_color`/`from_color` 往返测试；`Rgb565` 量化与 `Color::to_rgb565`/`from_rgb565` 已有逻辑的一致性校验（可复用其实现）。
 - `canvas.rs`：新增 `Canvas<Rgb565>` 的绘制/混合/`DrawTarget` 冒烟测试。
-- 现有 `render.rs` 测试走默认 `Color` 路径，保持不变且必须全绿。
+- `qingui/tests/rgb565.rs`：端到端——`Ui<Rgb565>` 挂内置 widget 渲染，flush 捕获输出并校验 Rgb565 编码；并用 e-g `DrawTarget<Color = Rgb565>` 图元直接画入 `Canvas<Rgb565>` 验证互操作。
+- 现有 `render.rs` 等测试走默认 `Color` 路径，保持不变且必须全绿。
 
 ## 涉及文件
 
-- 新增：`qingui/src/pixel.rs`
-- 修改：`qingui/src/canvas.rs`、`qingui/src/display.rs`、`qingui/src/render.rs`、`qingui/src/ui.rs`、`qingui/src/geometry.rs`（`PixelColor` 实现）、`qingui/src/lib.rs`（导出新模块）
-- 不动：全部 widgets、`style.rs`、主题
+- 新增：`qingui/src/pixel.rs`、`qingui/tests/rgb565.rs`（端到端测试）
+- 修改（含实质逻辑变化）：`qingui/src/canvas.rs`、`qingui/src/display.rs`、`qingui/src/render.rs`、`qingui/src/ui.rs`、`qingui/src/geometry.rs`（`PixelColor` 实现）、`qingui/src/lib.rs`（导出新模块）
+- 修改（机械性泛型化，逻辑不变）：`qingui/src/node.rs`、`qingui/src/event.rs`、`qingui/src/anim.rs`、`qingui/src/layout.rs`、`qingui/src/widgets/mod.rs`、`qingui/src/widgets/builder.rs` 及全部 20 个内置 widget 文件
+- 不动：`style.rs`、主题、`focus.rs`、`input.rs`、`dirty.rs`、examples、benches（默认 `C = Color` 使其免改）
