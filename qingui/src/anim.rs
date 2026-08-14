@@ -77,7 +77,7 @@ impl Easing {
 }
 
 /// A single animation tweening one property of one object from a start to an end value.
-pub struct Anim {
+pub struct Anim<C = crate::geometry::Color> {
     /// The animated object.
     pub target: ObjRef,
     /// The property being animated.
@@ -97,10 +97,10 @@ pub struct Anim {
     /// The easing curve applied per cycle.
     pub easing: Easing,
     /// Optional callback invoked once when the animation completes.
-    pub on_done: Option<Box<dyn FnMut(&mut Ui)>>,
+    pub on_done: Option<Box<dyn FnMut(&mut Ui<C>)>>,
 }
 
-impl Anim {
+impl<C> Anim<C> {
     /// Creates an animation from `start` to `end` over `duration_ms`, targeting `prop` of `target`.
     pub fn new(target: ObjRef, prop: AnimProp, start: i32, end: i32, duration_ms: u32) -> Self {
         Self {
@@ -131,15 +131,15 @@ impl Anim {
         self
     }
     /// Sets a callback invoked once when the animation finishes.
-    pub fn on_done(mut self, cb: impl FnMut(&mut Ui) + 'static) -> Self {
+    pub fn on_done(mut self, cb: impl FnMut(&mut Ui<C>) + 'static) -> Self {
         self.on_done = Some(Box::new(cb));
         self
     }
 }
 
 /// An animation currently in flight (internal).
-pub(crate) struct RunningAnim {
-    pub anim: Anim,
+pub(crate) struct RunningAnim<C> {
+    pub anim: Anim<C>,
     pub start_time: u64,
 }
 
@@ -156,7 +156,7 @@ pub(crate) enum AnimEval {
 
 /// Interpolation evaluation (pure): only computes "which value to take"; never touches `on_done` or the tree.
 /// Semantics are byte-for-byte identical to the inline evaluation in the old `Ui::step_anims` (delay/repeat/playback).
-pub(crate) fn eval(a: &Anim, start_time: u64, now: u64) -> AnimEval {
+pub(crate) fn eval<C>(a: &Anim<C>, start_time: u64, now: u64) -> AnimEval {
     let elapsed = now.saturating_sub(start_time);
     if elapsed < a.delay_ms as u64 {
         return AnimEval::Delay;

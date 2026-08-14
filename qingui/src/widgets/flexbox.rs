@@ -9,8 +9,8 @@ pub struct FlexLayout {
     pub flex: Flex,
 }
 
-impl Widget for FlexLayout {
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef, content: Rect) {
+impl<C: crate::pixel::PixelFormat> Widget<C> for FlexLayout {
+    fn layout(&mut self, ui: &mut Ui<C>, obj: ObjRef, content: Rect) {
         crate::layout::layout_flex(ui, obj, &self.flex, content);
     }
     fn as_any(&self) -> &dyn core::any::Any { self }

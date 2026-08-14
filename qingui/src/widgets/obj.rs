@@ -37,7 +37,7 @@ impl WidgetCfg for ObjCfg {
 /// Replaces the old unit `ObjState`.
 pub struct Manual;
 
-impl Widget for Manual {
+impl<C> Widget<C> for Manual {
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

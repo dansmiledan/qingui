@@ -19,6 +19,4 @@ pub enum EventKind {
 }
 
 /// Event callback: invoked with the UI, the source object, and the event kind.
-// NOTE: stays non-generic until Task 5 genericizes `Ui`; a type alias cannot carry
-// an unused `C` (E0091), so `EventCb<C>` = `FnMut(&mut Ui<C>, ...)` lands with `Ui<C>`.
-pub type EventCb = Box<dyn FnMut(&mut Ui, ObjRef, EventKind)>;
+pub type EventCb<C = crate::geometry::Color> = Box<dyn FnMut(&mut Ui<C>, ObjRef, EventKind)>;

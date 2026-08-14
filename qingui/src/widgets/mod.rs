@@ -104,12 +104,11 @@ pub trait Widget<C = Color> {
     /// `content` is the node's content box in the node's LOCAL coordinate space
     /// (origin = padding offsets, size = rect minus padding), computed by Ui;
     /// the layout positions children purely within it.
-    // NOTE: `Ui` is not generic yet (Task 5); these become `&mut Ui<C>` then.
-    fn layout(&mut self, _ui: &mut Ui, _obj: ObjRef, _content: Rect) {}
+    fn layout(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, _content: Rect) {}
     /// Per-frame progress. Default: idle.
-    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> TickOut { TickOut::IDLE }
+    fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, _now: u64) -> TickOut { TickOut::IDLE }
     /// Key handling. Default: not consumed (falls through to focus move / Clicked).
-    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, _key: Key) -> KeyOutcome { KeyOutcome::Pass }
+    fn on_key(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, _key: Key) -> KeyOutcome { KeyOutcome::Pass }
     /// Property-animation Value channel.
     fn value(&self) -> i32 { 0 }
     fn set_value(&mut self, _v: i32) -> bool { false }

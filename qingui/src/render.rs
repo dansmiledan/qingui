@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn abs_rect_accumulates_parent_and_translate() {
-        let mut arena = Arena::new();
+        let mut arena: Arena<Node> = Arena::new();
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, 100, 100), alloc::boxed::Box::new(Manual)));
         let p = arena.insert(Node::new(Some(screen), Rect::new(10, 20, 50, 50), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().children.push(p);
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn resolved_style_state_precedence() {
         // The two states are mutually exclusive: focused > selected
-        let mut arena = Arena::new();
+        let mut arena: Arena<Node> = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let n = arena.get_mut(r).unwrap();
         n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED;
@@ -318,7 +318,7 @@ mod tests {
     fn edited_falls_back_to_focus_overlay() {
         // Without a custom style_edited the focus overlay applies while edited;
         // the edited look itself is a style concern, not a render rule
-        let mut arena = Arena::new();
+        let mut arena: Arena<Node> = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let mut f = crate::style::Style::default();
         f.border_color = Some(Color::WHITE);
@@ -334,7 +334,7 @@ mod tests {
     fn style_edited_overlay_wins_while_edited() {
         // A custom style_edited overlay takes precedence over the focus overlay and
         // disables the default amber border tint
-        let mut arena = Arena::new();
+        let mut arena: Arena<Node> = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let mut f = crate::style::Style::default();
         f.border_color = Some(Color::WHITE);

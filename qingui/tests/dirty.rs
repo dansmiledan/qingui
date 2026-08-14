@@ -31,7 +31,7 @@ fn disjoint_areas_stay_separate_until_cap() {
 
 #[test]
 fn area_clipped_to_screen() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     ui.take_dirty();
     ui.invalidate_area(Rect::new(-50, -50, 100, 100));
     let dirty = ui.take_dirty();

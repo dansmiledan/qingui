@@ -8,9 +8,7 @@ use crate::layout::Sizing;
 pub type DrawHook<C = crate::geometry::Color> = alloc::boxed::Box<dyn FnMut(&mut crate::canvas::Canvas<'_, C>, Rect, Rect, u64)>;
 /// Per-frame hook: returning `true` means still active (dirties the node and keeps the
 /// timer handler awake).
-// NOTE: stays non-generic until Task 5 genericizes `Ui`; a type alias cannot carry
-// an unused `C` (E0091), so `TickHook<C>` = `FnMut(&mut Ui<C>, ...)` lands with `Ui<C>`.
-pub type TickHook = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui, ObjRef, u64) -> bool>;
+pub type TickHook<C = crate::geometry::Color> = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui<C>, ObjRef, u64) -> bool>;
 
 bitflags::bitflags! {
     /// Object state (mirrors LVGL's state).
@@ -91,11 +89,11 @@ pub struct Node<C = crate::geometry::Color> {
     /// Style overlay while selected.
     pub style_selected: Option<alloc::boxed::Box<crate::style::Style>>,
     /// Registered event callbacks, in order.
-    pub events: Vec<(crate::event::EventKind, crate::event::EventCb)>,
+    pub events: Vec<(crate::event::EventKind, crate::event::EventCb<C>)>,
     /// Overlay draw hook, drawn after the widget's own content.
     pub draw_hook: Option<DrawHook<C>>,
     /// Per-frame hook.
-    pub tick_hook: Option<TickHook>,
+    pub tick_hook: Option<TickHook<C>>,
     /// Padding (l, r, t, b): layout input, content origin offset.
     pub pad: (i32, i32, i32, i32),
     /// Layout transition: (duration ms, easing).

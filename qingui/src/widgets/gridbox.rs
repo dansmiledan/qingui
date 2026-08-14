@@ -9,8 +9,8 @@ pub struct GridLayout {
     pub grid: Grid,
 }
 
-impl Widget for GridLayout {
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef, content: Rect) {
+impl<C: crate::pixel::PixelFormat> Widget<C> for GridLayout {
+    fn layout(&mut self, ui: &mut Ui<C>, obj: ObjRef, content: Rect) {
         crate::layout::layout_grid(ui, obj, &self.grid, content);
     }
     fn as_any(&self) -> &dyn core::any::Any { self }
