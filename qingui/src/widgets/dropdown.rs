@@ -6,6 +6,7 @@ use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -26,7 +27,7 @@ impl DropdownState {
     /// Opens the popup list (anchored via Attach::Bottom, modal locked).
     /// Runs inside take-out: `self` is the dropdown state, the popup is a new
     /// screen child (operating on other nodes is unrestricted).
-    fn open_popup(&mut self, ui: &mut Ui, obj: ObjRef) {
+    fn open_popup<C: PixelFormat>(&mut self, ui: &mut Ui<C>, obj: ObjRef) {
         if self.items.is_empty() {
             return;
         }
@@ -70,7 +71,7 @@ impl DropdownState {
         }));
     }
 
-    fn draw_label(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_label<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
         let ap = ctx.ap(255);
@@ -92,7 +93,7 @@ impl DropdownState {
 }
 
 /// Dropdown builder: default 100x20, bg(40,40,52) r4 + white focused border
-pub type DropdownBuilder = WidgetBuilder<DropdownCfg>;
+pub type DropdownBuilder<C = crate::geometry::Color> = WidgetBuilder<DropdownCfg, C>;
 
 /// Dropdown configuration: items, the initially selected index, and the popup geometry props.
 pub struct DropdownCfg {
@@ -105,7 +106,7 @@ pub struct DropdownCfg {
 
 impl DropdownCfg {
     /// Creates a builder with the given items.
-    pub fn new(items: &[&str]) -> WidgetBuilder<DropdownCfg> {
+    pub fn new<C: PixelFormat>(items: &[&str]) -> WidgetBuilder<DropdownCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: DropdownCfg {
@@ -119,7 +120,7 @@ impl DropdownCfg {
     }
 }
 
-impl WidgetBuilder<DropdownCfg> {
+impl<C> WidgetBuilder<DropdownCfg, C> {
     /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.cfg.selected = idx;
@@ -142,7 +143,7 @@ impl WidgetBuilder<DropdownCfg> {
     }
 }
 
-impl WidgetCfg for DropdownCfg {
+impl<C: PixelFormat> WidgetCfg<C> for DropdownCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
         s.bg_color = Some(Color::rgb(40, 40, 52));
@@ -151,7 +152,7 @@ impl WidgetCfg for DropdownCfg {
         s
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((100, 20));
         let selected = if self.items.is_empty() { 0 } else { self.selected.min(self.items.len() - 1) };
         let r = ui.insert_node(
@@ -165,7 +166,7 @@ impl WidgetCfg for DropdownCfg {
                 popup_min_w: self.popup_min_w,
             }),
         );
-        let base = common.style.take().unwrap_or_else(Self::default_style);
+        let base = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
@@ -179,9 +180,9 @@ impl WidgetCfg for DropdownCfg {
     }
 }
 
-impl super::Widget for DropdownState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_label(ctx, c, clip) }
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+impl<C: PixelFormat> super::Widget<C> for DropdownState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_label(ctx, c, clip) }
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         if key == Key::Enter {
             self.open_popup(ui, obj);
             super::KeyOutcome::Consumed

@@ -2,6 +2,7 @@ use crate::arena::ObjRef;
 use crate::geometry::Rect;
 use crate::input::Key;
 use crate::layout::{Align, Flex, FlexDir, Sizing};
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -32,9 +33,9 @@ pub struct ScrollViewState {
     pub step: i32,
 }
 
-impl super::Widget for ScrollViewState {
+impl<C: PixelFormat> super::Widget<C> for ScrollViewState {
     // Container: content is drawn by child nodes (CLIP_CHILDREN handled by the pipeline).
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         // Reentrancy: the kind is taken out during on_key, so `Ui::widget`/`Ui::update`
         // cannot reach this node — mutate `self` directly via `apply_scroll`.
@@ -63,7 +64,7 @@ impl super::Widget for ScrollViewState {
     // The viewport arranges its single child (the content node): the column flex
     // consumes the content's cross-axis `Sizing::GROW`, keeping the content width
     // equal to the viewport width.
-    fn layout(&mut self, ui: &mut Ui, obj: ObjRef, content: Rect) {
+    fn layout(&mut self, ui: &mut Ui<C>, obj: ObjRef, content: Rect) {
         crate::layout::layout_flex(ui, obj, &SCROLL_FLEX, content);
     }
     fn as_any(&self) -> &dyn core::any::Any { self }
@@ -72,7 +73,7 @@ impl super::Widget for ScrollViewState {
 
 /// Core of scroll_to: clamps `y`, writes `state.scroll`, applies the translate.
 /// Callable both from the ext trait (kind in arena) and from `on_key` (kind taken out).
-pub(crate) fn apply_scroll(ui: &mut Ui, sv: ObjRef, state: &mut ScrollViewState, y: i32) {
+pub(crate) fn apply_scroll<C: PixelFormat>(ui: &mut Ui<C>, sv: ObjRef, state: &mut ScrollViewState, y: i32) {
     // Child rects are produced by layout: flush pending layout first so the rects read below are current (same as itemlist ensure_visible)
     if ui.layout_dirty {
         ui.layout_pass();
@@ -93,7 +94,7 @@ pub(crate) fn apply_scroll(ui: &mut Ui, sv: ObjRef, state: &mut ScrollViewState,
 }
 
 /// Builder for the ScrollView widget.
-pub type ScrollViewBuilder = WidgetBuilder<ScrollViewCfg>;
+pub type ScrollViewBuilder<C = crate::geometry::Color> = WidgetBuilder<ScrollViewCfg, C>;
 
 /// ScrollView configuration: scroll step per key press.
 pub struct ScrollViewCfg {
@@ -102,12 +103,12 @@ pub struct ScrollViewCfg {
 
 impl ScrollViewCfg {
     /// Creates an empty builder.
-    pub fn new() -> WidgetBuilder<ScrollViewCfg> {
+    pub fn new<C: PixelFormat>() -> WidgetBuilder<ScrollViewCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ScrollViewCfg { step: STEP } }
     }
 }
 
-impl WidgetBuilder<ScrollViewCfg> {
+impl<C> WidgetBuilder<ScrollViewCfg, C> {
     /// Sets the scroll step per key press in pixels (default `STEP` = 20).
     pub fn step(mut self, v: i32) -> Self {
         self.cfg.step = v;
@@ -115,8 +116,8 @@ impl WidgetBuilder<ScrollViewCfg> {
     }
 }
 
-impl WidgetCfg for ScrollViewCfg {
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+impl<C: PixelFormat> WidgetCfg<C> for ScrollViewCfg {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport is first created as a Manual placeholder: the content node
         // needs the viewport as its parent, and the state needs the content handle.
@@ -155,7 +156,7 @@ pub trait UiScrollViewExt {
     fn scrollview_scroll_by(&mut self, sv: ObjRef, delta: i32);
 }
 
-impl UiScrollViewExt for Ui {
+impl<C: PixelFormat> UiScrollViewExt for Ui<C> {
     fn scrollview_content(&self, sv: ObjRef) -> Option<ObjRef> {
         self.widget::<ScrollViewState>(sv).map(|s| s.content)
     }

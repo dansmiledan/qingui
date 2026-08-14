@@ -5,6 +5,7 @@ use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -41,7 +42,7 @@ impl RollerState {
         self.sel_from.is_some_and(|(_, s)| now.saturating_sub(s) < self.roll_dur)
     }
 
-    fn draw_rows(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_rows<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
         let ap = ctx.ap(255);
@@ -84,7 +85,7 @@ impl RollerState {
 }
 
 /// Roller builder: default 80 x (min(3,n)*16+8), bg(34,34,44) r4 + white focused border
-pub type RollerBuilder = WidgetBuilder<RollerCfg>;
+pub type RollerBuilder<C = crate::geometry::Color> = WidgetBuilder<RollerCfg, C>;
 
 /// Roller configuration: items, initial selection, and geometry/timing props.
 pub struct RollerCfg {
@@ -97,7 +98,7 @@ pub struct RollerCfg {
 
 impl RollerCfg {
     /// Creates a builder with the given items.
-    pub fn new(items: &[&str]) -> WidgetBuilder<RollerCfg> {
+    pub fn new<C: PixelFormat>(items: &[&str]) -> WidgetBuilder<RollerCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: RollerCfg {
@@ -111,7 +112,7 @@ impl RollerCfg {
     }
 }
 
-impl WidgetBuilder<RollerCfg> {
+impl<C> WidgetBuilder<RollerCfg, C> {
     /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.cfg.selected = idx;
@@ -134,7 +135,7 @@ impl WidgetBuilder<RollerCfg> {
     }
 }
 
-impl WidgetCfg for RollerCfg {
+impl<C: PixelFormat> WidgetCfg<C> for RollerCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
         s.bg_color = Some(Color::rgb(34, 34, 44));
@@ -143,7 +144,7 @@ impl WidgetCfg for RollerCfg {
         s
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let rows = self.items.len().min(self.visible_rows).max(1) as i32;
         let (w, h) = common.size.unwrap_or((80, rows * self.row_h + 8));
         let selected = if self.items.is_empty() { 0 } else { self.selected.min(self.items.len() - 1) };
@@ -152,7 +153,7 @@ impl WidgetCfg for RollerCfg {
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(RollerState { items: self.items, selected, sel_from: None, row_h: self.row_h, roll_dur: self.roll_dur }),
         );
-        let base = common.style.take().unwrap_or_else(Self::default_style);
+        let base = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
@@ -167,9 +168,9 @@ impl WidgetCfg for RollerCfg {
     }
 }
 
-impl super::Widget for RollerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_rows(ctx, c, clip) }
-    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {
+impl<C: PixelFormat> super::Widget<C> for RollerState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_rows(ctx, c, clip) }
+    fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> super::TickOut {
         let had_fx = self.sel_from.is_some();
         let active = self.fx_active(now);
         if !active {
@@ -178,7 +179,7 @@ impl super::Widget for RollerState {
         // Redraw if there was fx (including a frame whose fx just expired): the completing frame must render the final settle
         super::TickOut { redraw: had_fx, active }
     }
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         // Inner (EDITED) mode: direction keys roll the selection, Enter confirms the
         // selected value (Commit = Click + exit), Esc exits without acting. Outside the
@@ -211,7 +212,7 @@ pub trait UiRollerExt {
     fn roller_selected(&self, obj: ObjRef) -> usize;
 }
 
-impl UiRollerExt for Ui {
+impl<C: PixelFormat> UiRollerExt for Ui<C> {
     fn roller_selected(&self, obj: ObjRef) -> usize {
         self.widget::<RollerState>(obj).map(|s| s.selected).unwrap_or(0)
     }

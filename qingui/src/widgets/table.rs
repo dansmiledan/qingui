@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -25,7 +26,7 @@ pub struct TableState {
 }
 
 /// Builder for the Table widget.
-pub type TableBuilder = WidgetBuilder<TableCfg>;
+pub type TableBuilder<C = crate::geometry::Color> = WidgetBuilder<TableCfg, C>;
 
 /// Table configuration: grid dimensions and pre-filled cell contents.
 pub struct TableCfg {
@@ -38,7 +39,7 @@ pub struct TableCfg {
 
 impl TableCfg {
     /// Creates a builder with the given grid dimensions (default cols*CELL_W x rows*CELL_H, transparent bg + white text).
-    pub fn new(cols: u8, rows: u8) -> WidgetBuilder<TableCfg> {
+    pub fn new<C: PixelFormat>(cols: u8, rows: u8) -> WidgetBuilder<TableCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: TableCfg {
@@ -51,7 +52,7 @@ impl TableCfg {
     }
 }
 
-impl WidgetBuilder<TableCfg> {
+impl<C> WidgetBuilder<TableCfg, C> {
     /// Pre-fills a cell's content (out-of-bounds is ignored)
     pub fn cell(mut self, row: u8, col: u8, text: &str) -> Self {
         if row < self.cfg.rows && col < self.cfg.cols {
@@ -71,7 +72,7 @@ impl WidgetBuilder<TableCfg> {
     }
 }
 
-impl WidgetCfg for TableCfg {
+impl<C: PixelFormat> WidgetCfg<C> for TableCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
         s.bg_opa = Some(0);
@@ -79,14 +80,14 @@ impl WidgetCfg for TableCfg {
         s
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((self.cols as i32 * self.cell_w, self.rows as i32 * self.cell_h));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(TableState { cols: self.cols, rows: self.rows, cells: self.cells, cell_w: self.cell_w, cell_h: self.cell_h }),
         );
-        let mut s = common.style.take().unwrap_or_else(Self::default_style);
+        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         if s.bg_opa.is_none() {
             s.bg_opa = Some(0);
         }
@@ -100,7 +101,7 @@ impl WidgetCfg for TableCfg {
 }
 
 impl TableState {
-    fn draw_grid(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_grid<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
         let line_c = Color::rgb(70, 70, 90);
@@ -135,8 +136,8 @@ impl TableState {
     }
 }
 
-impl super::Widget for TableState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_grid(ctx, c, clip) }
+impl<C: PixelFormat> super::Widget<C> for TableState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_grid(ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
@@ -147,7 +148,7 @@ pub trait UiTableExt {
     fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str);
 }
 
-impl UiTableExt for Ui {
+impl<C: PixelFormat> UiTableExt for Ui<C> {
     fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
         self.update::<TableState, _>(obj, |s| {
             if row < s.rows && col < s.cols {

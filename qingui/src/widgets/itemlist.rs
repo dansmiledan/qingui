@@ -5,6 +5,7 @@ use crate::geometry::{Color, Rect};
 use crate::input::Key;
 use crate::layout::{Align, Flex, FlexDir, Sizing};
 use crate::node::State;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -42,7 +43,7 @@ fn column_flex() -> Flex {
 }
 
 /// Builder for the ItemList widget.
-pub type ItemListBuilder = WidgetBuilder<ItemListCfg>;
+pub type ItemListBuilder<C = crate::geometry::Color> = WidgetBuilder<ItemListCfg, C>;
 
 /// ItemList configuration: optional custom selected-item style.
 pub struct ItemListCfg {
@@ -51,12 +52,12 @@ pub struct ItemListCfg {
 
 impl ItemListCfg {
     /// Creates an empty builder.
-    pub fn new() -> WidgetBuilder<ItemListCfg> {
+    pub fn new<C: PixelFormat>() -> WidgetBuilder<ItemListCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ItemListCfg { style_selected: None } }
     }
 }
 
-impl WidgetBuilder<ItemListCfg> {
+impl<C> WidgetBuilder<ItemListCfg, C> {
     /// The selected style for items (overlaid on State::SELECTED).
     /// Note: it must explicitly include bg_opa, otherwise the item base's bg_opa(0) makes the highlight invisible
     pub fn style_selected(mut self, s: Style) -> Self {
@@ -65,7 +66,7 @@ impl WidgetBuilder<ItemListCfg> {
     }
 }
 
-impl WidgetCfg for ItemListCfg {
+impl<C: PixelFormat> WidgetCfg<C> for ItemListCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
         s.bg_color = Some(Color::rgb(34, 34, 44));
@@ -75,7 +76,7 @@ impl WidgetCfg for ItemListCfg {
         s
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport node is first created as an Obj placeholder (the content reference needs the handle after the self-reference)
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(super::obj::Manual));
@@ -91,7 +92,7 @@ impl WidgetCfg for ItemListCfg {
             *n = Box::new(ItemListState { selected: 0, content, sel_style });
         }
         // Viewport style (defaults to theme_list's dark background + border)
-        let mut vs = common.style.take().unwrap_or_else(Self::default_style);
+        let mut vs = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, {
             if vs.bg_opa.is_none() { vs.bg_opa = Some(255); }
             vs
@@ -112,9 +113,9 @@ fn default_sel_style() -> Style {
     s
 }
 
-impl super::Widget for ItemListState {
+impl<C: PixelFormat> super::Widget<C> for ItemListState {
     // ItemList is also a container: its content is drawn by child nodes (the default draw paints nothing)
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> KeyOutcome {
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> KeyOutcome {
         // Inner (EDITED) mode: direction keys move the selection, Enter confirms the
         // selected item (Commit = Click + exit), Esc exits without acting. Outside the
         // inner mode nothing is consumed, so rotation moves the focus instead.
@@ -169,7 +170,7 @@ pub trait UiItemListExt {
     fn itemlist_len(&self, il: ObjRef) -> usize;
 }
 
-impl UiItemListExt for Ui {
+impl<C: PixelFormat> UiItemListExt for Ui<C> {
     /// Appends an item container to the ItemList (an Obj, width GROW, transparent background, with the SELECTED style),
     /// and returns that container (the user builds content inside it); returns None if il is not an ItemList
     fn itemlist_add_item(&mut self, il: ObjRef) -> Option<ObjRef> {
@@ -250,7 +251,7 @@ impl UiItemListExt for Ui {
 }
 
 /// Scrolls content (translate.y) so the selected item is visible in the viewport (instant, no animation)
-fn ensure_visible(ui: &mut Ui, il: ObjRef, content: ObjRef, selected: usize) {
+fn ensure_visible<C: PixelFormat>(ui: &mut Ui<C>, il: ObjRef, content: ObjRef, selected: usize) {
     // Item positions are produced by Flex layout: flush pending layout first so the rects read below are current
     if ui.layout_dirty {
         ui.layout_pass();
