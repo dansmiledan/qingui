@@ -92,7 +92,10 @@ impl<C: PixelFormat> DrawTarget for Canvas<'_, C> {
 - `Ui::new(...)`——返回 `Ui<Color>`。
 - 用户自定义 widget 的 `impl Widget for MyWidget`（即 `Widget<Color>`）——无需修改，可用于 `Ui<Color>`；想支持其他格式的用户可自行把实现泛型化。
 
-现有用户代码零修改、行为零变化。
+现有用户代码行为零变化；绝大多数代码零修改编译，但有两类例外需要迁移：
+
+- **`Ui::new` 推断不成立的情形**：`let mut ui = Ui::new(...)` 之后只接泛型 builder 调用时，Rust 默认类型参数不参与表达式级推断，没有任何约束钉住 `C`，会报 E0283；需要 `let mut ui: Ui = Ui::new(...)` 标注绑定类型，或写 `Ui::<Color>::new(...)`。
+- **`Canvas` 的 e-g `DrawTarget` 颜色类型变化**：`type Color` 从 `Rgb888` 变为 `C`（默认 `Color`）；直接用 `Pixel<Rgb888>` 画进默认画布的下游代码需迁移到 `Canvas<'_, Rgb888>`（或改用 qingui `Color`）。
 
 ### 6. 精度与性能权衡
 

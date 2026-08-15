@@ -5,6 +5,8 @@ use crate::node::{Flag, Node, State};
 use crate::pixel::PixelFormat;
 
 /// The UI state: owns the widget tree (arena), dirty tracking, animation, focus, and rendering.
+///
+/// `C` is the framebuffer pixel format; it defaults to the internal RGB888 `Color`.
 pub struct Ui<C = Color> {
     pub(crate) arena: Arena<Node<C>>,
     screen: ObjRef,
@@ -36,6 +38,12 @@ impl<C: PixelFormat> Ui<C> {
 
     /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
     /// scanlines (used for chunked rendering).
+    ///
+    /// The pixel format `C` defaults to `Color`, but default type parameters do not drive
+    /// inference: if nothing else in your code pins `C` (e.g. no `set_flush` with a concrete
+    /// `Flush` impl), annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use
+    /// `Ui::<Color>::new(...)`. For a device-native framebuffer use e.g.
+    /// `Ui::<Rgb565>::new(...)`.
     pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui<C> {
         let mut arena = Arena::new();
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(crate::widgets::obj::Manual)));

@@ -52,6 +52,32 @@ loop {
 }
 ```
 
+## Pixel formats
+
+`Ui` is generic over the framebuffer pixel format `C` (default: qingui's RGB888 `Color`). To render directly in the display's native format, pick it at construction and implement `Flush` for it:
+
+```rust
+use embedded_graphics::pixelcolor::Rgb565;
+use qingui::display::Flush;
+use qingui::{Rect, Ui};
+
+struct MyFlush;
+impl Flush<Rgb565> for MyFlush {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb565]) {
+        // Write `pixels` to the screen's `area` (RGB565).
+    }
+}
+
+let mut ui = Ui::<Rgb565>::new(320, 240, 24);
+ui.set_flush(Box::new(MyFlush));
+```
+
+Supported formats: the eight embedded-graphics RGB/BGR color types (`Rgb888`/`Rgb666`/`Rgb565`/`Rgb555`, `Bgr888`/`Bgr666`/`Bgr565`/`Bgr555`) plus qingui's `Color` (default, RGB888). Embedded-graphics code draws into a qingui canvas of the same format via `DrawTarget<Color = Rgb565>` on `Canvas<'_, Rgb565>`.
+
+**Caveat — `Ui::new` type inference:** the default type parameter `C = Color` does not participate in expression-level inference, so `let mut ui = Ui::new(...)` followed only by generic builder calls fails with E0283 (nothing pins `C`). Annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use `Ui::<Color>::new(...)`.
+
+**Migration — `DrawTarget` color type:** `Canvas`'s `DrawTarget` implementation now has `type Color = C` (was `Rgb888` before). Downstream embedded-graphics code that drew `Pixel<Rgb888>` into a default canvas must switch to `Canvas<'_, Rgb888>` (or qingui's `Color`).
+
 ## 示例（examples）
 
 仓库内含 minifb 桌面模拟器（不发布到 crates.io）：
