@@ -2,6 +2,7 @@ use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Rect};
 use crate::input::Key;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -17,7 +18,7 @@ pub struct SliderState {
 }
 
 /// Builder for the Slider widget.
-pub type SliderBuilder = WidgetBuilder<SliderCfg>;
+pub type SliderBuilder<C = crate::geometry::Color> = WidgetBuilder<SliderCfg, C>;
 
 /// Slider configuration: value range and initial value.
 pub struct SliderCfg {
@@ -29,12 +30,12 @@ pub struct SliderCfg {
 
 impl SliderCfg {
     /// Creates a builder for the given range.
-    pub fn new(min: i32, max: i32) -> WidgetBuilder<SliderCfg> {
+    pub fn new<C: PixelFormat>(min: i32, max: i32) -> WidgetBuilder<SliderCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: SliderCfg { min, max, value: None, knob_w: 8 } }
     }
 }
 
-impl WidgetBuilder<SliderCfg> {
+impl<C> WidgetBuilder<SliderCfg, C> {
     /// Sets the initial value.
     pub fn value(mut self, v: i32) -> Self {
         self.cfg.value = Some(v);
@@ -48,19 +49,19 @@ impl WidgetBuilder<SliderCfg> {
     }
 }
 
-impl WidgetCfg for SliderCfg {
+impl<C: PixelFormat> WidgetCfg<C> for SliderCfg {
     fn default_style() -> Style {
         crate::style::theme_slider()
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((100, 12));
         let r = ui.insert_node(
             parent,
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(SliderState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min), knob_w: self.knob_w }),
         );
-        ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
+        ui.set_style(r, common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style));
         let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_slider_focused);
         ui.set_style_focused(r, focused.clone());
         ui.set_style_edited(r, common.style_edited.take().unwrap_or_else(|| crate::style::theme_edited(&focused)));
@@ -70,7 +71,7 @@ impl WidgetCfg for SliderCfg {
 }
 
 impl SliderState {
-    fn draw_track(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_track<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
         let iw = (abs.w as f32 * frac) as i32;
@@ -87,9 +88,9 @@ impl SliderState {
     }
 }
 
-impl super::Widget for SliderState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_track(ctx, c, clip) }
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+impl<C: PixelFormat> super::Widget<C> for SliderState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_track(ctx, c, clip) }
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         let edited = ui.state(obj).contains(crate::node::State::EDITED);
         if edited {

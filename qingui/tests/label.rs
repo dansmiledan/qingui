@@ -40,7 +40,7 @@ fn non_ascii_falls_back_to_question_mark() {
 #[test]
 fn label_renders_glyph_pixels() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 48); // single-row buffer: 1 chunk
+    let mut ui: Ui = Ui::new(64, 48, 48); // single-row buffer: 1 chunk
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
     bg.bg_color = Some(Color::BLACK);
@@ -63,7 +63,7 @@ fn label_renders_glyph_pixels() {
 
 #[test]
 fn set_text_invalidates_and_resizes() {
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let l = LabelCfg::new("A").build(&mut ui, scr);
     ui.set_pos(l, 10, 10);

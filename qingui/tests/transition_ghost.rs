@@ -29,7 +29,7 @@ const TEXT: &str = "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab
 
 fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRef, ObjRef) {
     let rec = Rc::new(RefCell::new(RecFlush { fb: vec![Color::BLACK; 320 * 240] }));
-    let mut ui = Ui::new(320, 240, 24);
+    let mut ui: Ui = Ui::new(320, 240, 24);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let screen = ui.screen();
     let col = if wide { 108 } else { 180 };

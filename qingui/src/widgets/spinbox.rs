@@ -2,6 +2,7 @@ use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -17,7 +18,7 @@ pub struct SpinboxState {
     pub cursor: u8,
 }
 
-pub(crate) fn draw(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
     let _ = (min, max);
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
@@ -56,7 +57,7 @@ pub(crate) fn step_digit(min: i32, max: i32, value: &mut i32, digits: u8, cursor
 }
 
 /// Builder for the Spinbox widget.
-pub type SpinboxBuilder = WidgetBuilder<SpinboxCfg>;
+pub type SpinboxBuilder<C = crate::geometry::Color> = WidgetBuilder<SpinboxCfg, C>;
 
 /// Spinbox configuration: value range, digit count, and initial value.
 pub struct SpinboxCfg {
@@ -68,7 +69,7 @@ pub struct SpinboxCfg {
 
 impl SpinboxCfg {
     /// Creates a builder for the given range and digit count.
-    pub fn new(min: i32, max: i32, digits: u8) -> WidgetBuilder<SpinboxCfg> {
+    pub fn new<C: PixelFormat>(min: i32, max: i32, digits: u8) -> WidgetBuilder<SpinboxCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: SpinboxCfg { min, max, digits: digits.max(1), value: None },
@@ -85,7 +86,7 @@ impl SpinboxCfg {
     }
 }
 
-impl WidgetBuilder<SpinboxCfg> {
+impl<C> WidgetBuilder<SpinboxCfg, C> {
     /// Sets the initial value.
     pub fn value(mut self, v: i32) -> Self {
         self.cfg.value = Some(v);
@@ -93,12 +94,12 @@ impl WidgetBuilder<SpinboxCfg> {
     }
 }
 
-impl WidgetCfg for SpinboxCfg {
+impl<C: PixelFormat> WidgetCfg<C> for SpinboxCfg {
     fn default_style() -> Style {
         Self::base_style()
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let font = crate::font::measure_font(common.style.as_ref(), ui);
         let (w, h) = common.size.unwrap_or((self.digits as i32 * crate::font::advance(font) + 12, crate::font::line_height(font) + 8));
         let r = ui.insert_node(
@@ -127,9 +128,9 @@ impl WidgetCfg for SpinboxCfg {
     }
 }
 
-impl super::Widget for SpinboxState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { draw(self.min, self.max, self.value, self.digits, self.cursor, ctx, c, clip) }
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+impl<C: PixelFormat> super::Widget<C> for SpinboxState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.min, self.max, self.value, self.digits, self.cursor, ctx, c, clip) }
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         if !ui.state(obj).contains(crate::node::State::EDITED) {
             return if key == Key::Enter {

@@ -33,7 +33,7 @@ fn draw_text_origin_is_top_left() {
 
 #[test]
 fn default_font_and_override() {
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     let s = ui.screen();
     let l = qingui::widgets::label::LabelCfg::new("hi").build(&mut ui, s);
     // Note: embedded-graphics fonts are const rather than static, so taking their address may yield different promoted instances,
@@ -54,7 +54,7 @@ fn default_font_and_override() {
 fn content_size_follows_default_and_style_font() {
     use qingui::widgets::label::UiTextExt;
     // The global default font affects content size (set before build)
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     ui.set_default_font(&FONT_10X20);
     let s = ui.screen();
     let l = qingui::widgets::label::LabelCfg::new("hi").build(&mut ui, s);

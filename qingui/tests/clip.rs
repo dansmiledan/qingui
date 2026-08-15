@@ -26,7 +26,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 
 fn build(bg: Color) -> (Rc<RefCell<RecFlush>>, Ui, qingui::ObjRef, qingui::ObjRef) {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 64, 16);
+    let mut ui: Ui = Ui::new(64, 64, 16);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(bg);

@@ -17,7 +17,7 @@ use qingui::widgets::msgbox::MsgboxBuilder;
 
 #[test]
 fn spinner_props_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = SpinnerCfg::new().build(&mut ui, scr);
     let s = ui.widget::<SpinnerState>(a).unwrap();
@@ -29,7 +29,7 @@ fn spinner_props_default_and_override() {
 
 #[test]
 fn roller_props_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let items = ["a", "b", "c", "d", "e"];
     let a = RollerCfg::new(&items).build(&mut ui, scr);
@@ -44,7 +44,7 @@ fn roller_props_default_and_override() {
 
 #[test]
 fn list_props_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let items = ["a", "b", "c", "d", "e", "f", "g"];
     let a = ListCfg::new(&items).build(&mut ui, scr);
@@ -61,7 +61,7 @@ fn list_props_default_and_override() {
 
 #[test]
 fn arc_props_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ArcCfg::new(0, 100).build(&mut ui, scr);
     let s = ui.widget::<ArcState>(a).unwrap();
@@ -73,7 +73,7 @@ fn arc_props_default_and_override() {
 
 #[test]
 fn slider_knob_w_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = SliderCfg::new(0, 100).build(&mut ui, scr);
     assert_eq!(ui.widget::<SliderState>(a).unwrap().knob_w, 8);
@@ -83,7 +83,7 @@ fn slider_knob_w_default_and_override() {
 
 #[test]
 fn checkbox_props_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = CheckboxCfg::new("ab").build(&mut ui, scr);
     let s = ui.widget::<CheckboxState>(a).unwrap();
@@ -98,7 +98,7 @@ fn checkbox_props_default_and_override() {
 
 #[test]
 fn dropdown_popup_props_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = DropdownCfg::new(&["x", "y"]).build(&mut ui, scr);
     let s = ui.widget::<DropdownState>(a).unwrap();
@@ -110,7 +110,7 @@ fn dropdown_popup_props_default_and_override() {
 
 #[test]
 fn table_cell_props_default_and_override() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let a = TableCfg::new(2, 3).build(&mut ui, scr);
     assert_eq!((ui.rect(a).w, ui.rect(a).h), (2 * qingui::widgets::table::CELL_W, 3 * qingui::widgets::table::CELL_H));
@@ -124,7 +124,7 @@ fn table_cell_props_default_and_override() {
 
 #[test]
 fn scrollview_step_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let sv = ScrollViewCfg::new().size(60, 60).step(8).build(&mut ui, scr);
     assert_eq!(ui.widget::<ScrollViewState>(sv).unwrap().step, 8);
@@ -140,7 +140,7 @@ fn scrollview_step_override() {
 
 #[test]
 fn chart_line_width_default_and_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ChartCfg::new().build(&mut ui, scr);
     assert_eq!(ui.widget::<ChartState>(a).unwrap().line_width, 2);
@@ -150,7 +150,7 @@ fn chart_line_width_default_and_override() {
 
 #[test]
 fn button_content_pad_override() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ButtonCfg::new("Go").build(&mut ui, scr);
     let b = ButtonCfg::new("Go").content_pad(40, 20).build(&mut ui, scr);
@@ -161,7 +161,7 @@ fn button_content_pad_override() {
 
 #[test]
 fn msgbox_size_override() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let a = MsgboxBuilder::new("t", "m").buttons(&["OK"]).build(&mut ui, scr);
     assert_eq!((ui.rect(a).w, ui.rect(a).h), (200, 110));

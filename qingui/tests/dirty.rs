@@ -3,7 +3,7 @@ use qingui::{Rect, Ui};
 
 #[test]
 fn move_obj_marks_old_and_new_area() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     ui.take_dirty(); // clear the full-screen dirty produced when the screen was created
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
@@ -31,7 +31,7 @@ fn disjoint_areas_stay_separate_until_cap() {
 
 #[test]
 fn area_clipped_to_screen() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     ui.take_dirty();
     ui.invalidate_area(Rect::new(-50, -50, 100, 100));
     let dirty = ui.take_dirty();
@@ -40,7 +40,7 @@ fn area_clipped_to_screen() {
 
 #[test]
 fn style_change_invalidates_obj() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(o, 10, 10);
@@ -55,7 +55,7 @@ fn style_change_invalidates_obj() {
 #[test]
 fn hidden_obj_setters_dont_dirty_but_hide_show_do() {
     use qingui::widgets::bar::BarCfg;
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     let scr = ui.screen();
     let panel = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(panel, 40, 40);
@@ -92,7 +92,7 @@ fn hidden_target_anim_does_not_dirty() {
         }
     }
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 48);
+    let mut ui: Ui = Ui::new(64, 48, 48);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let scr = ui.screen();
     let panel = ObjCfg::new().build(&mut ui, scr);

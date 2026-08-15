@@ -5,6 +5,7 @@ use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -94,7 +95,7 @@ fn lerp_t(start: u64, now: u64, dur: u64) -> f32 {
 }
 
 impl ListState {
-    fn draw_rows(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_rows<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let now = ctx.now;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
@@ -246,7 +247,7 @@ impl ListState {
 }
 
 /// List builder: default 120 x (min(5,n)*16+2), theme_list/focused
-pub type ListBuilder = WidgetBuilder<ListCfg>;
+pub type ListBuilder<C = crate::geometry::Color> = WidgetBuilder<ListCfg, C>;
 
 /// List configuration: items, the initially selected index, and the geometry/fx props.
 pub struct ListCfg {
@@ -259,7 +260,7 @@ pub struct ListCfg {
 
 impl ListCfg {
     /// Creates a builder with the given items.
-    pub fn new(items: &[&str]) -> WidgetBuilder<ListCfg> {
+    pub fn new<C: PixelFormat>(items: &[&str]) -> WidgetBuilder<ListCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: ListCfg {
@@ -273,7 +274,7 @@ impl ListCfg {
     }
 }
 
-impl WidgetBuilder<ListCfg> {
+impl<C> WidgetBuilder<ListCfg, C> {
     /// Sets the initially selected index.
     pub fn selected(mut self, idx: usize) -> Self {
         self.cfg.selected = idx;
@@ -296,12 +297,12 @@ impl WidgetBuilder<ListCfg> {
     }
 }
 
-impl WidgetCfg for ListCfg {
+impl<C: PixelFormat> WidgetCfg<C> for ListCfg {
     fn default_style() -> Style {
         crate::style::theme_list()
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let rows = self.items.len().min(self.visible_rows).max(1) as i32;
         let (w, h) = common.size.unwrap_or((120, rows * self.row_h + 2));
         let selected = if self.items.is_empty() { 0 } else { self.selected.min(self.items.len() - 1) };
@@ -310,7 +311,7 @@ impl WidgetCfg for ListCfg {
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(ListState { items: self.items, selected, scroll: 0, fx: ListFx::default(), row_h: self.row_h, fx_dur: self.fx_dur }),
         );
-        ui.set_style(r, common.style.take().unwrap_or_else(Self::default_style));
+        ui.set_style(r, common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style));
         let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused);
         ui.set_style_focused(r, focused.clone());
         ui.set_style_edited(r, common.style_edited.take().unwrap_or_else(|| crate::style::theme_edited(&focused)));
@@ -319,15 +320,15 @@ impl WidgetCfg for ListCfg {
     }
 }
 
-impl super::Widget for ListState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_rows(ctx, c, clip) }
-    fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, now: u64) -> super::TickOut {
+impl<C: PixelFormat> super::Widget<C> for ListState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_rows(ctx, c, clip) }
+    fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> super::TickOut {
         let was_active = self.fx.active(now, self.fx_dur);
         let removed = self.fx.prune(now, self.fx_dur);
         // Redraw every frame while active; the frame that clears an effect also repaints once (to remove the ghost residue)
         super::TickOut { redraw: was_active || removed, active: self.fx.active(now, self.fx_dur) }
     }
-    fn on_key(&mut self, ui: &mut Ui, obj: ObjRef, key: Key) -> super::KeyOutcome {
+    fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         // Inner (EDITED) mode: direction keys move the selection, Enter confirms the
         // selected item (Commit = Click + exit), Esc exits without acting. Outside the
@@ -370,7 +371,7 @@ pub trait UiListExt {
     fn list_len(&self, obj: ObjRef) -> usize;
 }
 
-impl UiListExt for Ui {
+impl<C: PixelFormat> UiListExt for Ui<C> {
     fn list_select(&mut self, obj: ObjRef, idx: usize) {
         let now = self.time();
         let vis_h = self.rect(obj).h;

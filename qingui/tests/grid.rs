@@ -8,7 +8,7 @@ fn grid(cols: Vec<Track>, rows: Vec<Track>, gap: i32) -> Grid {
 
 #[test]
 fn px_tracks_place_children() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(c, 0, 0);
@@ -27,7 +27,7 @@ fn px_tracks_place_children() {
 
 #[test]
 fn fr_shares_remaining_space() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
@@ -45,7 +45,7 @@ fn fr_shares_remaining_space() {
 
 #[test]
 fn content_track_sizes_to_child() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
@@ -61,7 +61,7 @@ fn content_track_sizes_to_child() {
 
 #[test]
 fn span_places_across_tracks() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
@@ -78,7 +78,7 @@ fn span_places_across_tracks() {
 
 #[test]
 fn ignore_layout_child_not_managed() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_size(c, 300, 100);
@@ -99,7 +99,7 @@ fn ignore_layout_child_not_managed() {
 
 #[test]
 fn padded_grid_at_nonzero_pos() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let c = ObjCfg::new().build(&mut ui, scr);
     ui.set_pos(c, 50, 30);

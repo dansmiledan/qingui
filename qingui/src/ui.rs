@@ -1,19 +1,22 @@
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
-use crate::geometry::Rect;
+use crate::geometry::{Color, Rect};
 use crate::node::{Flag, Node, State};
+use crate::pixel::PixelFormat;
 
 /// The UI state: owns the widget tree (arena), dirty tracking, animation, focus, and rendering.
-pub struct Ui {
-    pub(crate) arena: Arena<Node>,
+///
+/// `C` is the framebuffer pixel format; it defaults to the internal RGB888 `Color`.
+pub struct Ui<C = Color> {
+    pub(crate) arena: Arena<Node<C>>,
     screen: ObjRef,
     width: i32,
     height: i32,
     dirty: crate::dirty::DirtyQueue,
-    flush: Option<alloc::boxed::Box<dyn crate::display::Flush>>,
-    buf: Vec<crate::geometry::Color>,
+    flush: Option<alloc::boxed::Box<dyn crate::display::Flush<C>>>,
+    buf: Vec<C>,
     time_ms: u64,
-    anims: Vec<crate::anim::RunningAnim>,
+    anims: Vec<crate::anim::RunningAnim<C>>,
     group: Vec<ObjRef>,
     focused_idx: Option<usize>,
     pub(crate) layout_dirty: bool,
@@ -21,7 +24,7 @@ pub struct Ui {
     default_font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
-impl Ui {
+impl<C: PixelFormat> Ui<C> {
     /// Sets padding (l, r, t, b).
     pub fn set_pad(&mut self, obj: ObjRef, pad: (i32, i32, i32, i32)) {
         if let Some(n) = self.arena.get_mut(obj) { n.pad = pad; }
@@ -35,12 +38,18 @@ impl Ui {
 
     /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
     /// scanlines (used for chunked rendering).
-    pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui {
+    ///
+    /// The pixel format `C` defaults to `Color`, but default type parameters do not drive
+    /// inference: if nothing else in your code pins `C` (e.g. no `set_flush` with a concrete
+    /// `Flush` impl), annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use
+    /// `Ui::<Color>::new(...)`. For a device-native framebuffer use e.g.
+    /// `Ui::<Rgb565>::new(...)`.
+    pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui<C> {
         let mut arena = Arena::new();
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(crate::widgets::obj::Manual)));
         let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
         dirty.add(Rect::new(0, 0, width, height)); // build screen: dirty the full screen
-        let buf = alloc::vec![crate::geometry::Color::BLACK; (width * buf_rows as i32).max(0) as usize];
+        let buf = alloc::vec![C::default(); (width * buf_rows as i32).max(0) as usize];
         Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None, default_font: crate::font::DEFAULT_FONT }
     }
 
@@ -58,7 +67,7 @@ impl Ui {
     }
 
     /// Sets the overlay draw hook (`None` clears it). Drawn on top of the widget's own content.
-    pub fn set_draw_hook(&mut self, obj: ObjRef, hook: Option<crate::node::DrawHook>) {
+    pub fn set_draw_hook(&mut self, obj: ObjRef, hook: Option<crate::node::DrawHook<C>>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.draw_hook = hook;
         }
@@ -67,7 +76,7 @@ impl Ui {
 
     /// Sets the per-frame hook (`None` clears it). Frames that return `true` dirty the object
     /// and keep the timer handler awake.
-    pub fn set_tick_hook(&mut self, obj: ObjRef, hook: Option<crate::node::TickHook>) {
+    pub fn set_tick_hook(&mut self, obj: ObjRef, hook: Option<crate::node::TickHook<C>>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.tick_hook = hook;
         }
@@ -85,7 +94,7 @@ impl Ui {
 
     /// Mounts a user-defined widget (implementing `widgets::Widget`). This is the
     /// same insertion path built-in widgets use: user widgets are first-class.
-    pub fn create_widget(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::Widget>) -> ObjRef {
+    pub fn create_widget(&mut self, parent: ObjRef, w: i32, h: i32, widget: alloc::boxed::Box<dyn crate::widgets::Widget<C>>) -> ObjRef {
         self.insert_node(parent, Rect::new(0, 0, w, h), widget)
     }
 
@@ -103,7 +112,7 @@ impl Ui {
         self.widget::<crate::widgets::roller::RollerState>(obj)
     }
 
-    pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut alloc::boxed::Box<dyn crate::widgets::Widget>> {
+    pub(crate) fn kind_mut(&mut self, obj: ObjRef) -> Option<&mut alloc::boxed::Box<dyn crate::widgets::Widget<C>>> {
         self.arena.get_mut(obj).map(|n| &mut n.kind)
     }
 
@@ -340,7 +349,7 @@ impl Ui {
     }
 
     /// Sets the display flush callback.
-    pub fn set_flush(&mut self, f: alloc::boxed::Box<dyn crate::display::Flush>) {
+    pub fn set_flush(&mut self, f: alloc::boxed::Box<dyn crate::display::Flush<C>>) {
         self.flush = Some(f);
     }
 
@@ -354,7 +363,7 @@ impl Ui {
     }
 
     /// Starts an animation (an existing animation on the same target/property is replaced).
-    pub fn anim_start(&mut self, a: crate::anim::Anim) {
+    pub fn anim_start(&mut self, a: crate::anim::Anim<C>) {
         // The old animation on the same target/property is replaced (mirrors LVGL semantics)
         self.anim_stop(a.target, a.prop);
         // Apply the start value immediately to avoid a jump
@@ -838,7 +847,7 @@ impl Ui {
         );
     }
 
-    pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget>) -> ObjRef {
+    pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget<C>>) -> ObjRef {
         let r = self.arena.insert(Node::new(Some(parent), rect, kind));
         if let Some(p) = self.arena.get_mut(parent) {
             p.children.push(r);
@@ -881,7 +890,7 @@ impl Ui {
     }
 
     /// Registers an event callback on `obj`.
-    pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb) {
+    pub fn add_event_cb(&mut self, obj: ObjRef, kind: crate::event::EventKind, cb: crate::event::EventCb<C>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.events.push((kind, cb));
         }
@@ -1155,7 +1164,7 @@ mod tests {
         use crate::widgets::label::LabelCfg;
         use crate::widgets::obj::ObjCfg;
         use crate::widgets::Layout;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let container = ObjCfg::new()
             .size(320, 240)
@@ -1176,7 +1185,7 @@ mod tests {
         use crate::input::Key;
         use crate::node::State;
         use crate::widgets::list::{ListCfg, UiListExt};
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let lst = ListCfg::new(&["A", "B", "C"]).size(60, 60).build(&mut ui, scr);
         let clicked = Rc::new(Cell::new(false));
@@ -1203,7 +1212,7 @@ mod tests {
         use crate::node::State;
         use crate::widgets::label::LabelCfg;
         use crate::widgets::list::ListCfg;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let lst = ListCfg::new(&["A", "B", "C"]).size(60, 60).build(&mut ui, scr);
         let other = LabelCfg::new("x").size(10, 10).build(&mut ui, scr);
@@ -1225,7 +1234,7 @@ mod tests {
         use crate::input::Key;
         use crate::node::State;
         use crate::widgets::label::LabelCfg;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         // A widget whose on_key never consumes anything
         struct Dummy;
@@ -1256,7 +1265,7 @@ mod tests {
         use crate::node::State;
         use crate::widgets::dropdown::DropdownCfg;
         use crate::widgets::list::UiListExt;
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let dd = DropdownCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
         ui.group_add(dd);
@@ -1278,7 +1287,7 @@ mod tests {
         use crate::input::Key;
         use crate::node::State;
         use crate::widgets::slider::{SliderCfg, SliderState};
-        let mut ui = Ui::new(320, 240, 24);
+        let mut ui: Ui = Ui::new(320, 240, 24);
         let scr = ui.screen();
         let sl = SliderCfg::new(0, 10).build(&mut ui, scr);
         let clicked = Rc::new(Cell::new(false));
@@ -1302,7 +1311,7 @@ mod tests {
         // The edited look is a style the widget sets at build time (style::theme_edited),
         // not a render rule: entering the inner mode turns the list border amber
         use crate::widgets::list::ListCfg;
-        let mut ui = Ui::new(160, 120, 120);
+        let mut ui: Ui = Ui::new(160, 120, 120);
         let scr = ui.screen();
         let l = ListCfg::new(&["a", "b"]).build(&mut ui, scr);
         ui.set_state(l, crate::node::State::FOCUSED | crate::node::State::EDITED, true);

@@ -11,7 +11,7 @@ struct DockProps {
 
 #[test]
 fn custom_constraints_roundtrip_and_mutate() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let child = ObjCfg::new().build(&mut ui, scr);
 
@@ -34,7 +34,7 @@ fn custom_constraints_roundtrip_and_mutate() {
 
 #[test]
 fn non_custom_node_returns_none() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let child = ObjCfg::new().build(&mut ui, scr);
 
@@ -48,7 +48,7 @@ fn non_custom_node_returns_none() {
 
 #[test]
 fn custom_replaces_grid_placement() {
-    let mut ui = Ui::new(320, 240, 240);
+    let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
     let child = ObjCfg::new().build(&mut ui, scr);
 

@@ -3,6 +3,7 @@ use crate::canvas::Canvas;
 use crate::event::EventKind;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
+use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -20,7 +21,7 @@ pub struct CheckboxState {
 }
 
 impl CheckboxState {
-    fn draw_box(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_box<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let box_size = self.box_size;
         let abs = ctx.abs;
         let ap = |b: u8| ctx.ap(b);
@@ -49,7 +50,7 @@ impl CheckboxState {
 }
 
 /// Builder for the Checkbox widget.
-pub type CheckboxBuilder = WidgetBuilder<CheckboxCfg>;
+pub type CheckboxBuilder<C = crate::geometry::Color> = WidgetBuilder<CheckboxCfg, C>;
 
 /// Checkbox configuration: label text and initial checked state.
 pub struct CheckboxCfg {
@@ -61,12 +62,12 @@ pub struct CheckboxCfg {
 
 impl CheckboxCfg {
     /// Creates a builder with the given label text.
-    pub fn new(text: &str) -> WidgetBuilder<CheckboxCfg> {
+    pub fn new<C: PixelFormat>(text: &str) -> WidgetBuilder<CheckboxCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: CheckboxCfg { text: text.into(), checked: false, box_size: BOX, gap: 6 } }
     }
 }
 
-impl WidgetBuilder<CheckboxCfg> {
+impl<C> WidgetBuilder<CheckboxCfg, C> {
     /// Sets the initial checked state.
     pub fn checked(mut self, on: bool) -> Self {
         self.cfg.checked = on;
@@ -84,12 +85,12 @@ impl WidgetBuilder<CheckboxCfg> {
     }
 }
 
-impl WidgetCfg for CheckboxCfg {
+impl<C: PixelFormat> WidgetCfg<C> for CheckboxCfg {
     fn default_style() -> Style {
         Style { bg_opa: Some(0), text_color: Some(Color::WHITE), ..Style::default() }
     }
 
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or_else(|| {
             let font = crate::font::measure_font(common.style.as_ref(), ui);
             let (tw, _) = crate::font::text_size(font, &self.text);
@@ -100,7 +101,7 @@ impl WidgetCfg for CheckboxCfg {
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(CheckboxState { text: self.text, checked: self.checked, box_size: self.box_size, gap: self.gap }),
         );
-        let base = common.style.take().unwrap_or_else(Self::default_style);
+        let base = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
@@ -120,7 +121,7 @@ pub trait UiCheckboxExt {
     fn toggle_checkbox(&mut self, obj: ObjRef);
 }
 
-impl UiCheckboxExt for Ui {
+impl<C: PixelFormat> UiCheckboxExt for Ui<C> {
     fn toggle_checkbox(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         self.update::<CheckboxState, _>(obj, |s| { s.checked = !s.checked; });
@@ -129,9 +130,9 @@ impl UiCheckboxExt for Ui {
     }
 }
 
-impl super::Widget for CheckboxState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_box(ctx, c, clip) }
-    fn on_key(&mut self, _ui: &mut Ui, _obj: ObjRef, key: Key) -> super::KeyOutcome {
+impl<C: PixelFormat> super::Widget<C> for CheckboxState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_box(ctx, c, clip) }
+    fn on_key(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, key: Key) -> super::KeyOutcome {
         if key == Key::Enter { self.checked = !self.checked; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
     }
     fn value(&self) -> i32 { self.checked as i32 }

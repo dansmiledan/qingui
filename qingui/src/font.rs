@@ -22,7 +22,7 @@ pub fn line_height(font: &'static MonoFont) -> i32 {
 /// Consistent with the three-level `resolved_style` resolution (the overlay is unknown at
 /// build/set time, so only `base style.font` is considered),
 /// ensuring widget content size matches the font actually used for drawing.
-pub(crate) fn measure_font(style: Option<&crate::style::Style>, ui: &crate::ui::Ui) -> &'static MonoFont<'static> {
+pub(crate) fn measure_font<C: crate::pixel::PixelFormat>(style: Option<&crate::style::Style>, ui: &crate::ui::Ui<C>) -> &'static MonoFont<'static> {
     style.and_then(|s| s.font).unwrap_or_else(|| ui.default_font())
 }
 

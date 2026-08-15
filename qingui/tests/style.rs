@@ -46,7 +46,7 @@ fn composed_theme_button_matches_expected() {
 
 #[test]
 fn default_button_resolves_theme() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
     let b = ObjCfg::new().build(&mut ui, scr);
     ui.set_style(b, theme_button());
@@ -58,7 +58,7 @@ fn default_button_resolves_theme() {
 
 #[test]
 fn base_style_field_fallback() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
     let o = ObjCfg::new().build(&mut ui, scr);
     let mut s = Style::default();
@@ -71,7 +71,7 @@ fn base_style_field_fallback() {
 
 #[test]
 fn state_override_wins_then_falls_back() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let scr = ui.screen();
     let b = ObjCfg::new().build(&mut ui, scr);
     let mut base = theme_button();

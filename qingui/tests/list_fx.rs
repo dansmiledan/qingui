@@ -8,7 +8,7 @@ fn list_fx(ui: &Ui, l: qingui::ObjRef) -> qingui::widgets::list::ListFx {
 
 #[test]
 fn insert_adds_item_with_fade_and_shift_fx() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.list_insert(l, 1, "x");
@@ -25,7 +25,7 @@ fn insert_adds_item_with_fade_and_shift_fx() {
 #[test]
 fn insert_not_capped_by_widget() {
     // The widget itself does not cap capacity (the cap is a business policy controlled by the caller)
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["x"; 20]).build(&mut ui, scr);
     ui.list_insert(l, 0, "y");
@@ -34,7 +34,7 @@ fn insert_not_capped_by_widget() {
 
 #[test]
 fn remove_selected_fades_ghost_and_shifts_up() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.list_select(l, 1);
@@ -51,7 +51,7 @@ fn remove_selected_fades_ghost_and_shifts_up() {
 
 #[test]
 fn remove_last_item_clamps_selected() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.list_select(l, 2);
@@ -61,7 +61,7 @@ fn remove_last_item_clamps_selected() {
 
 #[test]
 fn select_records_highlight_slide_fx() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.list_select(l, 2);
@@ -71,7 +71,7 @@ fn select_records_highlight_slide_fx() {
 
 #[test]
 fn active_fx_keeps_timer_busy_then_expires() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.list_select(l, 1); // triggers the highlight-slide fx
@@ -82,7 +82,7 @@ fn active_fx_keeps_timer_busy_then_expires() {
 
 #[test]
 fn scroll_is_row_aligned() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
     for i in 1..8 {
@@ -98,7 +98,7 @@ fn scroll_is_row_aligned() {
 
 #[test]
 fn remove_pulls_window_up_when_tail_emptied() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["0", "1", "2", "3", "4", "5", "6", "7"]).build(&mut ui, scr);
     ui.list_select(l, 7); // scroll=48 (rows 3..7)

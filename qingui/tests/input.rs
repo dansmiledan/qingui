@@ -17,7 +17,7 @@ fn logger(log: &Log) -> impl FnMut(&mut Ui, qingui::ObjRef, EventKind) + 'static
 
 #[test]
 fn focus_cycles_with_next_prev() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ButtonCfg::new("A").build(&mut ui, scr);
     let b = ButtonCfg::new("B").build(&mut ui, scr);
@@ -35,7 +35,7 @@ fn focus_cycles_with_next_prev() {
 #[test]
 fn focus_events_and_state_flag() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ButtonCfg::new("A").build(&mut ui, scr);
     let b = ButtonCfg::new("B").build(&mut ui, scr);
@@ -51,7 +51,7 @@ fn focus_events_and_state_flag() {
 #[test]
 fn enter_clicks_button() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ButtonCfg::new("A").build(&mut ui, scr);
     ui.add_event_cb(a, EventKind::Clicked, Box::new(logger(&log)));
@@ -63,7 +63,7 @@ fn enter_clicks_button() {
 #[test]
 fn slider_edit_mode() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let s = SliderCfg::new(0, 100).build(&mut ui, scr);
     ui.add_event_cb(s, EventKind::ValueChanged, Box::new(logger(&log)));
@@ -85,7 +85,7 @@ fn slider_edit_mode() {
 #[test]
 fn switch_toggles_on_enter() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let sw = SwitchCfg::new().build(&mut ui, scr);
     ui.add_event_cb(sw, EventKind::ValueChanged, Box::new(logger(&log)));
@@ -100,7 +100,7 @@ fn switch_toggles_on_enter() {
 #[test]
 fn set_value_fires_value_changed() {
     let log: Log = Rc::new(RefCell::new(Vec::new()));
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let b = BarCfg::new(0, 100).build(&mut ui, scr);
     ui.add_event_cb(b, EventKind::ValueChanged, Box::new(logger(&log)));
@@ -110,7 +110,7 @@ fn set_value_fires_value_changed() {
 
 #[test]
 fn focus_skips_hidden_objects() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let page = ObjCfg::new().build(&mut ui, scr);
     let a = ButtonCfg::new("A").build(&mut ui, page); // hidden with page
@@ -130,7 +130,7 @@ fn focus_skips_hidden_objects() {
 
 #[test]
 fn modal_restricts_focus_navigation() {
-    let mut ui = Ui::new(160, 120, 120);
+    let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let a = ButtonCfg::new("A").build(&mut ui, scr);
     let dlg = ObjCfg::new().build(&mut ui, scr);

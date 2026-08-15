@@ -3,7 +3,7 @@ use qingui::{Rect, Ui};
 
 #[test]
 fn create_and_hierarchy() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let screen = ui.screen();
     let a = ObjCfg::new().build(&mut ui, screen);
     let b = ObjCfg::new().build(&mut ui, a);
@@ -13,7 +13,7 @@ fn create_and_hierarchy() {
 
 #[test]
 fn delete_invalidates_handle_and_reparents_nothing() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let screen = ui.screen();
     let a = ObjCfg::new().build(&mut ui, screen);
     let b = ObjCfg::new().build(&mut ui, a);
@@ -28,7 +28,7 @@ fn delete_invalidates_handle_and_reparents_nothing() {
 
 #[test]
 fn generation_recycled_slot_is_safe() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let screen = ui.screen();
     let a = ObjCfg::new().build(&mut ui, screen);
     ui.delete(a);
@@ -41,7 +41,7 @@ fn generation_recycled_slot_is_safe() {
 
 #[test]
 fn abs_rect_accumulates_parents() {
-    let mut ui = Ui::new(320, 240, 40);
+    let mut ui: Ui = Ui::new(320, 240, 40);
     let screen = ui.screen();
     let a = ObjCfg::new().build(&mut ui, screen);
     ui.set_pos(a, 10, 20);

@@ -148,3 +148,7 @@ impl From<embedded_graphics::pixelcolor::Rgb888> for Color {
         Color::rgb(c.r(), c.g(), c.b())
     }
 }
+
+impl embedded_graphics::pixelcolor::PixelColor for Color {
+    type Raw = embedded_graphics::pixelcolor::raw::RawU24;
+}

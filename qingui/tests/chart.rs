@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 #[test]
 fn builder_defaults_and_add_series() {
-    let mut ui = Ui::new(160, 120, 16);
+    let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     // Default is 0 series; pre-build 1 series (capacity 4)
     let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
@@ -21,7 +21,7 @@ fn builder_defaults_and_add_series() {
 
 #[test]
 fn push_appends_and_clamps() {
-    let mut ui = Ui::new(160, 120, 16);
+    let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 4).build(&mut ui, s);
     ui.chart_push(c, 0, -5);  // clamped to 0
@@ -36,7 +36,7 @@ fn push_appends_and_clamps() {
 
 #[test]
 fn push_evicts_oldest_when_full() {
-    let mut ui = Ui::new(160, 120, 16);
+    let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
     for v in [1, 2, 3, 4] {
@@ -49,7 +49,7 @@ fn push_evicts_oldest_when_full() {
 
 #[test]
 fn set_points_replaces_and_truncates() {
-    let mut ui = Ui::new(160, 120, 16);
+    let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
     ui.chart_push(c, 0, 99);
@@ -63,7 +63,7 @@ fn set_points_replaces_and_truncates() {
 
 #[test]
 fn invalid_targets_are_silent_noop() {
-    let mut ui = Ui::new(160, 120, 16);
+    let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     let c = ChartCfg::new().series(Color::BLUE, 3).build(&mut ui, s);
     // Out-of-range series index
@@ -80,7 +80,7 @@ fn invalid_targets_are_silent_noop() {
 
 #[test]
 fn push_marks_dirty() {
-    let mut ui = Ui::new(160, 120, 16);
+    let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
     ui.take_dirty();
@@ -110,7 +110,7 @@ fn polyline_has_no_bright_bulge_at_joints() {
     // bright bulge (~+20% ink) at every data point.
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let (w, h) = (190i32, 56i32);
-    let mut ui = Ui::new(w, h, h as u32); // the whole screen is one chunk
+    let mut ui: Ui = Ui::new(w, h, h as u32); // the whole screen is one chunk
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let s = ui.screen();
     let c = ChartCfg::new().range(0, 100).size(w, h).series(Color::RED, 48).build(&mut ui, s);
@@ -138,7 +138,7 @@ fn polyline_has_no_bright_bulge_at_joints() {
 #[test]
 fn renders_flat_line_at_bottom_for_min_values() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
-    let mut ui = Ui::new(64, 48, 48); // the whole screen is one chunk
+    let mut ui: Ui = Ui::new(64, 48, 48); // the whole screen is one chunk
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let s = ui.screen();
     // chart fills the screen, capacity = width → one point per column; all pushed to min → the polyline hugs the bottom row

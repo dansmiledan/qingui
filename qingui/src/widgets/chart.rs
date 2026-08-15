@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
+use crate::pixel::PixelFormat;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
@@ -41,7 +42,7 @@ pub struct ChartState {
 impl ChartState {
     /// Draws only the data lines (background/border are handled by the common draw_node):
     /// adjacent points are connected with lines, a single-point series draws a dot, empty series are skipped. No allocation.
-    fn draw_series(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
+    fn draw_series<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         if abs.w < 1 || abs.h < 1 {
             return;
@@ -95,7 +96,7 @@ impl ChartState {
 }
 
 /// Builder for the Chart widget.
-pub type ChartBuilder = WidgetBuilder<ChartCfg>;
+pub type ChartBuilder<C = crate::geometry::Color> = WidgetBuilder<ChartCfg, C>;
 
 /// Chart configuration: fixed Y-axis range and the initial series.
 pub struct ChartCfg {
@@ -107,7 +108,7 @@ pub struct ChartCfg {
 
 impl ChartCfg {
     /// Creates a builder with the default range 0..100.
-    pub fn new() -> WidgetBuilder<ChartCfg> {
+    pub fn new<C: PixelFormat>() -> WidgetBuilder<ChartCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: ChartCfg { min: 0, max: 100, series: Vec::new(), line_width: 2 },
@@ -115,7 +116,7 @@ impl ChartCfg {
     }
 }
 
-impl WidgetBuilder<ChartCfg> {
+impl<C> WidgetBuilder<ChartCfg, C> {
     /// Sets the fixed Y-axis range.
     pub fn range(mut self, min: i32, max: i32) -> Self {
         self.cfg.min = min;
@@ -134,8 +135,8 @@ impl WidgetBuilder<ChartCfg> {
     }
 }
 
-impl WidgetCfg for ChartCfg {
-    fn build(self, ui: &mut Ui, parent: ObjRef, mut common: CommonBuilder) -> ObjRef {
+impl<C: PixelFormat> WidgetCfg<C> for ChartCfg {
+    fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 60));
         let state = ChartState {
             min: self.min,
@@ -150,8 +151,8 @@ impl WidgetCfg for ChartCfg {
     }
 }
 
-impl super::Widget for ChartState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas, clip: Rect) { self.draw_series(ctx, c, clip) }
+impl<C: PixelFormat> super::Widget<C> for ChartState {
+    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_series(ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
@@ -172,7 +173,7 @@ pub trait UiChartExt {
     fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32>;
 }
 
-impl UiChartExt for Ui {
+impl<C: PixelFormat> UiChartExt for Ui<C> {
     fn chart_add_series(&mut self, c: ObjRef, color: Color, capacity: usize) -> usize {
         self.update::<ChartState, _>(c, move |s| {
             s.series.push(Series::new(color, capacity));
