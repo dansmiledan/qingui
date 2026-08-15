@@ -8,11 +8,16 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{Circle, PrimitiveStyle};
 
+use qingui::anim::{Anim, AnimProp};
 use qingui::canvas::Canvas;
 use qingui::display::Flush;
+use qingui::layout::{Align, Flex, FlexDir};
 use qingui::pixel::PixelFormat;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
+use qingui::widgets::obj::ObjCfg;
+use qingui::widgets::switch::{SwitchCfg, UiSwitchExt};
+use qingui::widgets::Layout;
 use qingui::{Color, Rect, Ui};
 
 struct Rec(Rc<RefCell<Vec<(Rect, Vec<Rgb565>)>>>);
@@ -60,8 +65,30 @@ fn ui_rgb565_hosts_builtin_widgets() {
     let mut ui = Ui::<Rgb565>::new(80, 40, 40);
     let screen = ui.screen();
     ButtonCfg::new("OK").size(40, 20).build(&mut ui, screen);
+    // (a) A container with a real flex layout hosting a child.
+    let panel = ObjCfg::new()
+        .size(80, 20)
+        .layout(Layout::Flex(Flex {
+            dir: FlexDir::Row, wrap: false,
+            main: Align::Start, cross: Align::Start, track: Align::Start, gap: 0,
+        }))
+        .build(&mut ui, screen);
+    ObjCfg::new().size(10, 10).build(&mut ui, panel);
+    // (b) An interactive widget driven through its ext trait.
+    let sw = SwitchCfg::new().build(&mut ui, panel);
+    ui.toggle_switch(sw);
+    assert_eq!(ui.value(sw), 1);
+    // (c) An animation with an on_done callback.
+    let done = Rc::new(RefCell::new(false));
+    let d2 = done.clone();
+    ui.anim_start(Anim::new(sw, AnimProp::X, 0, 20, 50).on_done(move |_ui| *d2.borrow_mut() = true));
+    ui.tick_inc(50);
+    ui.timer_handler();
+    assert!(*done.borrow());
+    // Rendering completes and flushes exactly the full screen area.
     let rec = Rc::new(RefCell::new(Vec::new()));
     ui.set_flush(Box::new(Rec(rec.clone())));
+    ui.invalidate_area(Rect::new(0, 0, 80, 40));
     ui.render();
     let chunks = rec.borrow();
     assert!(!chunks.is_empty());
