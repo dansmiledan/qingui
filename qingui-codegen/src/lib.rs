@@ -94,3 +94,16 @@ fn to_screaming_snake(stem: &str) -> String {
 fn to_ioe(e: image::ImageError) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, e)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Locks the inlined 5-6-5 truncation, which duplicates qingui's
+    // crate-internal `color_to_rgb565` bit math across the crate boundary.
+    #[test]
+    fn rgba_to_565_matches_qingui_bit_math() {
+        assert_eq!(rgba_to_565(&[255, 255, 255, 255]), [0xFF, 0xFF]); // white -> 0xFFFF
+        assert_eq!(rgba_to_565(&[255, 0, 0, 255]), [0x00, 0xF8]); // pure red -> 0xF800
+    }
+}
