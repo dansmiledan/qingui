@@ -92,6 +92,7 @@ Rendering was reworked to delegate all drawing to embedded-graphics primitives; 
 - `qingui::Point` is now embedded-graphics' `Point`; `Rect` ↔ `Rectangle` `From` conversions added.
 - Visual change: no anti-aliasing (aliased corners/arcs/lines), no translucency.
 - Rendering now delegates to embedded-graphics primitives (`Rectangle`/`RoundedRectangle`/`Circle`/`Arc`/`Line`/…); the framebuffer, dirty-rect, and `Flush` pipeline are unchanged.
+- `Color` is now a re-export of e-g's `Rgb888` (`pub use Rgb888 as Color`). `Color::rgb(r, g, b)` → `Color::new(r, g, b)`; `Color::GRAY`/`LIGHT_GRAY`/`DARK_GRAY` moved to `qingui::geometry::{GRAY, LIGHT_GRAY, DARK_GRAY}`; `Color::blend(a, b, t)` → free function `qingui::geometry::blend(a, b, t)`; `to_rgb565`/`from_rgb565` are now crate-internal. `Color::WHITE` etc. keep working via `Rgb888`'s constants. Note: `Color::WHITE` etc. are `RgbColor` trait consts — bring `embedded_graphics::pixelcolor::RgbColor` into scope where you use them.
 
 ## 示例（examples）
 
