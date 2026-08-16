@@ -28,9 +28,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 
 /// Transparent background style (what the deleted canvas widget defaulted to).
 fn transparent_style() -> qingui::style::Style {
-    let mut s = qingui::style::Style::default();
-    s.bg_opa = Some(0);
-    s
+    qingui::style::Style::default()
 }
 
 #[test]
@@ -49,7 +47,7 @@ fn draw_hook_paints_custom_content() {
         .build(&mut ui, scr);
     ui.set_pos(cv, 10, 10);
     ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, _now| {
-        d.fill_rect(Rect::new(abs.x + 2, abs.y + 2, 5, 5), Color::RED, 255, clip);
+        d.fill_rect(Rect::new(abs.x + 2, abs.y + 2, 5, 5), Color::RED, clip);
         d.draw_arc(
             qingui::Point { x: abs.x + 20, y: abs.y + 20 },
             6,
@@ -57,7 +55,6 @@ fn draw_hook_paints_custom_content() {
             0,
             270,
             Color::GREEN,
-            255,
             clip,
         );
     })));
@@ -79,7 +76,7 @@ fn draw_hook_clipped_by_chunk() {
     let scr = ui.screen();
     let cv = ObjCfg::new().size(64, 48).build(&mut ui, scr);
     ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, _now| {
-        d.fill_rect(Rect::new(abs.x, abs.y, 64, 48), Color::WHITE, 255, clip);
+        d.fill_rect(Rect::new(abs.x, abs.y, 64, 48), Color::WHITE, clip);
     })));
     ui.render();
     // Full screen is 3 chunks, each chunk fully white (clip in effect, no out-of-bounds)

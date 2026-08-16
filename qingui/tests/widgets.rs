@@ -102,8 +102,10 @@ fn bar_small_value_keeps_left_semicircle() {
     ui.set_value(b, 5); // indicator width iw=5
     ui.render();
     let ind = Color::rgb(80, 140, 255);
-    // The left end is clipped to the track shape (radius=4): (11,11) is outside the semicircle → not the indicator color
-    assert_ne!(px(&rec, 11, 11), ind);
+    // The left end is clipped to the track shape (radius=4): (11,10) is outside the
+    // semicircle → not the indicator color (on e-g's rasterization grid the corner
+    // boundary sits half a pixel up-left of the old one, hence (11,10) not (11,11))
+    assert_ne!(px(&rec, 11, 10), ind);
     // (11,14) is inside the semicircle → indicator color
     assert_eq!(px(&rec, 11, 14), ind);
     // Beyond the indicator's right boundary → not the indicator color

@@ -38,7 +38,7 @@ impl<C> WidgetBuilder<SpinnerCfg, C> {
 
 impl<C: PixelFormat> WidgetCfg<C> for SpinnerCfg {
     fn default_style() -> Style {
-        Style { bg_opa: Some(0), ..Style::default() }
+        Style::default()
     }
 
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
@@ -48,10 +48,7 @@ impl<C: PixelFormat> WidgetCfg<C> for SpinnerCfg {
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(SpinnerState { line_width: self.line_width, period_ms: self.period_ms }),
         );
-        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
-        if s.bg_opa.is_none() {
-            s.bg_opa = Some(0);
-        }
+        let s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, s);
         common.apply_tail(ui, r);
         r
@@ -78,7 +75,7 @@ impl SpinnerState {
         let phase = (ctx.now / 7) as i32 % 300;
         let tri = if phase < 150 { phase } else { 300 - phase };
         let sweep = 60 + tri;
-        d.draw_arc(c, r, self.line_width, start, start + sweep, Color::rgb(80, 140, 255), ctx.ap(255), clip);
+        d.draw_arc(c, r, self.line_width, start, start + sweep, Color::rgb(80, 140, 255), clip);
     }
 }
 

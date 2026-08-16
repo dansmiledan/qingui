@@ -32,7 +32,6 @@ fn render_solid(bg: Color) -> Vec<(Rect, Vec<Rgb565>)> {
     let mut ui = Ui::<Rgb565>::new(40, 20, 20);
     let mut s = Style::default();
     s.bg_color = Some(bg);
-    s.bg_opa = Some(255);
     let screen = ui.screen();
     ui.set_style(screen, s);
     let rec = Rc::new(RefCell::new(Vec::new()));

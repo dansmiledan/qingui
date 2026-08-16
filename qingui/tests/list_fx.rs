@@ -33,7 +33,7 @@ fn insert_not_capped_by_widget() {
 }
 
 #[test]
-fn remove_selected_fades_ghost_and_shifts_up() {
+fn remove_selected_deletes_and_shifts_up() {
     let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
@@ -41,10 +41,10 @@ fn remove_selected_fades_ghost_and_shifts_up() {
     assert!(ui.list_remove(l));
     assert_eq!(ui.list_len(l), 2);
     let s = ui.as_list(l).unwrap();
+    // The deleted item disappears immediately (no fade-out ghost)
     assert_eq!(s.items, ["a", "c"]);
+    assert!(!s.items.iter().any(|i| i == "b"));
     assert_eq!(s.selected, 1); // still points at the original slot (now "c")
-    // The ghost fades out
-    assert!(s.fx.ghost.as_ref().is_some_and(|g| g.text == "b" && g.index == 1));
     // Items below shift up to fill the gap (start offset is positive)
     assert!(s.fx.item_fx.iter().any(|f| f.index == 1 && f.dy > 0));
 }

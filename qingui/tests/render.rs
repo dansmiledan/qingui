@@ -37,8 +37,8 @@ fn move_to_front_raises_stacking() {
     let scr = ui.screen();
     let a = ObjCfg::new().size(10, 10).build(&mut ui, scr);
     let b = ObjCfg::new().size(10, 10).build(&mut ui, scr);
-    ui.set_style(a, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(255, 0, 0)); s.bg_opa = Some(255); s });
-    ui.set_style(b, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(0, 0, 255)); s.bg_opa = Some(255); s });
+    ui.set_style(a, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(255, 0, 0)); s });
+    ui.set_style(b, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(0, 0, 255)); s });
     ui.render();
     // Initially B is on top → (5,5) is blue
     assert_eq!(px(&rec, 5, 5), Color::rgb(0, 0, 255));
@@ -60,7 +60,6 @@ fn chunked_render_covers_dirty_area() {
     ui.set_size(o, 16, 16);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(Color::RED);
-    s.bg_opa = Some(255);
     ui.set_style(o, s);
 
     ui.render();

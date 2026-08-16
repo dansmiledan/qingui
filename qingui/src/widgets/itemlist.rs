@@ -21,9 +21,7 @@ pub struct ItemListState {
 
 /// Transparent container style (only for layout/scroll, draws no background)
 fn transparent() -> Style {
-    let mut s = Style::default();
-    s.bg_opa = Some(0);
-    s
+    Style::default()
 }
 
 /// Base style for item containers: transparent background (highlight overlaid by style_selected when SELECTED)
@@ -59,7 +57,8 @@ impl ItemListCfg {
 
 impl<C> WidgetBuilder<ItemListCfg, C> {
     /// The selected style for items (overlaid on State::SELECTED).
-    /// Note: it must explicitly include bg_opa, otherwise the item base's bg_opa(0) makes the highlight invisible
+    /// Note: the highlight sets bg_color explicitly; the item base leaves it None,
+    /// so a selected style without bg_color paints no highlight.
     pub fn style_selected(mut self, s: Style) -> Self {
         self.cfg.style_selected = Some(s);
         self
@@ -70,7 +69,6 @@ impl<C: PixelFormat> WidgetCfg<C> for ItemListCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
         s.bg_color = Some(Color::rgb(34, 34, 44));
-        s.bg_opa = Some(255);
         s.border_color = Some(Color::rgb(70, 70, 90));
         s.border_width = Some(1);
         s
@@ -92,11 +90,8 @@ impl<C: PixelFormat> WidgetCfg<C> for ItemListCfg {
             *n = Box::new(ItemListState { selected: 0, content, sel_style });
         }
         // Viewport style (defaults to theme_list's dark background + border)
-        let mut vs = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
-        ui.set_style(r, {
-            if vs.bg_opa.is_none() { vs.bg_opa = Some(255); }
-            vs
-        });
+        let vs = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
+        ui.set_style(r, vs);
         let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused);
         ui.set_style_focused(r, focused.clone());
         ui.set_style_edited(r, common.style_edited.take().unwrap_or_else(|| crate::style::theme_edited(&focused)));
@@ -105,11 +100,10 @@ impl<C: PixelFormat> WidgetCfg<C> for ItemListCfg {
     }
 }
 
-/// Default selected style (matches the text List highlight color rgb(50,70,120); must explicitly set bg_opa(255))
+/// Default selected style (matches the text List highlight color rgb(50,70,120); sets bg_color explicitly so the highlight paints)
 fn default_sel_style() -> Style {
     let mut s = Style::default();
     s.bg_color = Some(Color::rgb(50, 70, 120));
-    s.bg_opa = Some(255);
     s
 }
 

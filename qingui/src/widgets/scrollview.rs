@@ -126,17 +126,14 @@ impl<C: PixelFormat> WidgetCfg<C> for ScrollViewCfg {
         // content: column flex, width grows with the viewport, transparent
         let content = ui.insert_node(r, Rect::new(0, 0, w, 0),
             alloc::boxed::Box::new(super::flexbox::FlexLayout { flex: CONTENT_FLEX }));
-        let mut cs = Style::default();
-        cs.bg_opa = Some(0);
-        ui.set_style(content, cs);
+        ui.set_style(content, Style::default());
         ui.set_sizing(content, Some(Sizing::GROW), None);
         // Replace the placeholder kind with the real one
         if let Some(n) = ui.kind_mut(r) {
             *n = alloc::boxed::Box::new(ScrollViewState { content, scroll: 0, step: self.step });
         }
         // Viewport style: transparent by default; focused style gives a default border highlight
-        let mut vs = common.style.take().unwrap_or_default();
-        if vs.bg_opa.is_none() { vs.bg_opa = Some(0); }
+        let vs = common.style.take().unwrap_or_default();
         ui.set_style(r, vs);
         let focused = common.style_focused.take().unwrap_or_else(crate::style::theme_list_focused);
         ui.set_style_focused(r, focused.clone());

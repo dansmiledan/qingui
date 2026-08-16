@@ -16,12 +16,11 @@ pub struct LabelState {
 }
 
 pub(crate) fn draw<C: PixelFormat>(text: &str, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
-    d.draw_text_opa(
+    d.draw_text(
         Point { x: ctx.abs.x, y: ctx.abs.y },
         ctx.resolved.font,
         text,
         ctx.resolved.text_color,
-        ctx.ap(255),
         clip,
     );
 }

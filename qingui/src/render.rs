@@ -62,7 +62,7 @@ fn render_chunk<C: PixelFormat>(
             area: chunk,
             stride: chunk.w,
         };
-        d.clear(screen_style.bg_color);
+        d.clear(screen_style.bg_color.unwrap_or(crate::geometry::Color::BLACK));
     }
     // 2) Draw the object tree in pre-order (the screen itself is not drawn; its background was handled above)
     let nkids = arena.get(screen).map(|n| n.children.len()).unwrap_or(0);
@@ -90,7 +90,7 @@ fn draw_node<C: PixelFormat>(
     font: &'static MonoFont<'static>,
     time_ms: u64,
 ) {
-    let Some((abs, flags, node_opa, resolved)) = node_draw_info(arena, obj, font) else {
+    let Some((abs, flags, resolved)) = node_draw_info(arena, obj, font) else {
         return;
     };
     if flags.contains(Flag::HIDDEN) {
@@ -98,16 +98,14 @@ fn draw_node<C: PixelFormat>(
     }
     if abs.intersect(&clip).is_some() {
         let edited = node_state(arena, obj).contains(State::EDITED);
-        // The node's opa acts as a multiplier on everything this object draws
-        let ap = |base: u8| (base as u32 * node_opa as u32 / 255) as u8;
         let mut d = crate::canvas::Canvas {
             pixels: &mut buf[..len],
             area: frame,
             stride: frame.w,
         };
         let Some(n) = arena.get_mut(obj) else { return };
-        if resolved.bg_opa > 0 && ap(resolved.bg_opa) > 0 {
-            d.fill_rounded(abs, resolved.radius, resolved.bg_color, ap(resolved.bg_opa), clip);
+        if let Some(bg) = resolved.bg_color {
+            d.fill_rounded(abs, resolved.radius, bg, clip);
         }
         let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, now: time_ms };
         n.kind.draw(&ctx, &mut d, clip);
@@ -118,7 +116,7 @@ fn draw_node<C: PixelFormat>(
         // The border is drawn last (mirrors LVGL: border above content) so widget content
         // does not cover it
         if resolved.border_width > 0 {
-            d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, ap(255), clip);
+            d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, clip);
         }
     }
     // Viewport clipping: the subtree's clip shrinks to this object's rect; if disjoint, the
@@ -142,10 +140,10 @@ fn node_draw_info<C>(
     arena: &Arena<Node<C>>,
     obj: ObjRef,
     font: &'static MonoFont<'static>,
-) -> Option<(Rect, Flag, u8, ResolvedStyle)> {
+) -> Option<(Rect, Flag, ResolvedStyle)> {
     arena.get(obj).map(|n| {
         let resolved = resolved_style(arena, obj, font);
-        (abs_rect(arena, obj), n.flags, resolved.opa, resolved)
+        (abs_rect(arena, obj), n.flags, resolved)
     })
 }
 
@@ -221,7 +219,6 @@ mod tests {
     fn style(bg: Color) -> crate::style::Style {
         let mut s = crate::style::Style::default();
         s.bg_color = Some(bg);
-        s.bg_opa = Some(255);
         s
     }
     /// Builds a screen + a full-screen solid-color child, renders, and asserts pixels
@@ -308,10 +305,10 @@ mod tests {
         n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED;
         n.style_selected = Some(Box::new(style(Color::rgb(1, 0, 0))));
         n.style_focused = Some(Box::new(style(Color::rgb(2, 0, 0))));
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(2, 0, 0)); // FOCUSED takes priority
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::rgb(2, 0, 0))); // FOCUSED takes priority
 
         arena.get_mut(r).unwrap().state = crate::node::State::SELECTED;
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Color::rgb(1, 0, 0)); // only SELECTED left
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::rgb(1, 0, 0))); // only SELECTED left
     }
 
     #[test]
@@ -343,13 +340,12 @@ mod tests {
         e.border_color = Some(Color::rgb(1, 2, 3));
         e.border_width = Some(4);
         e.bg_color = Some(Color::rgb(4, 5, 6));
-        e.bg_opa = Some(255);
         arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
         arena.get_mut(r).unwrap().style_edited = Some(Box::new(e));
         arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
         let rs = resolved_style(&arena, r, FONT);
         assert_eq!(rs.border_color, Color::rgb(1, 2, 3)); // edited overlay wins, no amber tint
         assert_eq!(rs.border_width, 4);
-        assert_eq!(rs.bg_color, Color::rgb(4, 5, 6));
+        assert_eq!(rs.bg_color, Some(Color::rgb(4, 5, 6)));
     }
 }

@@ -18,10 +18,10 @@ pub struct SwitchState {
 pub(crate) fn draw<C: PixelFormat>(on: bool, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
     let abs = ctx.abs;
     let tc = if on { Color::rgb(60, 180, 90) } else { Color::rgb(90, 90, 90) };
-    d.fill_rounded(abs, abs.h / 2, tc, ctx.ap(255), clip);
+    d.fill_rounded(abs, abs.h / 2, tc, clip);
     let k = abs.h - 4;
     let kx = if on { abs.right() - k - 2 } else { abs.x + 2 };
-    d.fill_rounded(Rect::new(kx, abs.y + 2, k, k), k / 2, Color::WHITE, ctx.ap(255), clip);
+    d.fill_rounded(Rect::new(kx, abs.y + 2, k, k), k / 2, Color::WHITE, clip);
 }
 
 /// Builder for the Switch widget.

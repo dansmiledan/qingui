@@ -29,7 +29,7 @@ pub struct ImageState {
 impl<C: PixelFormat> super::Widget<C> for ImageState {
     fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) {
         let Some(f) = self.data.frames.get(self.cur) else { return };
-        c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, ctx.ap(255), clip);
+        c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, clip);
     }
     fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> TickOut {
         if self.data.frames.len() <= 1 {
@@ -65,9 +65,7 @@ impl ImageCfg {
 
 impl<C: PixelFormat> WidgetCfg<C> for ImageCfg {
     fn default_style() -> Style {
-        let mut s = Style::default();
-        s.bg_opa = Some(0);
-        s
+        Style::default()
     }
 
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
@@ -76,10 +74,7 @@ impl<C: PixelFormat> WidgetCfg<C> for ImageCfg {
         let r = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(
             ImageState { data: self.data, cur: 0, last_switch: ui.time() },
         ));
-        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
-        if s.bg_opa.is_none() {
-            s.bg_opa = Some(0);
-        }
+        let s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, s);
         common.apply_tail(ui, r);
         r

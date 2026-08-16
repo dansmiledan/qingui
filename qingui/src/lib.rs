@@ -6,7 +6,6 @@ pub mod anim;
 pub mod canvas;
 pub mod dirty;
 pub mod display;
-pub(crate) mod draw;
 pub mod event;
 pub mod font;
 pub mod focus;

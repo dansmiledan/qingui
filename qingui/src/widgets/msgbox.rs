@@ -77,9 +77,7 @@ pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, title: &str
     let _msg = crate::widgets::label::create(ui, root, text);
     // Button row
     let row = ui.insert_node(root, Rect::default(), alloc::boxed::Box::new(super::obj::Manual));
-    let mut rs = crate::style::Style::default();
-    rs.bg_opa = Some(0);
-    ui.set_style(row, rs);
+    ui.set_style(row, crate::style::Style::default());
     ui.set_flex(row, Flex {
         dir: FlexDir::Row, wrap: false,
         main: Align::Center, cross: Align::Start, track: Align::Start, gap: 12,

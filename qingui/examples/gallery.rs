@@ -203,13 +203,12 @@ impl Demo {
         // background like the old canvas widget's default)
         let cv = ObjCfg::new()
             .size(36, 36)
-            .style(qingui::style::Style::new().bg_opa(0))
             .build(ui, screen);
         ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, now| {
             let c = qingui::Point { x: abs.x + 18, y: abs.y + 18 };
             let end = (now / 10) as i32 % 360;
-            d.draw_arc(c, 14, 4, 0, end, Color::rgb(80, 140, 255), 255, clip);
-            d.fill_circle(c, 3, Color::WHITE, 255, clip);
+            d.draw_arc(c, 14, 4, 0, end, Color::rgb(80, 140, 255), clip);
+            d.fill_circle(c, 3, Color::WHITE, clip);
         })));
         kids.push(cv);
         // tick_hook drives the canvas to redraw every frame

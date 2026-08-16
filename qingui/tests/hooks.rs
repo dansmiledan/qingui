@@ -34,7 +34,7 @@ fn draw_hook_overlays_builtin_widget() {
     let btn = ButtonCfg::new("ok").build(&mut ui, scr);
     ui.set_pos(btn, 10, 10);
     ui.set_draw_hook(btn, Some(Box::new(|d, abs, clip, _now| {
-        d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, 255, clip);
+        d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, clip);
     })));
     ui.render();
     // The hook overlays the button's own content (the 3x3 top-left corner is covered in red)

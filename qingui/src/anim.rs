@@ -13,8 +13,6 @@ pub enum AnimProp {
     W,
     /// Height.
     H,
-    /// Opacity.
-    Opa,
     /// The widget's value.
     Value,
     /// Visual translation along X.

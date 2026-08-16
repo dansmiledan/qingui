@@ -45,10 +45,9 @@ impl RollerState {
     fn draw_rows<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
-        let ap = ctx.ap(255);
         let cy = abs.y + abs.h / 2;
         // Highlight of the center selected row (the wheel slides beneath the row)
-        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Color::rgb(50, 70, 120), ap, lclip);
+        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Color::rgb(50, 70, 120), lclip);
         let sf = self.sel_f(ctx.now);
         let lh = crate::font::line_height(ctx.resolved.font);
         for (i, item) in self.items.iter().enumerate() {
@@ -58,12 +57,11 @@ impl RollerState {
                 continue;
             }
             let (tw, _) = crate::font::text_size(ctx.resolved.font, item);
-            d.draw_text_opa(
+            d.draw_text(
                 Point { x: abs.x + (abs.w - tw) / 2, y: ry },
                 ctx.resolved.font,
                 item,
                 ctx.resolved.text_color,
-                ap,
                 lclip,
             );
         }

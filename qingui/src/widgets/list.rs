@@ -36,19 +36,10 @@ pub struct ItemFx {
     pub start: u64,
 }
 
-/// Fading-out item being deleted (data already removed, only visual residue)
-#[derive(Clone)]
-pub struct Ghost {
-    pub text: String,
-    pub index: usize,
-    pub start: u64,
-}
-
-/// Per-list animation effects: entry/shift fx, the fading ghost, and the recorded highlight/scroll start positions.
+/// Per-list animation effects: entry/shift fx and the recorded highlight/scroll start positions.
 #[derive(Clone, Default)]
 pub struct ListFx {
     pub item_fx: Vec<ItemFx>,
-    pub ghost: Option<Ghost>,
     /// Highlight slide: (old selected index, start time)
     pub sel_from: Option<(usize, u64)>,
     /// Smooth scroll: (old scroll, start time)
@@ -60,7 +51,6 @@ impl ListFx {
     pub fn active(&self, now: u64, dur: u64) -> bool {
         let fresh = |start: u64| now.saturating_sub(start) < dur;
         self.item_fx.iter().any(|f| fresh(f.start))
-            || self.ghost.as_ref().is_some_and(|g| fresh(g.start))
             || self.sel_from.is_some_and(|(_, s)| fresh(s))
             || self.scroll_from.is_some_and(|(_, s)| fresh(s))
     }
@@ -68,14 +58,10 @@ impl ListFx {
     /// Removes effects that have settled; returns whether anything was cleaned up.
     pub fn prune(&mut self, now: u64, dur: u64) -> bool {
         let had = !self.item_fx.is_empty()
-            || self.ghost.is_some()
             || self.sel_from.is_some()
             || self.scroll_from.is_some();
         let fresh = |start: u64| now.saturating_sub(start) < dur;
         self.item_fx.retain(|f| fresh(f.start));
-        if self.ghost.as_ref().is_some_and(|g| !fresh(g.start)) {
-            self.ghost = None;
-        }
         if self.sel_from.is_some_and(|(_, s)| !fresh(s)) {
             self.sel_from = None;
         }
@@ -83,7 +69,6 @@ impl ListFx {
             self.scroll_from = None;
         }
         let has = !self.item_fx.is_empty()
-            || self.ghost.is_some()
             || self.sel_from.is_some()
             || self.scroll_from.is_some();
         had && !has // something was cleaned up
@@ -117,20 +102,17 @@ impl ListState {
             let hl = Rect::new(abs.x, abs.y + (hl_row_f * self.row_h as f32) as i32 - eff_scroll, abs.w, self.row_h);
             if hl.intersects(&lclip) {
                 // Highlight with rounded corners so it doesn't cover the list's own rounded border
-                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::rgb(50, 70, 120), ctx.ap(255), lclip);
+                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::rgb(50, 70, 120), lclip);
             }
         }
-        // items (with entry/shift effects)
+        // items (with entry/shift effects; the fade-in went away with the opacity system,
+        // items now appear at full opacity while shifting into place)
         for (i, item) in self.items.iter().enumerate() {
             let mut dy = 0;
-            let mut opa = ctx.ap(255);
             for f in &self.fx.item_fx {
                 if f.index == i {
                     let t = lerp_t(f.start, now, self.fx_dur);
                     dy = (f.dy as f32 * (1.0 - t)) as i32;
-                    if f.fade_in {
-                        opa = ctx.ap((255.0 * t) as u8);
-                    }
                 }
             }
             let ry = abs.y + i as i32 * self.row_h + dy - eff_scroll;
@@ -138,23 +120,7 @@ impl ListState {
             if !row.intersects(&lclip) {
                 continue;
             }
-            d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, opa, lclip);
-        }
-        // Fading out of the ghost being deleted
-        if let Some(g) = &self.fx.ghost {
-            let t = lerp_t(g.start, now, self.fx_dur);
-            let ry = abs.y + g.index as i32 * self.row_h - eff_scroll;
-            let row = Rect::new(abs.x, ry, abs.w, self.row_h);
-            if row.intersects(&lclip) {
-                d.draw_text_opa(
-                    Point { x: abs.x + 4, y: ry + 4 },
-                    ctx.resolved.font,
-                    &g.text,
-                    ctx.resolved.text_color,
-                    ctx.ap((255.0 * (1.0 - t)) as u8),
-                    lclip,
-                );
-            }
+            d.draw_text(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, lclip);
         }
     }
 
@@ -221,13 +187,12 @@ impl ListState {
         self.fx.item_fx.push(ItemFx { index: idx, dy: 0, fade_in: true, start: now });
     }
 
-    /// Deletes the selected item: ghost fades out, items below shift up to fill the gap
+    /// Deletes the selected item: it disappears immediately, items below shift up to fill the gap
     pub(crate) fn remove(&mut self, now: u64) -> bool {
         if self.items.is_empty() || self.selected >= self.items.len() {
             return false;
         }
-        let text = self.items.remove(self.selected);
-        self.fx.ghost = Some(Ghost { text, index: self.selected, start: now });
+        self.items.remove(self.selected);
         // In-flight fx: drop the deleted item, shift those below
         self.fx.item_fx.retain(|f| f.index != self.selected);
         for f in self.fx.item_fx.iter_mut() {
@@ -325,7 +290,7 @@ impl<C: PixelFormat> super::Widget<C> for ListState {
     fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> super::TickOut {
         let was_active = self.fx.active(now, self.fx_dur);
         let removed = self.fx.prune(now, self.fx_dur);
-        // Redraw every frame while active; the frame that clears an effect also repaints once (to remove the ghost residue)
+        // Redraw every frame while active; the frame that clears an effect also repaints once
         super::TickOut { redraw: was_active || removed, active: self.fx.active(now, self.fx_dur) }
     }
     fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
@@ -365,7 +330,7 @@ pub trait UiListExt {
     /// Inserts an item at idx (items below slide down to make room, the new item fades in).
     /// The capacity limit is up to the caller (use list_len to check).
     fn list_insert(&mut self, obj: ObjRef, idx: usize, text: &str);
-    /// Deletes the currently selected item (fades out + items below shift up), returns whether it succeeded
+    /// Deletes the currently selected item (immediate removal + items below shift up), returns whether it succeeded
     fn list_remove(&mut self, obj: ObjRef) -> bool;
     /// Returns the number of items.
     fn list_len(&self, obj: ObjRef) -> usize;
