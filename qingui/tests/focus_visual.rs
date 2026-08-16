@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::list::ListCfg;
@@ -125,9 +126,9 @@ fn list_highlight_respects_rounded_corner() {
     ui.set_pos(l, 10, 10);
     ui.render();
     // The first row highlight's top-left corner (inside the rounded-corner area) should not be the highlight color
-    assert_ne!(px(&rec, 10, 12), Color::rgb(50, 70, 120));
+    assert_ne!(px(&rec, 10, 12), Color::new(50, 70, 120));
     // Inside the first row (below the border) is the highlight color
-    assert_eq!(px(&rec, 60, 12), Color::rgb(50, 70, 120));
+    assert_eq!(px(&rec, 60, 12), Color::new(50, 70, 120));
 }
 
 #[test]
@@ -142,6 +143,6 @@ fn list_remove_erases_row_immediately() {
     ui.render();
     // The deleted row's (row 2) area is repainted to the list background right away, with no text residue
     for x in 14..40 {
-        assert_eq!(px(&rec, x, 50), Color::rgb(34, 34, 44), "x={}", x);
+        assert_eq!(px(&rec, x, 50), Color::new(34, 34, 44), "x={}", x);
     }
 }

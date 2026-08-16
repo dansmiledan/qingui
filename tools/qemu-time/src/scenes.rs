@@ -114,7 +114,7 @@ pub fn time_frame(ui: &mut Ui, now: &mut dyn FnMut() -> u64) -> u64 {
 /// Per-draw average timing for each basic primitive on a full 320x240 buffer.
 pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
     let full = Rect::new(0, 0, 320, 240);
-    let mut pixels = vec![Color::BLACK; 320 * 240];
+    let mut pixels = vec![Color::new(0, 0, 0); 320 * 240];
     let mut d = qingui::canvas::Canvas { pixels: &mut pixels, area: full, stride: 320 };
     let clip = full;
     let iters = PRIM_ITERS;
@@ -128,9 +128,9 @@ pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
     }
 
     PrimResults {
-        fill_rect: bench(now, iters, &mut || d.fill_rect(full, Color::RED, clip)),
+        fill_rect: bench(now, iters, &mut || d.fill_rect(full, Color::new(255, 0, 0), clip)),
         draw_line: bench(now, iters, &mut || {
-            d.draw_line(Point { x: 0, y: 0 }, Point { x: 319, y: 239 }, 2, Color::WHITE, clip)
+            d.draw_line(Point { x: 0, y: 0 }, Point { x: 319, y: 239 }, 2, Color::new(255, 255, 255), clip)
         }),
         draw_line_many: bench(now, iters, &mut || {
             for k in 0..10 {
@@ -138,24 +138,24 @@ pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
                     Point { x: k * 32, y: 0 },
                     Point { x: k * 32 + 16, y: 239 },
                     1,
-                    Color::WHITE,
+                    Color::new(255, 255, 255),
                     clip,
                 );
             }
         }),
         draw_circle: bench(now, iters, &mut || {
-            d.draw_circle(Point { x: 160, y: 120 }, 60, 2, Color::WHITE, clip)
+            d.draw_circle(Point { x: 160, y: 120 }, 60, 2, Color::new(255, 255, 255), clip)
         }),
         fill_circle: bench(now, iters, &mut || {
-            d.fill_circle(Point { x: 160, y: 120 }, 40, Color::WHITE, clip)
+            d.fill_circle(Point { x: 160, y: 120 }, 40, Color::new(255, 255, 255), clip)
         }),
-        fill_rounded: bench(now, iters, &mut || d.fill_rounded(full, 8, Color::WHITE, clip)),
-        draw_border: bench(now, iters, &mut || d.draw_border(full, 4, 8, Color::WHITE, clip)),
+        fill_rounded: bench(now, iters, &mut || d.fill_rounded(full, 8, Color::new(255, 255, 255), clip)),
+        draw_border: bench(now, iters, &mut || d.draw_border(full, 4, 8, Color::new(255, 255, 255), clip)),
         draw_arc: bench(now, iters, &mut || {
-            d.draw_arc(Point { x: 160, y: 120 }, 80, 4, 0, 270, Color::WHITE, clip)
+            d.draw_arc(Point { x: 160, y: 120 }, 80, 4, 0, 270, Color::new(255, 255, 255), clip)
         }),
         draw_text: bench(now, iters, &mut || {
-            d.draw_text(Point { x: 10, y: 10 }, qingui::font::DEFAULT_FONT, "qingui bench", Color::WHITE, clip)
+            d.draw_text(Point { x: 10, y: 10 }, qingui::font::DEFAULT_FONT, "qingui bench", Color::new(255, 255, 255), clip)
         }),
         blit565: {
             // Allocate the source image outside the timed loop: the bench

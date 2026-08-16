@@ -70,7 +70,7 @@ impl<C: PixelFormat> Canvas<'_, C> {
                 let sy = (py - y) as usize;
                 let i = (sy * w as usize + sx) * 2;
                 let v = data[i] as u16 | ((data[i + 1] as u16) << 8);
-                self.put(px, py, Color::from_rgb565(v));
+                self.put(px, py, crate::pixel::color_from_rgb565(v));
             }
         }
     }
@@ -281,7 +281,7 @@ mod tests {
         let mut buf = [Rgb565::BLACK; 100];
         let mut d = canvas565(&mut buf);
         let clip = Rect::new(0, 0, 10, 10);
-        d.fill_rect(Rect::new(0, 0, 10, 10), Color::rgb(255, 0, 0), clip);
+        d.fill_rect(Rect::new(0, 0, 10, 10), Color::new(255, 0, 0), clip);
         assert!(d.pixels.iter().all(|&p| p == Rgb565::RED));
     }
 
@@ -375,7 +375,7 @@ mod tests {
         let mut buf = [Rgb565::BLACK; 100];
         let mut d = canvas565(&mut buf);
         d.put(2, 2, Color::WHITE);
-        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), Color::WHITE.to_rgb565());
+        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), crate::pixel::color_to_rgb565(Color::WHITE));
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod tests {
         let mut buf = [Color::BLACK; 100];
         let mut d: Canvas<'_> = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.fill_rect(Rect::new(0, 0, 10, 10), Color::rgb(80, 140, 255), clip);
-        assert!(d.pixels.iter().all(|&p| p == Color::rgb(80, 140, 255)));
+        d.fill_rect(Rect::new(0, 0, 10, 10), Color::new(80, 140, 255), clip);
+        assert!(d.pixels.iter().all(|&p| p == Color::new(80, 140, 255)));
     }
 }

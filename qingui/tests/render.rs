@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::style::theme_screen;
 use qingui::widgets::obj::ObjCfg;
@@ -37,15 +38,15 @@ fn move_to_front_raises_stacking() {
     let scr = ui.screen();
     let a = ObjCfg::new().size(10, 10).build(&mut ui, scr);
     let b = ObjCfg::new().size(10, 10).build(&mut ui, scr);
-    ui.set_style(a, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(255, 0, 0)); s });
-    ui.set_style(b, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::rgb(0, 0, 255)); s });
+    ui.set_style(a, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::new(255, 0, 0)); s });
+    ui.set_style(b, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::new(0, 0, 255)); s });
     ui.render();
     // Initially B is on top → (5,5) is blue
-    assert_eq!(px(&rec, 5, 5), Color::rgb(0, 0, 255));
+    assert_eq!(px(&rec, 5, 5), Color::new(0, 0, 255));
     ui.move_to_front(a);
     ui.render();
     // Now A is on top → (5,5) is red
-    assert_eq!(px(&rec, 5, 5), Color::rgb(255, 0, 0));
+    assert_eq!(px(&rec, 5, 5), Color::new(255, 0, 0));
 }
 
 #[test]

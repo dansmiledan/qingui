@@ -5,6 +5,7 @@
 
 mod sim;
 
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::prelude::*;
@@ -132,7 +133,7 @@ impl Demo {
         ui.set_size(sp, 26, 26);
         kids.push(sp);
 
-        let led = LedCfg::new(Color::rgb(60, 180, 90)).build(ui, screen);
+        let led = LedCfg::new(Color::new(60, 180, 90)).build(ui, screen);
         // LED breathing
         ui.anim_start(
             Anim::new(led, AnimProp::Value, 40, 255, 1200)
@@ -170,7 +171,7 @@ impl Demo {
             (Color::GREEN, "Wi-Fi"),
             (Color::BLUE, "Bluetooth"),
             (Color::RED, "Airplane"),
-            (Color::rgb(255, 200, 0), "Location"),
+            (Color::new(255, 200, 0), "Location"),
             (Color::WHITE, "About"),
         ] {
             let it = ui.itemlist_add_item(menu).unwrap();
@@ -207,7 +208,7 @@ impl Demo {
         ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, now| {
             let c = qingui::Point { x: abs.x + 18, y: abs.y + 18 };
             let end = (now / 10) as i32 % 360;
-            d.draw_arc(c, 14, 4, 0, end, Color::rgb(80, 140, 255), clip);
+            d.draw_arc(c, 14, 4, 0, end, Color::new(80, 140, 255), clip);
             d.fill_circle(c, 3, Color::WHITE, clip);
         })));
         kids.push(cv);

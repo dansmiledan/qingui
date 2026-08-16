@@ -75,7 +75,7 @@ impl SpinnerState {
         let phase = (ctx.now / 7) as i32 % 300;
         let tri = if phase < 150 { phase } else { 300 - phase };
         let sweep = 60 + tri;
-        d.draw_arc(c, r, self.line_width, start, start + sweep, Color::rgb(80, 140, 255), clip);
+        d.draw_arc(c, r, self.line_width, start, start + sweep, Color::new(80, 140, 255), clip);
     }
 }
 

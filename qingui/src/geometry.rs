@@ -78,75 +78,24 @@ impl Rect {
     }
 }
 
-/// An RGB color.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct Color {
-    /// Red channel (0..=255).
-    pub r: u8,
-    /// Green channel (0..=255).
-    pub g: u8,
-    /// Blue channel (0..=255).
-    pub b: u8,
-}
+/// The working color type: embedded-graphics' RGB888.
+pub use embedded_graphics::pixelcolor::Rgb888 as Color;
 
-impl Color {
-    /// Pure black.
-    pub const BLACK: Color = Color::rgb(0, 0, 0);
-    /// Pure white.
-    pub const WHITE: Color = Color::rgb(255, 255, 255);
-    /// Pure red.
-    pub const RED: Color = Color::rgb(255, 0, 0);
-    /// Pure green.
-    pub const GREEN: Color = Color::rgb(0, 255, 0);
-    /// Pure blue.
-    pub const BLUE: Color = Color::rgb(0, 0, 255);
-    /// Medium gray.
-    pub const GRAY: Color = Color::rgb(128, 128, 128);
-    /// Light gray.
-    pub const LIGHT_GRAY: Color = Color::rgb(200, 200, 200);
-    /// Dark gray.
-    pub const DARK_GRAY: Color = Color::rgb(40, 40, 40);
+/// Medium gray.
+pub const GRAY: Color = Color::new(128, 128, 128);
+/// Light gray.
+pub const LIGHT_GRAY: Color = Color::new(200, 200, 200);
+/// Dark gray.
+pub const DARK_GRAY: Color = Color::new(40, 40, 40);
 
-    /// Builds a color from its RGB channels.
-    pub const fn rgb(r: u8, g: u8, b: u8) -> Color {
-        Color { r, g, b }
-    }
-    /// Converts to RGB565.
-    pub fn to_rgb565(&self) -> u16 {
-        (((self.r as u16) & 0xF8) << 8) | (((self.g as u16) & 0xFC) << 3) | ((self.b as u16) >> 3)
-    }
-    /// Mixes `self` toward `over` by weight `opa` (0..=255), producing an opaque color.
-    /// This is plain color mixing (used for LED brightness), not alpha compositing —
-    /// qingui has no translucency; the result fully replaces the pixel.
-    pub fn blend(self, over: Color, opa: u8) -> Color {
-        let a = opa as u32;
-        let inv = 255 - a;
-        let m = |s: u8, o: u8| ((s as u32 * inv + o as u32 * a + 127) / 255) as u8;
-        Color::rgb(m(self.r, over.r), m(self.g, over.g), m(self.b, over.b))
-    }
-    /// RGB565 (5-6-5) → RGB888 (bit-copy expansion, lossless round-trip).
-    pub fn from_rgb565(v: u16) -> Color {
-        let r = ((v >> 11) & 0x1F) as u8;
-        let g = ((v >> 5) & 0x3F) as u8;
-        let b = (v & 0x1F) as u8;
-        Color::rgb((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
-    }
-}
-
-impl From<Color> for embedded_graphics::pixelcolor::Rgb888 {
-    fn from(c: Color) -> Self {
-        Self::new(c.r, c.g, c.b)
-    }
-}
-
-impl From<embedded_graphics::pixelcolor::Rgb888> for Color {
-    fn from(c: embedded_graphics::pixelcolor::Rgb888) -> Self {
-        Color::rgb(c.r(), c.g(), c.b())
-    }
-}
-
-impl embedded_graphics::pixelcolor::PixelColor for Color {
-    type Raw = embedded_graphics::pixelcolor::raw::RawU24;
+/// Mixes `fg` onto `bg` by weight `t` (0..=255), producing an opaque color.
+/// This is plain color mixing (used for LED brightness), not alpha compositing —
+/// qingui has no translucency; the result fully replaces the pixel.
+pub fn blend(bg: Color, fg: Color, t: u8) -> Color {
+    let a = t as u32;
+    let inv = 255 - a;
+    let m = |s: u8, o: u8| ((s as u32 * inv + o as u32 * a + 127) / 255) as u8;
+    Color::new(m(bg.r(), fg.r()), m(bg.g(), fg.g()), m(bg.b(), fg.b()))
 }
 
 impl From<Rect> for embedded_graphics::primitives::Rectangle {

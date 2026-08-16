@@ -6,6 +6,7 @@ use crate::node::{Flag, Node, State};
 use crate::pixel::PixelFormat;
 use crate::style::ResolvedStyle;
 use embedded_graphics::mono_font::MonoFont;
+use embedded_graphics::pixelcolor::RgbColor;
 
 /// Takes the dirty rects and renders each in chunks (PFB). A plain free function: `Ui` calls
 /// it with disjoint fields.
@@ -303,12 +304,12 @@ mod tests {
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let n = arena.get_mut(r).unwrap();
         n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED;
-        n.style_selected = Some(Box::new(style(Color::rgb(1, 0, 0))));
-        n.style_focused = Some(Box::new(style(Color::rgb(2, 0, 0))));
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::rgb(2, 0, 0))); // FOCUSED takes priority
+        n.style_selected = Some(Box::new(style(Color::new(1, 0, 0))));
+        n.style_focused = Some(Box::new(style(Color::new(2, 0, 0))));
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::new(2, 0, 0))); // FOCUSED takes priority
 
         arena.get_mut(r).unwrap().state = crate::node::State::SELECTED;
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::rgb(1, 0, 0))); // only SELECTED left
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::new(1, 0, 0))); // only SELECTED left
     }
 
     #[test]
@@ -337,15 +338,15 @@ mod tests {
         f.border_color = Some(Color::WHITE);
         f.border_width = Some(2);
         let mut e = crate::style::Style::default();
-        e.border_color = Some(Color::rgb(1, 2, 3));
+        e.border_color = Some(Color::new(1, 2, 3));
         e.border_width = Some(4);
-        e.bg_color = Some(Color::rgb(4, 5, 6));
+        e.bg_color = Some(Color::new(4, 5, 6));
         arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
         arena.get_mut(r).unwrap().style_edited = Some(Box::new(e));
         arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
         let rs = resolved_style(&arena, r, FONT);
-        assert_eq!(rs.border_color, Color::rgb(1, 2, 3)); // edited overlay wins, no amber tint
+        assert_eq!(rs.border_color, Color::new(1, 2, 3)); // edited overlay wins, no amber tint
         assert_eq!(rs.border_width, 4);
-        assert_eq!(rs.bg_color, Some(Color::rgb(4, 5, 6)));
+        assert_eq!(rs.bg_color, Some(Color::new(4, 5, 6)));
     }
 }

@@ -102,7 +102,7 @@ impl ListState {
             let hl = Rect::new(abs.x, abs.y + (hl_row_f * self.row_h as f32) as i32 - eff_scroll, abs.w, self.row_h);
             if hl.intersects(&lclip) {
                 // Highlight with rounded corners so it doesn't cover the list's own rounded border
-                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::rgb(50, 70, 120), lclip);
+                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::new(50, 70, 120), lclip);
             }
         }
         // items (with entry/shift effects; the fade-in went away with the opacity system,

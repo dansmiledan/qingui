@@ -1,6 +1,7 @@
 //! Shared simulator runtime: minifb window + flush forwarding + key mapping + main loop.
 //! Each example only needs to implement a UI builder function and call `sim::run(build)`.
 
+use embedded_graphics::pixelcolor::RgbColor;
 use minifb::{Key as MKey, Scale, Window, WindowOptions};
 use qingui::display::Flush;
 use qingui::input::Key;
@@ -45,7 +46,7 @@ impl SimFlush {
                         if sx >= 0 && sx < WIDTH as i32 && sy >= 0 && sy < HEIGHT as i32 {
                             let c = rec.pixels[(y * rec.rect.w + x) as usize];
                             fb[sy as usize * WIDTH + sx as usize] =
-                                ((c.r as u32) << 16) | ((c.g as u32) << 8) | c.b as u32;
+                                ((c.r() as u32) << 16) | ((c.g() as u32) << 8) | c.b() as u32;
                         }
                     }
                 }
@@ -68,7 +69,7 @@ impl Flush for SimFlush {
                     if sx >= 0 && sx < WIDTH as i32 && sy >= 0 && sy < HEIGHT as i32 {
                         let c = pixels[(y * area.w + x) as usize];
                         fb[sy as usize * WIDTH + sx as usize] =
-                            ((c.r as u32) << 16) | ((c.g as u32) << 8) | c.b as u32;
+                            ((c.r() as u32) << 16) | ((c.g() as u32) << 8) | c.b() as u32;
                     }
                 }
             }

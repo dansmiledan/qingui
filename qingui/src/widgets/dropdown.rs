@@ -5,6 +5,7 @@ use alloc::vec::Vec;
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
+use embedded_graphics::pixelcolor::RgbColor;
 use crate::input::Key;
 use crate::pixel::PixelFormat;
 use crate::style::Style;
@@ -144,7 +145,7 @@ impl<C> WidgetBuilder<DropdownCfg, C> {
 impl<C: PixelFormat> WidgetCfg<C> for DropdownCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
-        s.bg_color = Some(Color::rgb(40, 40, 52));
+        s.bg_color = Some(Color::new(40, 40, 52));
         s.radius = Some(4);
         s.text_color = Some(Color::WHITE);
         s

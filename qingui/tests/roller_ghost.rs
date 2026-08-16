@@ -1,4 +1,5 @@
 // Regression: after rapid presses the Roller settles, and the render must match a fresh build (no ghosting/overlap)
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::roller::RollerCfg;

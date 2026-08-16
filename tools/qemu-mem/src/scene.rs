@@ -74,7 +74,7 @@ pub fn build_scene(tier: Tier) -> Scene {
     for _ in 0..n_items / 4 {
         SliderCfg::new(0, 100).build(&mut ui, scr);
     }
-    let _chart = ChartCfg::new().series(Color::RED, n_chart_pts).build(&mut ui, scr);
+    let _chart = ChartCfg::new().series(Color::new(255, 0, 0), n_chart_pts).build(&mut ui, scr);
     let _il = ItemListCfg::new().build(&mut ui, scr);
     for _ in 0..n_items {
         ui.itemlist_add_item(_il);

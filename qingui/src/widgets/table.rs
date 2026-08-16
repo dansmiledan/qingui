@@ -6,6 +6,7 @@ use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::pixel::PixelFormat;
 use crate::style::Style;
+use embedded_graphics::pixelcolor::RgbColor;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
@@ -100,7 +101,7 @@ impl TableState {
     fn draw_grid<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
-        let line_c = Color::rgb(70, 70, 90);
+        let line_c = Color::new(70, 70, 90);
         // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
         for c in 0..=self.cols as i32 {
             let x = (abs.x + c * self.cell_w).min(abs.right() - 1);

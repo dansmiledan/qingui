@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::style::{theme_base, theme_button, theme_button_focused, Style};
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Color, Ui};
@@ -22,9 +23,9 @@ fn theme_base_provides_common_defaults() {
 fn composed_theme_button_matches_expected() {
     // theme_button is composed from theme_base; its field values must match the composition semantics
     let b = theme_button();
-    assert_eq!(b.bg_color, Some(Color::rgb(60, 90, 160)));
+    assert_eq!(b.bg_color, Some(Color::new(60, 90, 160)));
     assert_eq!(b.radius, Some(6));
-    assert_eq!(b.border_color, Some(Color::rgb(90, 120, 200)));
+    assert_eq!(b.border_color, Some(Color::new(90, 120, 200)));
     assert_eq!(b.border_width, Some(1));
     assert_eq!(b.text_color, Some(Color::WHITE)); // from theme_base
 }

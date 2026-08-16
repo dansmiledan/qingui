@@ -7,7 +7,7 @@ use embedded_graphics::pixelcolor::{Bgr555, Bgr565, Bgr666, Bgr888, PixelColor, 
 
 /// A framebuffer pixel format: convertible to/from the internal RGB888 `Color`.
 ///
-/// Implemented for qingui's own `Color` (identity, the default) and for the
+/// Implemented for `Color` (which IS `Rgb888`, the default) and for the other
 /// embedded-graphics RGB/BGR color types, so the framebuffer can directly use
 /// the display's native format (e.g. `Rgb565`).
 pub trait PixelFormat: PixelColor + Copy + PartialEq + Default {
@@ -17,11 +17,6 @@ pub trait PixelFormat: PixelColor + Copy + PartialEq + Default {
     fn from_color(c: Color) -> Self;
 }
 
-impl PixelFormat for Color {
-    fn to_color(self) -> Color { self }
-    fn from_color(c: Color) -> Self { c }
-}
-
 /// Implements `PixelFormat` for an e-g RGB/BGR color type via its `RgbColor`
 /// constructor/accessors (8-bit channels in, quantized storage out).
 macro_rules! impl_pixel_format_rgb {
@@ -29,10 +24,11 @@ macro_rules! impl_pixel_format_rgb {
         impl PixelFormat for $t {
             fn to_color(self) -> Color {
                 use embedded_graphics::pixelcolor::RgbColor;
-                Color::rgb(self.r(), self.g(), self.b())
+                Color::new(self.r(), self.g(), self.b())
             }
             fn from_color(c: Color) -> Self {
-                <$t>::new(c.r, c.g, c.b)
+                use embedded_graphics::pixelcolor::RgbColor;
+                <$t>::new(c.r(), c.g(), c.b())
             }
         }
     )*};
@@ -40,14 +36,28 @@ macro_rules! impl_pixel_format_rgb {
 
 impl_pixel_format_rgb!(Rgb888, Rgb555, Rgb666, Bgr888, Bgr565, Bgr555, Bgr666);
 
+/// Color -> RGB565 (5-6-5).
+pub(crate) fn color_to_rgb565(c: Color) -> u16 {
+    use embedded_graphics::pixelcolor::RgbColor;
+    (((c.r() as u16) & 0xF8) << 8) | (((c.g() as u16) & 0xFC) << 3) | ((c.b() as u16) >> 3)
+}
+
+/// RGB565 (5-6-5) -> Color (bit-copy expansion, lossless round-trip).
+pub(crate) fn color_from_rgb565(v: u16) -> Color {
+    let r = ((v >> 11) & 0x1F) as u8;
+    let g = ((v >> 5) & 0x3F) as u8;
+    let b = (v & 0x1F) as u8;
+    Color::new((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
+}
+
 // Rgb565 is implemented via raw storage so it stays bit-consistent with
-// `Color::to_rgb565`/`from_rgb565`, which `Canvas::blit565` relies on.
+// `color_to_rgb565`/`color_from_rgb565`, which `Canvas::blit565` relies on.
 impl PixelFormat for Rgb565 {
     fn to_color(self) -> Color {
-        Color::from_rgb565(RawU16::from(self).into_inner())
+        color_from_rgb565(RawU16::from(self).into_inner())
     }
     fn from_color(c: Color) -> Self {
-        Rgb565::from(RawU16::new(c.to_rgb565()))
+        Rgb565::from(RawU16::new(color_to_rgb565(c)))
     }
 }
 
@@ -59,23 +69,23 @@ mod tests {
 
     #[test]
     fn color_identity() {
-        let c = Color::rgb(80, 140, 255);
+        let c = Color::new(80, 140, 255);
         assert_eq!(PixelFormat::to_color(c), c);
         assert_eq!(<Color as PixelFormat>::from_color(c), c);
     }
 
     #[test]
     fn rgb888_lossless_roundtrip() {
-        let c = Color::rgb(1, 128, 255);
+        let c = Color::new(1, 128, 255);
         assert_eq!(Rgb888::from_color(c).to_color(), c);
     }
 
     #[test]
     fn rgb565_matches_color_helpers() {
-        for &c in &[Color::BLACK, Color::WHITE, Color::rgb(80, 140, 255), Color::rgb(1, 2, 3), Color::rgb(255, 128, 0)] {
+        for &c in &[Color::BLACK, Color::WHITE, Color::new(80, 140, 255), Color::new(1, 2, 3), Color::new(255, 128, 0)] {
             let px = Rgb565::from_color(c);
-            assert_eq!(RawU16::from(px).into_inner(), c.to_rgb565(), "from_color mismatch for {c:?}");
-            assert_eq!(px.to_color(), Color::from_rgb565(c.to_rgb565()), "to_color mismatch for {c:?}");
+            assert_eq!(RawU16::from(px).into_inner(), color_to_rgb565(c), "from_color mismatch for {c:?}");
+            assert_eq!(px.to_color(), color_from_rgb565(color_to_rgb565(c)), "to_color mismatch for {c:?}");
         }
     }
 

@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::button::ButtonCfg;
@@ -54,8 +55,8 @@ fn led_brightness() {
     ui.set_value(led, 128);
     ui.render();
     let dim = px(&rec, 18, 18);
-    assert!(dim.r < 255 && dim.r > 100, "半亮: {:?}", dim);
-    assert_eq!(dim.g, 0);
+    assert!(dim.r() < 255 && dim.r() > 100, "半亮: {:?}", dim);
+    assert_eq!(dim.g(), 0);
 }
 
 #[test]
@@ -70,9 +71,9 @@ fn table_cells() {
     // FONT_6X10 'A' glyph row 1 is 001000 → lit at text origin (14,14) + 2 right, 1 down
     assert_eq!(px(&rec, 14 + 2, 14 + 1), Color::WHITE);
     // Grid lines
-    assert_eq!(px(&rec, 10, 20), Color::rgb(70, 70, 90));
+    assert_eq!(px(&rec, 10, 20), Color::new(70, 70, 90));
     // Bottom grid line (should exist after the half-open interval fix)
-    assert_eq!(px(&rec, 30, 41), Color::rgb(70, 70, 90));
+    assert_eq!(px(&rec, 30, 41), Color::new(70, 70, 90));
     // Empty cell has no text
     assert_eq!(px(&rec, 74, 14), Color::BLACK);
 }
@@ -153,8 +154,8 @@ fn spinbox_cursor_highlight() {
     // Layout (FONT_6X10: advance 6, line height 10): spinbox default 30x18, starting at (10,10);
     // digits '0','0','5' are at x=16/22/28, glyph top row y=14. Combination-lock editing starts
     // at the most significant digit, so the hundreds highlight block is (15,11,8,16):
-    assert_eq!(px(&rec, 17, 12), Color::rgb(80, 140, 255)); // hundreds digit highlighted
-    assert_ne!(px(&rec, 28, 12), Color::rgb(80, 140, 255)); // ones digit not highlighted
+    assert_eq!(px(&rec, 17, 12), Color::new(80, 140, 255)); // hundreds digit highlighted
+    assert_ne!(px(&rec, 28, 12), Color::new(80, 140, 255)); // ones digit not highlighted
 }
 
 #[test]

@@ -8,6 +8,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{Circle, PrimitiveStyle};
 
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::anim::{Anim, AnimProp};
 use qingui::canvas::Canvas;
 use qingui::display::Flush;
@@ -52,7 +53,7 @@ fn ui_rgb565_flushes_device_native_pixels() {
 
 #[test]
 fn ui_rgb565_quantizes_like_color_helpers() {
-    let bg = Color::rgb(80, 140, 255);
+    let bg = Color::new(80, 140, 255);
     let chunks = render_solid(bg);
     let expected = Rgb565::from_color(bg);
     assert!(!chunks.is_empty());

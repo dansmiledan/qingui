@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::arc::ArcCfg;
@@ -52,11 +53,11 @@ fn arc_value_and_indicator() {
     assert_eq!(ui.value(a), 50);
     // Center (40,40), r=27. START=135°(bottom-left). 50% → the indicator reaches 135+135=270°(straight up)
     // Track color sampled along the 300° direction (outside the indicator range, not on a boundary): (40+13, 40-23) = (53, 17)
-    assert_eq!(px(&rec, 53, 17), Color::rgb(70, 70, 80));
+    assert_eq!(px(&rec, 53, 17), Color::new(70, 70, 80));
     // The 50% indicator arc covers bottom-left to straight up: middle of the ring band at 180°(straight left) (40-25, 40) = (15, 40)
-    assert_eq!(px(&rec, 15, 40), Color::rgb(80, 140, 255));
+    assert_eq!(px(&rec, 15, 40), Color::new(80, 140, 255));
     // The indicator arc covers the 200° direction (40-23, 40+8) = (17, 48)
-    assert_eq!(px(&rec, 17, 48), Color::rgb(80, 140, 255));
+    assert_eq!(px(&rec, 17, 48), Color::new(80, 140, 255));
     // 90°(straight down, inside the sweep gap) has no arc: (40, 40+25) = (40, 65) is background
     assert_eq!(px(&rec, 40, 65), Color::BLACK);
 }
@@ -71,7 +72,7 @@ fn arc_edited_turns_indicator_yellow() {
     ui.set_state(a, qingui::node::State::EDITED, true);
     ui.render();
     // Edit mode: the indicator arc turns yellow (180° direction (15,40))
-    assert_eq!(px(&rec, 15, 40), Color::rgb(255, 200, 60));
+    assert_eq!(px(&rec, 15, 40), Color::new(255, 200, 60));
 }
 
 #[test]
@@ -86,14 +87,14 @@ fn checkbox_toggles_on_enter() {
     ui.group_add(cb);
     ui.render();
     // Unchecked: the box's top edge is gray (avoiding the widget's focus border), no checkmark inside
-    assert_eq!(px(&rec, 16, 12), Color::rgb(150, 150, 160)); // box top edge
-    assert_ne!(px(&rec, 15, 16), Color::rgb(80, 140, 255)); // no checkmark
+    assert_eq!(px(&rec, 16, 12), Color::new(150, 150, 160)); // box top edge
+    assert_ne!(px(&rec, 15, 16), Color::new(80, 140, 255)); // no checkmark
     ui.keypad_input(Key::Enter);
     assert_eq!(ui.value(cb), 1);
     assert_eq!(*log.borrow(), vec![EventKind::ValueChanged]);
     ui.render();
     // After checking, the checkmark line passes through (17,19)
-    assert_eq!(px(&rec, 17, 19), Color::rgb(80, 140, 255));
+    assert_eq!(px(&rec, 17, 19), Color::new(80, 140, 255));
     ui.keypad_input(Key::Enter);
     assert_eq!(ui.value(cb), 0);
 }
@@ -110,7 +111,7 @@ fn spinner_keeps_timer_busy_and_draws_arc() {
     let mut found = false;
     for y in 10..42 {
         for x in 10..42 {
-            if px(&rec, x, y) == Color::rgb(80, 140, 255) {
+            if px(&rec, x, y) == Color::new(80, 140, 255) {
                 found = true;
             }
         }
