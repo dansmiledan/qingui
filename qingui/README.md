@@ -85,6 +85,10 @@ Rendering was reworked to delegate all drawing to embedded-graphics primitives; 
 - `Canvas` drawing methods lost the `opa` parameter; `draw_text_opa` removed (use `draw_text`). There is no alpha blending anywhere.
 - `Style.bg_opa`/`Style.opa` removed; the background now paints iff `bg_color` is `Some` (`ResolvedStyle.bg_color: Option<Color>`).
 - `Ui::set_opa`, `AnimProp::Opa`, and the list delete-ghost effect removed.
+- `WidgetCtx::ap` removed (was `pub`): opacity no longer exists — custom widgets calling `ctx.ap(...)` should simply drop the wrapper and pass colors to `Canvas` methods directly.
+- The list widget's `Ghost` struct and `ListFx::ghost` field (both `pub`) removed along with the delete-ghost effect.
+- Nodes with no explicit style previously defaulted to an opaque black background; they now default to no background (paint only when `bg_color` is `Some`).
+- `Canvas::draw_arc` no longer wraps `end <= start` (previously `(270°, 90°)` drew a 180° arc by adding 360°); now `end <= start` draws nothing — express wrap as `end > 360`.
 - `qingui::Point` is now embedded-graphics' `Point`; `Rect` ↔ `Rectangle` `From` conversions added.
 - Visual change: no anti-aliasing (aliased corners/arcs/lines), no translucency.
 - Rendering now delegates to embedded-graphics primitives (`Rectangle`/`RoundedRectangle`/`Circle`/`Arc`/`Line`/…); the framebuffer, dirty-rect, and `Flush` pipeline are unchanged.

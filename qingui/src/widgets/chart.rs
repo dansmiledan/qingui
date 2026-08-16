@@ -72,9 +72,12 @@ impl ChartState {
                 match prev {
                     Some(q) => {
                         // Clip the segment to its half-open x-strip [q.x, p.x): adjacent
-                        // capsules would otherwise overlap at the joint and blend the AA
-                        // fringe twice, leaving a bright bulge at every data point. The
-                        // last segment keeps its end cap (strip extends to the clip edge).
+                        // capsules would otherwise overlap at the joint and repaint the
+                        // round cap over columns the previous segment already owns. With
+                        // the aliased renderer pixels are overwritten, not blended, so
+                        // there is no brightness bulge, but the strip keeps per-column ink
+                        // within the line's natural aliased thickness. The last segment
+                        // keeps its end cap (strip extends to the clip edge).
                         let seg_clip = if p.x > q.x {
                             let right = if i + 1 == n { clip.right() } else { p.x };
                             Rect::new(q.x, clip.y, right - q.x, clip.h).intersect(&clip)

@@ -115,7 +115,9 @@ impl Color {
     pub fn to_rgb565(&self) -> u16 {
         (((self.r as u16) & 0xF8) << 8) | (((self.g as u16) & 0xFC) << 3) | ((self.b as u16) >> 3)
     }
-    /// Blends `over` on top of `self` (the background) at opacity `opa` (0..=255).
+    /// Mixes `self` toward `over` by weight `opa` (0..=255), producing an opaque color.
+    /// This is plain color mixing (used for LED brightness), not alpha compositing —
+    /// qingui has no translucency; the result fully replaces the pixel.
     pub fn blend(self, over: Color, opa: u8) -> Color {
         let a = opa as u32;
         let inv = 255 - a;

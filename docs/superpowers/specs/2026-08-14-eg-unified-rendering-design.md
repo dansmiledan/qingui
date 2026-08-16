@@ -86,7 +86,7 @@ qingui 目前自带一套软件光栅化器：`draw.rs` 的覆盖率/AA 数学�
 
 - Canvas 每个委托方法配像素级单测（含 clip 行为），断言 e-g 光栅化的实际输出。
 - 现有视觉测试（`qingui/tests/*.rs` 中大量像素断言）逐个重校：AA 边缘消失 + e-g 光栅化差异导致断言值变化，属机械性更新；ghost 相关测试随功能删除。
-- `qingui/tests/rgb565.rs` 端到端测试保持绿（其中混合用例 `rgb565_blend_roundtrips_through_rgb888` 随 blend 删除而移除，量化/托管用例保留）。
+- `qingui/tests/rgb565.rs` 端到端测试保持绿（量化/托管用例不变）；混合用例 `rgb565_blend_roundtrips_through_rgb888` 原本位于 `canvas.rs` 单元测试中，随 alpha 系统（`Canvas::put` 的 opa 参数）一并删除——`Color::blend` 本身保留（LED 亮度混色仍在用）。
 - demo/gallery 模拟器（minifb）编译通过并人工跑一遍确认视觉可接受。
 
 ### 7. 风险与回退

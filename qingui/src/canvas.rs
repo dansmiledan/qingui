@@ -139,6 +139,8 @@ impl<C: PixelFormat> Canvas<'_, C> {
 
     /// Arc (LVGL angle convention: 0 deg at 3 o'clock, positive clockwise), stroke `width`,
     /// square ends (e-g arcs have no round caps).
+    /// Draws only when `end_deg > start_deg` — there is no wraparound, `end_deg <= start_deg`
+    /// draws nothing; express a wrap as `end_deg > 360`.
     /// e-g centers the stroke on the circle's edge while the old rasterizer kept the ring
     /// inside the nominal radius (band `(radius - width, radius]`), so the circle is shrunk
     /// by half the stroke width to land the band in the same place.
