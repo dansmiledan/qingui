@@ -1,13 +1,7 @@
 use embedded_graphics::pixelcolor::RgbColor;
 
-/// A 2D point in screen coordinates.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct Point {
-    /// X coordinate.
-    pub x: i32,
-    /// Y coordinate.
-    pub y: i32,
-}
+/// A 2D point in screen coordinates (re-exported from embedded-graphics).
+pub use embedded_graphics::geometry::Point;
 
 /// An axis-aligned rectangle with integer coordinates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -151,4 +145,50 @@ impl From<embedded_graphics::pixelcolor::Rgb888> for Color {
 
 impl embedded_graphics::pixelcolor::PixelColor for Color {
     type Raw = embedded_graphics::pixelcolor::raw::RawU24;
+}
+
+impl From<Rect> for embedded_graphics::primitives::Rectangle {
+    fn from(r: Rect) -> Self {
+        embedded_graphics::primitives::Rectangle::new(
+            Point::new(r.x, r.y),
+            embedded_graphics::geometry::Size::new(r.w.max(0) as u32, r.h.max(0) as u32),
+        )
+    }
+}
+
+impl From<embedded_graphics::primitives::Rectangle> for Rect {
+    fn from(r: embedded_graphics::primitives::Rectangle) -> Self {
+        Rect::new(r.top_left.x, r.top_left.y, r.size.width as i32, r.size.height as i32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use embedded_graphics::primitives::Rectangle as EgRect;
+
+    #[test]
+    fn point_is_eg_point() {
+        // Compile-time proof: qingui::Point IS embedded-graphics' Point.
+        let p: Point = embedded_graphics::geometry::Point::new(3, 4);
+        assert_eq!((p.x, p.y), (3, 4));
+        let q = Point::new(3, 4);
+        assert_eq!(p, q);
+    }
+
+    #[test]
+    fn rect_eg_roundtrip() {
+        let r = Rect::new(2, 3, 10, 20);
+        let eg: EgRect = r.into();
+        assert_eq!(eg.top_left, Point::new(2, 3));
+        assert_eq!((eg.size.width, eg.size.height), (10, 20));
+        let back: Rect = eg.into();
+        assert_eq!(back, r);
+    }
+
+    #[test]
+    fn rect_to_eg_clamps_negative_size() {
+        let eg: EgRect = Rect::new(5, 5, -3, 7).into();
+        assert_eq!((eg.size.width, eg.size.height), (0, 7));
+    }
 }
