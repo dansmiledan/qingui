@@ -99,10 +99,10 @@ fn to_ioe(e: image::ImageError) -> std::io::Error {
 mod tests {
     use super::*;
 
-    // Locks the inlined 5-6-5 truncation, which duplicates the encode-side
-    // quantization `blit565` decodes from, across the crate boundary.
+    // Locks the encode-side 5-6-5 truncation formula's own values; the formula
+    // no longer duplicates anything on the qingui side.
     #[test]
-    fn rgba_to_565_matches_qingui_bit_math() {
+    fn rgba_to_565_locks_truncation_formula() {
         assert_eq!(rgba_to_565(&[255, 255, 255, 255]), [0xFF, 0xFF]); // white -> 0xFFFF
         assert_eq!(rgba_to_565(&[255, 0, 0, 255]), [0x00, 0xF8]); // pure red -> 0xF800
         // Mid-range case locking the 6-bit green mask and little-endian byte order.

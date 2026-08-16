@@ -61,11 +61,14 @@ mod tests {
     }
 
     #[test]
-    fn rgb565_decode_matches_bit_replication() {
-        // 565 -> 888 expansion equals the classic bit-replication values.
+    fn rgb565_decode_expands_via_eg_rounding() {
+        // 565 -> 888 expansion follows e-g's rounding (`convert_channel`), which
+        // agrees with the classic bit-replication values on some inputs only.
         assert_eq!(Rgb565::from(RawU16::new(0xF800)).to_color(), Color::new(255, 0, 0));
-        // r5 = 16 -> (16<<3)|(16>>2) = 132
+        // r5 = 16 -> (16<<3)|(16>>2) = 132; rounding agrees here.
         assert_eq!(Rgb565::from(RawU16::new(16 << 11)).to_color(), Color::new(132, 0, 0));
+        // r5 = 3 -> 25 via rounding; the old bit-replication code produced 24.
+        assert_eq!(Rgb565::from(RawU16::new(3 << 11)).to_color(), Color::new(25, 0, 0));
     }
 
     #[test]
