@@ -2,70 +2,36 @@
 //! and the device-native pixel type stored in the framebuffer.
 
 use crate::geometry::Color;
-use embedded_graphics::pixelcolor::raw::{RawData, RawU16};
 use embedded_graphics::pixelcolor::{Bgr555, Bgr565, Bgr666, Bgr888, PixelColor, Rgb555, Rgb565, Rgb666, Rgb888};
 
 /// A framebuffer pixel format: convertible to/from the internal RGB888 `Color`.
 ///
 /// Implemented for `Color` (which IS `Rgb888`, the default) and for the other
 /// embedded-graphics RGB/BGR color types, so the framebuffer can directly use
-/// the display's native format (e.g. `Rgb565`).
-pub trait PixelFormat: PixelColor + Copy + PartialEq + Default {
+/// the display's native format (e.g. `Rgb565`). Conversions delegate to
+/// embedded-graphics' own `From` impls (rounding quantization).
+pub trait PixelFormat: PixelColor + Copy + PartialEq + Default + Into<Color> + From<Color> {
     /// Converts a framebuffer pixel to the internal RGB888 `Color`.
-    fn to_color(self) -> Color;
-    /// Converts an internal RGB888 `Color` to a framebuffer pixel (quantizes).
-    fn from_color(c: Color) -> Self;
-}
-
-/// Implements `PixelFormat` for an e-g RGB/BGR color type via its `RgbColor`
-/// constructor/accessors (8-bit channels in, quantized storage out).
-macro_rules! impl_pixel_format_rgb {
-    ($($t:ty),* $(,)?) => {$(
-        impl PixelFormat for $t {
-            fn to_color(self) -> Color {
-                use embedded_graphics::pixelcolor::RgbColor;
-                Color::new(self.r(), self.g(), self.b())
-            }
-            fn from_color(c: Color) -> Self {
-                use embedded_graphics::pixelcolor::RgbColor;
-                <$t>::new(c.r(), c.g(), c.b())
-            }
-        }
-    )*};
-}
-
-impl_pixel_format_rgb!(Rgb888, Rgb555, Rgb666, Bgr888, Bgr565, Bgr555, Bgr666);
-
-/// Color -> RGB565 (5-6-5).
-pub(crate) fn color_to_rgb565(c: Color) -> u16 {
-    use embedded_graphics::pixelcolor::RgbColor;
-    (((c.r() as u16) & 0xF8) << 8) | (((c.g() as u16) & 0xFC) << 3) | ((c.b() as u16) >> 3)
-}
-
-/// RGB565 (5-6-5) -> Color (bit-copy expansion, lossless round-trip).
-pub(crate) fn color_from_rgb565(v: u16) -> Color {
-    let r = ((v >> 11) & 0x1F) as u8;
-    let g = ((v >> 5) & 0x3F) as u8;
-    let b = (v & 0x1F) as u8;
-    Color::new((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
-}
-
-// Rgb565 is implemented via raw storage so it stays bit-consistent with
-// `color_to_rgb565`/`color_from_rgb565`, which `Canvas::blit565` relies on.
-impl PixelFormat for Rgb565 {
     fn to_color(self) -> Color {
-        color_from_rgb565(RawU16::from(self).into_inner())
+        self.into()
     }
+    /// Converts an internal RGB888 `Color` to a framebuffer pixel (quantizes).
     fn from_color(c: Color) -> Self {
-        Rgb565::from(RawU16::new(color_to_rgb565(c)))
+        c.into()
     }
 }
+
+macro_rules! impl_pixel_format {
+    ($($t:ty),* $(,)?) => {$( impl PixelFormat for $t {} )*};
+}
+
+impl_pixel_format!(Rgb888, Rgb565, Rgb555, Rgb666, Bgr888, Bgr565, Bgr555, Bgr666);
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use embedded_graphics::pixelcolor::raw::RawU16;
-    use embedded_graphics::pixelcolor::{Rgb565, Rgb888, RgbColor};
+    use embedded_graphics::pixelcolor::raw::{RawData, RawU16};
+    use embedded_graphics::pixelcolor::{Bgr555, Bgr565, Bgr666, Bgr888, Rgb555, Rgb565, Rgb666, Rgb888, RgbColor};
 
     #[test]
     fn color_identity() {
@@ -81,19 +47,48 @@ mod tests {
     }
 
     #[test]
-    fn rgb565_matches_color_helpers() {
-        for &c in &[Color::BLACK, Color::WHITE, Color::new(80, 140, 255), Color::new(1, 2, 3), Color::new(255, 128, 0)] {
-            let px = Rgb565::from_color(c);
-            assert_eq!(RawU16::from(px).into_inner(), color_to_rgb565(c), "from_color mismatch for {c:?}");
-            assert_eq!(px.to_color(), color_from_rgb565(color_to_rgb565(c)), "to_color mismatch for {c:?}");
-        }
+    fn rgb565_full_scale_values() {
+        assert_eq!(Rgb565::from_color(Color::WHITE), Rgb565::WHITE);
+        assert_eq!(Rgb565::from_color(Color::BLACK), Rgb565::BLACK);
+        assert_eq!(Rgb565::from_color(Color::RED), Rgb565::RED);
     }
 
     #[test]
-    fn rgb565_quantizes() {
-        assert_eq!(Rgb565::from_color(Color::RED), Rgb565::RED);
-        assert_eq!(Rgb565::from_color(Color::WHITE), Rgb565::WHITE);
-        assert_eq!(Rgb565::from_color(Color::BLACK), Rgb565::BLACK);
+    fn rgb565_quantization_rounds_like_eg() {
+        // e-g converts 8->5 bits with rounding (not truncation): 250*31/255 rounds to 30.
+        let raw = RawU16::from(Rgb565::from_color(Color::new(250, 0, 0))).into_inner();
+        assert_eq!(raw, 30 << 11);
+    }
+
+    #[test]
+    fn rgb565_decode_matches_bit_replication() {
+        // 565 -> 888 expansion equals the classic bit-replication values.
+        assert_eq!(Rgb565::from(RawU16::new(0xF800)).to_color(), Color::new(255, 0, 0));
+        // r5 = 16 -> (16<<3)|(16>>2) = 132
+        assert_eq!(Rgb565::from(RawU16::new(16 << 11)).to_color(), Color::new(132, 0, 0));
+    }
+
+    #[test]
+    fn all_formats_roundtrip_midrange() {
+        // Regression: the old hand-written macro bodies passed 8-bit values through
+        // native-depth new()/r() accessors, corrupting every format except Rgb888 and
+        // the hand-written Rgb565. A mid-range color must survive a quantize
+        // round-trip within one target-depth LSB (8-bit space) for every format.
+        fn check<T: PixelFormat + core::fmt::Debug>(c: Color, tol: i16) {
+            let back = T::from_color(c).to_color();
+            assert!((back.r() as i16 - c.r() as i16).abs() <= tol, "r drift: {c:?} -> {back:?}");
+            assert!((back.g() as i16 - c.g() as i16).abs() <= tol, "g drift: {c:?} -> {back:?}");
+            assert!((back.b() as i16 - c.b() as i16).abs() <= tol, "b drift: {c:?} -> {back:?}");
+        }
+        let c = Color::new(80, 140, 255);
+        check::<Rgb888>(c, 0);
+        check::<Bgr888>(c, 0);
+        check::<Rgb666>(c, 4); // 6-bit: 1 LSB = 4 in 8-bit space
+        check::<Bgr666>(c, 4);
+        check::<Rgb565>(c, 8); // 5/6-bit
+        check::<Bgr565>(c, 8);
+        check::<Rgb555>(c, 8);
+        check::<Bgr555>(c, 8);
     }
 
     #[test]

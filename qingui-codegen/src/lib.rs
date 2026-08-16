@@ -51,7 +51,7 @@ fn decode_gif(path: &Path) -> std::io::Result<Vec<(i32, i32, Vec<u8>, u16)>> {
 fn rgba_to_565(rgba: &[u8]) -> Vec<u8> {
     let mut v = Vec::with_capacity(rgba.len() / 2);
     for px in rgba.chunks_exact(4) {
-        // Same 5-6-5 truncation as qingui's crate-internal `color_to_rgb565`.
+        // 5-6-5 truncation (encode-side quantization; qingui's `blit565` decode expands losslessly).
         let c = (((px[0] as u16) & 0xF8) << 8) | (((px[1] as u16) & 0xFC) << 3) | ((px[2] as u16) >> 3);
         v.push((c & 0xFF) as u8);
         v.push((c >> 8) as u8);
@@ -99,8 +99,8 @@ fn to_ioe(e: image::ImageError) -> std::io::Error {
 mod tests {
     use super::*;
 
-    // Locks the inlined 5-6-5 truncation, which duplicates qingui's
-    // crate-internal `color_to_rgb565` bit math across the crate boundary.
+    // Locks the inlined 5-6-5 truncation, which duplicates the encode-side
+    // quantization `blit565` decodes from, across the crate boundary.
     #[test]
     fn rgba_to_565_matches_qingui_bit_math() {
         assert_eq!(rgba_to_565(&[255, 255, 255, 255]), [0xFF, 0xFF]); // white -> 0xFFFF
