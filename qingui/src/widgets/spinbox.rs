@@ -5,6 +5,7 @@ use crate::input::Key;
 use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::RgbColor;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
@@ -32,7 +33,7 @@ pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, digits: u8, c
         let x = x0 + i as i32 * adv;
         if i as u8 == cursor && ctx.edited {
             // Cursor position: inverted highlight
-            d.fill_rounded(Rect::new(x - 1, abs.y + 1, adv + 2, abs.h - 2), 2, Color::rgb(80, 140, 255), lclip);
+            d.fill_rounded(Rect::new(x - 1, abs.y + 1, adv + 2, abs.h - 2), 2, Color::new(80, 140, 255), lclip);
             let mut buf = [0u8; 4];
             d.draw_text(Point { x, y }, font, ch.encode_utf8(&mut buf), Color::BLACK, lclip);
         } else {
@@ -78,7 +79,7 @@ impl SpinboxCfg {
     /// Base style: dark rounded background with white text.
     fn base_style() -> Style {
         let mut s = Style::default();
-        s.bg_color = Some(Color::rgb(40, 40, 52));
+        s.bg_color = Some(Color::new(40, 40, 52));
         s.radius = Some(4);
         s.text_color = Some(Color::WHITE);
         s

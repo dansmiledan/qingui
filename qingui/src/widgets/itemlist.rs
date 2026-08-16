@@ -68,8 +68,8 @@ impl<C> WidgetBuilder<ItemListCfg, C> {
 impl<C: PixelFormat> WidgetCfg<C> for ItemListCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
-        s.bg_color = Some(Color::rgb(34, 34, 44));
-        s.border_color = Some(Color::rgb(70, 70, 90));
+        s.bg_color = Some(Color::new(34, 34, 44));
+        s.border_color = Some(Color::new(70, 70, 90));
         s.border_width = Some(1);
         s
     }
@@ -103,7 +103,7 @@ impl<C: PixelFormat> WidgetCfg<C> for ItemListCfg {
 /// Default selected style (matches the text List highlight color rgb(50,70,120); sets bg_color explicitly so the highlight paints)
 fn default_sel_style() -> Style {
     let mut s = Style::default();
-    s.bg_color = Some(Color::rgb(50, 70, 120));
+    s.bg_color = Some(Color::new(50, 70, 120));
     s
 }
 

@@ -1,4 +1,5 @@
 use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_10X20};
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::canvas::Canvas;
 use qingui::font::{advance, line_height, text_size};
 use qingui::{Color, Point, Rect, Ui};

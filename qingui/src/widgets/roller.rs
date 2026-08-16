@@ -6,6 +6,7 @@ use crate::canvas::Canvas;
 use crate::geometry::{Color, Point, Rect};
 use crate::input::Key;
 use crate::pixel::PixelFormat;
+use embedded_graphics::pixelcolor::RgbColor;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -47,7 +48,7 @@ impl RollerState {
         let lclip = abs.intersect(&clip).unwrap_or(clip);
         let cy = abs.y + abs.h / 2;
         // Highlight of the center selected row (the wheel slides beneath the row)
-        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Color::rgb(50, 70, 120), lclip);
+        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Color::new(50, 70, 120), lclip);
         let sf = self.sel_f(ctx.now);
         let lh = crate::font::line_height(ctx.resolved.font);
         for (i, item) in self.items.iter().enumerate() {
@@ -136,7 +137,7 @@ impl<C> WidgetBuilder<RollerCfg, C> {
 impl<C: PixelFormat> WidgetCfg<C> for RollerCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
-        s.bg_color = Some(Color::rgb(34, 34, 44));
+        s.bg_color = Some(Color::new(34, 34, 44));
         s.radius = Some(4);
         s.text_color = Some(Color::WHITE);
         s

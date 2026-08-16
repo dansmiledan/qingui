@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::bar::BarCfg;
@@ -51,9 +52,9 @@ fn slider_value_and_indicator() {
     ui.render();
     assert_eq!(ui.value(s), 50);
     // Track y center = 10+6, the indicator reaches 50% ≈ x=10+50
-    assert_eq!(px(&rec, 20, 16), Color::rgb(80, 140, 255));
+    assert_eq!(px(&rec, 20, 16), Color::new(80, 140, 255));
     // Past the end of the indicator is the track color (not the indicator color)
-    assert_ne!(px(&rec, 100, 16), Color::rgb(80, 140, 255));
+    assert_ne!(px(&rec, 100, 16), Color::new(80, 140, 255));
     // The knob is white around ~x=10+50-4..
     assert_eq!(px(&rec, 58, 16), Color::WHITE);
 }
@@ -78,7 +79,7 @@ fn switch_toggle_visual() {
     ui.render();
     // off: track gray, knob on the left (sampling interior points of the circle to avoid anti-aliased edges)
     assert_eq!(px(&rec, 16, 20), Color::WHITE); // knob left
-    assert_eq!(px(&rec, 44, 20), Color::rgb(90, 90, 90)); // right-end track
+    assert_eq!(px(&rec, 44, 20), Color::new(90, 90, 90)); // right-end track
 }
 
 #[test]
@@ -89,8 +90,8 @@ fn bar_renders_progress() {
     ui.set_pos(b, 10, 10);
     ui.set_value(b, 25);
     ui.render();
-    assert_eq!(px(&rec, 20, 14), Color::rgb(80, 140, 255));
-    assert_ne!(px(&rec, 100, 14), Color::rgb(80, 140, 255));
+    assert_eq!(px(&rec, 20, 14), Color::new(80, 140, 255));
+    assert_ne!(px(&rec, 100, 14), Color::new(80, 140, 255));
 }
 
 #[test]
@@ -101,7 +102,7 @@ fn bar_small_value_keeps_left_semicircle() {
     ui.set_pos(b, 10, 10); // default size 100x8, radius=4
     ui.set_value(b, 5); // indicator width iw=5
     ui.render();
-    let ind = Color::rgb(80, 140, 255);
+    let ind = Color::new(80, 140, 255);
     // The left end is clipped to the track shape (radius=4): (11,10) is outside the
     // semicircle → not the indicator color (on e-g's rasterization grid the corner
     // boundary sits half a pixel up-left of the old one, hence (11,10) not (11,11))
@@ -123,7 +124,7 @@ fn list_selected_row_highlighted() {
     ui.tick_inc(300); // let the highlight-slide animation finish
     ui.timer_handler();
     // Row 2 (beta) background = highlight color. Row height 16, row 1 center y = 10+16+8=34, text left at x=12
-    assert_eq!(px(&rec, 12, 34), Color::rgb(50, 70, 120));
+    assert_eq!(px(&rec, 12, 34), Color::new(50, 70, 120));
 }
 
 #[test]

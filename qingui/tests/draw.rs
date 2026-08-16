@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::canvas::Canvas;
 use qingui::{Color, Rect};
 
@@ -206,7 +207,7 @@ fn fill_rounded_corner_is_aliased() {
     // No anti-aliasing: every pixel is either fully black or fully white.
     for y in 0..20 {
         for x in 0..20 {
-            let v = at(x, y).r;
+            let v = at(x, y).r();
             assert!(v == 0 || v == 255, "pixel ({x},{y}) must be aliased, got {v}");
         }
     }
@@ -264,7 +265,7 @@ fn fill_circle_basic_aliased_edge() {
     // No anti-aliasing: every pixel is either fully black or fully white.
     for y in 4..17 {
         for x in 4..17 {
-            let v = at(x, y).r;
+            let v = at(x, y).r();
             assert!(v == 0 || v == 255, "pixel ({x},{y}) must be aliased, got {v}");
         }
     }
@@ -543,16 +544,22 @@ fn draw_line_long_diag() {
 
 #[test]
 fn rgb565_roundtrip() {
+    use embedded_graphics::pixelcolor::Rgb565;
+    use embedded_graphics::pixelcolor::raw::{RawData, RawU16};
     use qingui::Color;
+    use qingui::PixelFormat;
+    // The public Rgb565 PixelFormat impl wraps the crate-internal 565 helpers.
+    let from565 = |v: u16| Rgb565::from(RawU16::new(v)).to_color();
+    let to565 = |c: Color| RawU16::from(Rgb565::from_color(c)).into_inner();
     // Solid-color endpoints
-    assert_eq!(Color::from_rgb565(0xF800), Color::rgb(255, 0, 0));
-    assert_eq!(Color::from_rgb565(0x07E0), Color::rgb(0, 255, 0));
-    assert_eq!(Color::from_rgb565(0x001F), Color::rgb(0, 0, 255));
-    assert_eq!(Color::from_rgb565(0xFFFF), Color::rgb(255, 255, 255));
-    assert_eq!(Color::from_rgb565(0x0000), Color::rgb(0, 0, 0));
+    assert_eq!(from565(0xF800), Color::new(255, 0, 0));
+    assert_eq!(from565(0x07E0), Color::new(0, 255, 0));
+    assert_eq!(from565(0x001F), Color::new(0, 0, 255));
+    assert_eq!(from565(0xFFFF), Color::new(255, 255, 255));
+    assert_eq!(from565(0x0000), Color::new(0, 0, 0));
     // Full round-trip loses no bits
     for v in [0x0001u16, 0x1234, 0x7BEF, 0x8C51, 0xFFFE] {
-        assert_eq!(Color::from_rgb565(v).to_rgb565(), v);
+        assert_eq!(to565(from565(v)), v);
     }
 }
 
@@ -562,30 +569,30 @@ fn blit565_pixels_and_clip() {
     use qingui::{Color, Rect};
     // 2x2 image: red green / blue white (565 little-endian byte order)
     let data: [u8; 8] = [0x00, 0xF8, 0xE0, 0x07, 0x1F, 0x00, 0xFF, 0xFF];
-    let mut buf = [Color::rgb(0, 0, 0); 16];
+    let mut buf = [Color::new(0, 0, 0); 16];
     {
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 4, 4), stride: 4 };
         d.blit565(1, 1, 2, 2, &data, Rect::new(0, 0, 4, 4));
     }
-    assert_eq!(buf[1 * 4 + 1], Color::rgb(255, 0, 0));
-    assert_eq!(buf[1 * 4 + 2], Color::rgb(0, 255, 0));
-    assert_eq!(buf[2 * 4 + 1], Color::rgb(0, 0, 255));
-    assert_eq!(buf[2 * 4 + 2], Color::rgb(255, 255, 255));
+    assert_eq!(buf[1 * 4 + 1], Color::new(255, 0, 0));
+    assert_eq!(buf[1 * 4 + 2], Color::new(0, 255, 0));
+    assert_eq!(buf[2 * 4 + 1], Color::new(0, 0, 255));
+    assert_eq!(buf[2 * 4 + 2], Color::new(255, 255, 255));
     // clip: only the left column is allowed
-    let mut buf2 = [Color::rgb(0, 0, 0); 16];
+    let mut buf2 = [Color::new(0, 0, 0); 16];
     {
         let mut d = Canvas { pixels: &mut buf2, area: Rect::new(0, 0, 4, 4), stride: 4 };
         d.blit565(1, 1, 2, 2, &data, Rect::new(0, 0, 2, 4));
     }
-    assert_eq!(buf2[1 * 4 + 1], Color::rgb(255, 0, 0));
-    assert_eq!(buf2[1 * 4 + 2], Color::rgb(0, 0, 0)); // clipped off
+    assert_eq!(buf2[1 * 4 + 1], Color::new(255, 0, 0));
+    assert_eq!(buf2[1 * 4 + 2], Color::new(0, 0, 0)); // clipped off
     // insufficient data draws nothing and does not panic
-    let mut buf3 = [Color::rgb(1, 2, 3); 4];
+    let mut buf3 = [Color::new(1, 2, 3); 4];
     {
         let mut d = Canvas { pixels: &mut buf3, area: Rect::new(0, 0, 2, 2), stride: 2 };
         d.blit565(0, 0, 4, 4, &data, Rect::new(0, 0, 2, 2)); // insufficient length
     }
-    assert_eq!(buf3, [Color::rgb(1, 2, 3); 4]);
+    assert_eq!(buf3, [Color::new(1, 2, 3); 4]);
 }
 
 #[test]

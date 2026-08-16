@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::{Color, Point, Rect};
 
 #[test]
@@ -38,16 +39,22 @@ fn rect_contains_point_and_translate() {
 
 #[test]
 fn color_rgb565() {
-    assert_eq!(Color::rgb(255, 255, 255).to_rgb565(), 0xFFFF);
-    assert_eq!(Color::rgb(0, 0, 0).to_rgb565(), 0x0000);
-    assert_eq!(Color::rgb(255, 0, 0).to_rgb565(), 0xF800);
+    use embedded_graphics::pixelcolor::Rgb565;
+    use embedded_graphics::pixelcolor::raw::{RawData, RawU16};
+    use qingui::PixelFormat;
+    // The public Rgb565 PixelFormat impl wraps the crate-internal color_to_rgb565.
+    let to565 = |c: Color| RawU16::from(Rgb565::from_color(c)).into_inner();
+    assert_eq!(to565(Color::new(255, 255, 255)), 0xFFFF);
+    assert_eq!(to565(Color::new(0, 0, 0)), 0x0000);
+    assert_eq!(to565(Color::new(255, 0, 0)), 0xF800);
 }
 
 #[test]
 fn color_blend() {
+    use qingui::geometry::blend;
     let bg = Color::BLACK;
-    assert_eq!(bg.blend(Color::WHITE, 255), Color::WHITE);
-    assert_eq!(bg.blend(Color::WHITE, 0), Color::BLACK);
-    let half = bg.blend(Color::rgb(200, 100, 50), 128);
-    assert_eq!(half, Color::rgb(100, 50, 25));
+    assert_eq!(blend(bg, Color::WHITE, 255), Color::WHITE);
+    assert_eq!(blend(bg, Color::WHITE, 0), Color::BLACK);
+    let half = blend(bg, Color::new(200, 100, 50), 128);
+    assert_eq!(half, Color::new(100, 50, 25));
 }

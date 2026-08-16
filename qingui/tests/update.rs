@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::chart::{ChartCfg, ChartState};
 use qingui::{Color, Ui};

@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::layout::Attach;
 use qingui::widgets::obj::ObjCfg;

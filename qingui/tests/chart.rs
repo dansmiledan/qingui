@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::chart::ChartCfg;
@@ -131,7 +132,7 @@ fn polyline_has_no_bright_bulge_at_joints() {
     // Per-column red sum (stroke ink); interior columns only (skip end caps).
     let mut max_ink = 0u32;
     for x in 4..w as usize - 4 {
-        let ink: u32 = (0..h as usize).map(|y| px[y * w as usize + x].r as u32).sum();
+        let ink: u32 = (0..h as usize).map(|y| px[y * w as usize + x].r() as u32).sum();
         max_ink = max_ink.max(ink);
     }
     // Aliased 2px line: 2 fully-opaque pixels per column, 3 on step columns.

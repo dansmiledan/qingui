@@ -1,4 +1,5 @@
 use crate::geometry::Color;
+use embedded_graphics::pixelcolor::RgbColor;
 
 /// Flat style: `Option` fields, where `None` means "do not override".
 /// Usable as a struct literal or built with a chained builder: `Style::new().bg(RED).radius(4)`
@@ -117,12 +118,12 @@ pub fn theme_base() -> Style {
 
 /// Default style for the screen background.
 pub fn theme_screen() -> Style {
-    theme_base().bg(Color::rgb(24, 24, 32))
+    theme_base().bg(Color::new(24, 24, 32))
 }
 
 /// Default style for a plain object.
 pub fn theme_obj() -> Style {
-    theme_base().bg(Color::rgb(40, 40, 52))
+    theme_base().bg(Color::new(40, 40, 52))
 }
 
 /// Default style for a label (no bg_color = transparent background).
@@ -133,9 +134,9 @@ pub fn theme_label() -> Style {
 /// Default style for a button.
 pub fn theme_button() -> Style {
     theme_base()
-        .bg(Color::rgb(60, 90, 160))
+        .bg(Color::new(60, 90, 160))
         .radius(6)
-        .border(Color::rgb(90, 120, 200), 1)
+        .border(Color::new(90, 120, 200), 1)
 }
 
 /// Focused-state overlay style for a button.
@@ -148,7 +149,7 @@ pub fn theme_button_focused() -> Style {
 
 /// Default style for a slider.
 pub fn theme_slider() -> Style {
-    theme_base().bg(Color::rgb(70, 70, 80)).radius(6)
+    theme_base().bg(Color::new(70, 70, 80)).radius(6)
 }
 
 /// Focused-state overlay style for a slider.
@@ -161,7 +162,7 @@ pub fn theme_slider_focused() -> Style {
 
 /// Default style for a switch (fully rounded on a height of 20).
 pub fn theme_switch() -> Style {
-    theme_base().bg(Color::rgb(90, 90, 90)).radius(10) // full rounding for a height of 20
+    theme_base().bg(Color::new(90, 90, 90)).radius(10) // full rounding for a height of 20
 }
 
 /// Focused-state overlay style for a switch.
@@ -174,14 +175,14 @@ pub fn theme_switch_focused() -> Style {
 
 /// Default style for a progress bar.
 pub fn theme_bar() -> Style {
-    theme_base().bg(Color::rgb(70, 70, 80))
+    theme_base().bg(Color::new(70, 70, 80))
 }
 
 /// Default style for a list.
 pub fn theme_list() -> Style {
     theme_base()
-        .bg(Color::rgb(34, 34, 44))
-        .border(Color::rgb(70, 70, 90), 1)
+        .bg(Color::new(34, 34, 44))
+        .border(Color::new(70, 70, 90), 1)
 }
 
 /// Focused-state overlay style for a list.
@@ -194,7 +195,7 @@ pub fn theme_list_focused() -> Style {
 /// Edit accent color: the amber used while a widget is in its inner (EDITED) mode.
 /// The edited border (`theme_edited`) and the per-widget edit accents (slider knob,
 /// arc indicator) share this so they stay visually consistent.
-pub const EDIT_ACCENT: Color = Color::rgb(255, 200, 60);
+pub const EDIT_ACCENT: Color = Color::new(255, 200, 60);
 
 /// Edited (inner-mode) overlay derived from a focus overlay: same fields, border
 /// recolored to the edit accent (see `EDIT_ACCENT`), so focus (white) and edit are

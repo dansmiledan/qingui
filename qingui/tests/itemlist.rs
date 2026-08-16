@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::node::State;
@@ -111,7 +112,7 @@ fn viewport_clips_scrolled_items() {
     ui.itemlist_select(il, 3); // scroll 40px: item2 → y 30..50, item3 → y 50..70
     ui.render();
     assert_eq!(px(&rec, 15, 35), Color::WHITE); // item2 visible
-    assert_eq!(px(&rec, 15, 55), Color::rgb(50, 70, 120)); // item3 selected: default selected style overlaid
+    assert_eq!(px(&rec, 15, 55), Color::new(50, 70, 120)); // item3 selected: default selected style overlaid
     assert_eq!(px(&rec, 15, 25), Color::BLACK); // item1 (abs y 10..30) scrolled out above the viewport: clipped
     assert_eq!(px(&rec, 15, 5), Color::BLACK);  // item0 (abs y -10..10) scrolled out above the viewport: clipped
 }

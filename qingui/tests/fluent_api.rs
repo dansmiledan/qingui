@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::Sizing;
 use qingui::style::Style;

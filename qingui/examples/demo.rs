@@ -255,7 +255,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
         dir: FlexDir::Row, wrap: false,
         main: Align::Start, cross: Align::Center, track: Align::Start, gap: 6,
     });
-    let led = LedCfg::new(Color::rgb(60, 180, 90)).build(ui, led_row);
+    let led = LedCfg::new(Color::new(60, 180, 90)).build(ui, led_row);
     let _led_lbl = LabelCfg::new("status").build(ui, led_row);
     // LED brightness follows the spinbox value (demonstrates widget linkage)
     ui.add_event_cb(spinbox, EventKind::ValueChanged, Box::new(move |ui, sb, _| {
@@ -280,14 +280,14 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
     // Two line charts (top/bottom): different colors, data pushed periodically by main's tick
     let chart1 = ChartCfg::new()
         .range(0, 100)
-        .series(Color::rgb(80, 140, 255), 48)
+        .series(Color::new(80, 140, 255), 48)
 		.line_width(1)
         .build(ui, page_itemlist);
     ui.set_sizing(chart1, Some(Sizing::GROW), None);
     ui.set_size(chart1, 160, 56);
     let chart2 = ChartCfg::new()
         .range(0, 100)
-        .series(Color::rgb(255, 160, 60), 48)
+        .series(Color::new(255, 160, 60), 48)
         .build(ui, page_itemlist);
     ui.set_sizing(chart2, Some(Sizing::GROW), None);
     ui.set_size(chart2, 160, 56);
@@ -304,7 +304,7 @@ pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {
             dir: FlexDir::Row, wrap: false,
             main: Align::Start, cross: Align::Center, track: Align::Start, gap: 8,
         });
-        let led = LedCfg::new(Color::rgb(60, 180, 90)).size(10, 10).build(ui, item);
+        let led = LedCfg::new(Color::new(60, 180, 90)).size(10, 10).build(ui, item);
         let _lbl = LabelCfg::new(&format!("Sensor {:02}", i + 1)).build(ui, item);
         let cb = CheckboxCfg::new("").build(ui, item);
         item_controls.borrow_mut().push((led, cb));

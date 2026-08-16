@@ -1,4 +1,5 @@
 // Regression: no rendering ghosting after layout transitions (moving a container must mark its subtree dirty)
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::widgets::label::LabelCfg;

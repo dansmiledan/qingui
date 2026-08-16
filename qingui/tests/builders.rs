@@ -1,3 +1,4 @@
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::layout::{Align, Flex, FlexDir, Sizing};
 use qingui::prelude::*;
 use qingui::style::Style;
@@ -20,7 +21,7 @@ fn slider_builder_defaults() {
     assert_eq!((r.w, r.h), (100, 12)); // default size
     assert_eq!(ui.value(s), 0); // default value = min
     let st = ui.resolved_style(s); // theme_slider
-    assert_eq!(st.bg_color, Some(Color::rgb(70, 70, 80)));
+    assert_eq!(st.bg_color, Some(Color::new(70, 70, 80)));
     assert_eq!(st.radius, 6);
     assert_eq!(st.text_color, Color::WHITE);
     assert_eq!(st.border_width, 0);
@@ -29,7 +30,7 @@ fn slider_builder_defaults() {
     let st = ui.resolved_style(s);
     assert_eq!(st.border_color, Color::WHITE);
     assert_eq!(st.border_width, 2);
-    assert_eq!(st.bg_color, Some(Color::rgb(70, 70, 80)));
+    assert_eq!(st.bg_color, Some(Color::new(70, 70, 80)));
 }
 
 #[test]
@@ -70,9 +71,9 @@ fn button_builder_focused_styles() {
     assert_eq!((r.w, r.h), (2 * 6 + 24, 10 + 12));
     // theme_button
     let st = ui.resolved_style(b);
-    assert_eq!(st.bg_color, Some(Color::rgb(60, 90, 160)));
+    assert_eq!(st.bg_color, Some(Color::new(60, 90, 160)));
     assert_eq!(st.radius, 6);
-    assert_eq!(st.border_color, Color::rgb(90, 120, 200));
+    assert_eq!(st.border_color, Color::new(90, 120, 200));
     assert_eq!(st.border_width, 1);
     assert_eq!(st.text_color, Color::WHITE);
     // theme_button_focused: white 2px border, other fields fall back to theme_button
@@ -80,7 +81,7 @@ fn button_builder_focused_styles() {
     let st = ui.resolved_style(b);
     assert_eq!(st.border_color, Color::WHITE);
     assert_eq!(st.border_width, 2);
-    assert_eq!(st.bg_color, Some(Color::rgb(60, 90, 160)));
+    assert_eq!(st.bg_color, Some(Color::new(60, 90, 160)));
 }
 
 #[test]
@@ -94,9 +95,9 @@ fn list_builder_size_and_style() {
     assert_eq!(ui.list_len(l), 3);
     // theme_list
     let st = ui.resolved_style(l);
-    assert_eq!(st.bg_color, Some(Color::rgb(34, 34, 44)));
+    assert_eq!(st.bg_color, Some(Color::new(34, 34, 44)));
     assert_eq!(st.radius, 4);
-    assert_eq!(st.border_color, Color::rgb(70, 70, 90));
+    assert_eq!(st.border_color, Color::new(70, 70, 90));
     assert_eq!(st.border_width, 1);
     assert_eq!(st.text_color, Color::WHITE);
     // theme_list_focused: white border (width falls back to theme_list's 1px)
@@ -104,7 +105,7 @@ fn list_builder_size_and_style() {
     let st = ui.resolved_style(l);
     assert_eq!(st.border_color, Color::WHITE);
     assert_eq!(st.border_width, 1);
-    assert_eq!(st.bg_color, Some(Color::rgb(34, 34, 44)));
+    assert_eq!(st.bg_color, Some(Color::new(34, 34, 44)));
 }
 
 #[test]
@@ -134,7 +135,7 @@ fn roller_dropdown_builders() {
     let r = ui.rect(ro);
     assert_eq!((r.w, r.h), (80, 2 * 16 + 8));
     let st = ui.resolved_style(ro);
-    assert_eq!(st.bg_color, Some(Color::rgb(34, 34, 44)));
+    assert_eq!(st.bg_color, Some(Color::new(34, 34, 44)));
     assert_eq!(st.radius, 4);
     assert_eq!(st.text_color, Color::WHITE);
     // Roller focused default: white 1px border
@@ -142,13 +143,13 @@ fn roller_dropdown_builders() {
     let st = ui.resolved_style(ro);
     assert_eq!(st.border_color, Color::WHITE);
     assert_eq!(st.border_width, 1);
-    assert_eq!(st.bg_color, Some(Color::rgb(34, 34, 44)));
+    assert_eq!(st.bg_color, Some(Color::new(34, 34, 44)));
     // Dropdown default size: 100 x 20
     let dd = DropdownCfg::new(&["R", "G"]).build(&mut ui, scr);
     let r = ui.rect(dd);
     assert_eq!((r.w, r.h), (100, 20));
     let st = ui.resolved_style(dd);
-    assert_eq!(st.bg_color, Some(Color::rgb(40, 40, 52)));
+    assert_eq!(st.bg_color, Some(Color::new(40, 40, 52)));
     assert_eq!(st.radius, 4);
     assert_eq!(st.text_color, Color::WHITE);
     // Dropdown focused default: white 1px border
@@ -156,7 +157,7 @@ fn roller_dropdown_builders() {
     let st = ui.resolved_style(dd);
     assert_eq!(st.border_color, Color::WHITE);
     assert_eq!(st.border_width, 1);
-    assert_eq!(st.bg_color, Some(Color::rgb(40, 40, 52)));
+    assert_eq!(st.bg_color, Some(Color::new(40, 40, 52)));
 }
 
 #[test]

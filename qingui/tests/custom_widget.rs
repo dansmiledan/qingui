@@ -1,4 +1,5 @@
 use core::any::Any;
+use embedded_graphics::pixelcolor::RgbColor;
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::{Canvas, KeyOutcome, TickOut, Widget, WidgetCtx};

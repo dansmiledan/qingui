@@ -6,6 +6,7 @@ use crate::geometry::Rect;
 use crate::layout::{Align, Attach, Flex, FlexDir};
 use crate::pixel::PixelFormat;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::RgbColor;
 
 /// Msgbox widget state: index of the clicked button (-1 if none).
 #[derive(Clone)]
@@ -73,7 +74,7 @@ pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, title: &str
     ui.set_pad(root, (12, 12, 10, 10));
     // The root's column flex is ROOT_FLEX, run by MsgboxState::layout.
     let t = crate::widgets::label::create(ui, root, title);
-    ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::rgb(255, 200, 60)));
+    ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::new(255, 200, 60)));
     let _msg = crate::widgets::label::create(ui, root, text);
     // Button row
     let row = ui.insert_node(root, Rect::default(), alloc::boxed::Box::new(super::obj::Manual));

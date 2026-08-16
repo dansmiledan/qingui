@@ -1,9 +1,10 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
+use crate::geometry::{Color, Point, Rect, blend};
 use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::RgbColor;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
@@ -22,9 +23,9 @@ pub(crate) fn draw<C: PixelFormat>(color: Color, bright: u8, ctx: &WidgetCtx, d:
         return;
     }
     // Brightness: gradient from black to the solid color
-    let on = Color::BLACK.blend(color, bright);
+    let on = blend(Color::BLACK, color, bright);
     d.fill_circle(c, r, on, clip);
-    d.draw_circle(c, r, 1, Color::rgb(90, 90, 100), clip);
+    d.draw_circle(c, r, 1, Color::new(90, 90, 100), clip);
 }
 
 /// Builder for the Led widget.
