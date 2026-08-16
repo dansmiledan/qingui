@@ -12,7 +12,7 @@ struct Gauge {
 }
 impl Widget for Gauge {
     fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-        d.fill_rect(ctx.abs, Color::RED, 255, clip);
+        d.fill_rect(ctx.abs, Color::RED, clip);
     }
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> TickOut {
         self.ticks += 1;

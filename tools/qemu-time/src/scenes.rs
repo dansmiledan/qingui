@@ -128,9 +128,9 @@ pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
     }
 
     PrimResults {
-        fill_rect: bench(now, iters, &mut || d.fill_rect(full, Color::RED, 255, clip)),
+        fill_rect: bench(now, iters, &mut || d.fill_rect(full, Color::RED, clip)),
         draw_line: bench(now, iters, &mut || {
-            d.draw_line(Point { x: 0, y: 0 }, Point { x: 319, y: 239 }, 2, Color::WHITE, 255, clip)
+            d.draw_line(Point { x: 0, y: 0 }, Point { x: 319, y: 239 }, 2, Color::WHITE, clip)
         }),
         draw_line_many: bench(now, iters, &mut || {
             for k in 0..10 {
@@ -139,21 +139,20 @@ pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
                     Point { x: k * 32 + 16, y: 239 },
                     1,
                     Color::WHITE,
-                    255,
                     clip,
                 );
             }
         }),
         draw_circle: bench(now, iters, &mut || {
-            d.draw_circle(Point { x: 160, y: 120 }, 60, 2, Color::WHITE, 255, clip)
+            d.draw_circle(Point { x: 160, y: 120 }, 60, 2, Color::WHITE, clip)
         }),
         fill_circle: bench(now, iters, &mut || {
-            d.fill_circle(Point { x: 160, y: 120 }, 40, Color::WHITE, 255, clip)
+            d.fill_circle(Point { x: 160, y: 120 }, 40, Color::WHITE, clip)
         }),
-        fill_rounded: bench(now, iters, &mut || d.fill_rounded(full, 8, Color::WHITE, 255, clip)),
-        draw_border: bench(now, iters, &mut || d.draw_border(full, 4, 8, Color::WHITE, 255, clip)),
+        fill_rounded: bench(now, iters, &mut || d.fill_rounded(full, 8, Color::WHITE, clip)),
+        draw_border: bench(now, iters, &mut || d.draw_border(full, 4, 8, Color::WHITE, clip)),
         draw_arc: bench(now, iters, &mut || {
-            d.draw_arc(Point { x: 160, y: 120 }, 80, 4, 0, 270, Color::WHITE, 255, clip)
+            d.draw_arc(Point { x: 160, y: 120 }, 80, 4, 0, 270, Color::WHITE, clip)
         }),
         draw_text: bench(now, iters, &mut || {
             d.draw_text(Point { x: 10, y: 10 }, qingui::font::DEFAULT_FONT, "qingui bench", Color::WHITE, clip)
@@ -162,7 +161,7 @@ pub fn run_primitives(now: &mut dyn FnMut() -> u64) -> PrimResults {
             // Allocate the source image outside the timed loop: the bench
             // measures blit, not the allocator (no other primitive allocs).
             let img = vec![0u8; 32 * 24 * 2];
-            bench(now, iters, &mut || d.blit565(10, 10, 32, 24, &img, 255, clip))
+            bench(now, iters, &mut || d.blit565(10, 10, 32, 24, &img, clip))
         },
     }
 }

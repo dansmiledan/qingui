@@ -104,11 +104,11 @@ impl TableState {
         // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
         for c in 0..=self.cols as i32 {
             let x = (abs.x + c * self.cell_w).min(abs.right() - 1);
-            d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, 255, lclip);
+            d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, lclip);
         }
         for r in 0..=self.rows as i32 {
             let y = (abs.y + r * self.cell_h).min(abs.bottom() - 1);
-            d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, 255, lclip);
+            d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, lclip);
         }
         // Cell text
         for r in 0..self.rows as usize {
@@ -117,12 +117,11 @@ impl TableState {
                 if let Some(text) = self.cells.get(idx)
                     && !text.is_empty()
                 {
-                    d.draw_text_opa(
+                    d.draw_text(
                         Point { x: abs.x + c as i32 * self.cell_w + 4, y: abs.y + r as i32 * self.cell_h + 4 },
                         ctx.resolved.font,
                         text,
                         ctx.resolved.text_color,
-                        255,
                         lclip,
                     );
                 }

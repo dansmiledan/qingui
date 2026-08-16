@@ -83,10 +83,10 @@ impl ChartState {
                             Some(clip)
                         };
                         if let Some(sc) = seg_clip {
-                            d.draw_line(q, p, self.line_width, ser.color, 255, sc);
+                            d.draw_line(q, p, self.line_width, ser.color, sc);
                         }
                     }
-                    None if n == 1 => d.fill_circle(p, 1, ser.color, 255, clip),
+                    None if n == 1 => d.fill_circle(p, 1, ser.color, clip),
                     None => {}
                 }
                 prev = Some(p);

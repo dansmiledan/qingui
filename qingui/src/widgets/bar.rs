@@ -24,7 +24,7 @@ pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, ctx: &WidgetC
         // Draw the indicator clipped to the full track's shape so the left end stays a half-circle aligned with the track
         let band = Rect::new(abs.x, abs.y, iw, abs.h);
         let ind_clip = band.intersect(&clip).unwrap_or(band);
-        d.fill_rounded(abs, ctx.resolved.radius, Color::rgb(80, 140, 255), 255, ind_clip);
+        d.fill_rounded(abs, ctx.resolved.radius, Color::rgb(80, 140, 255), ind_clip);
     }
 }
 

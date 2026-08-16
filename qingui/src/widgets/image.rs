@@ -29,7 +29,7 @@ pub struct ImageState {
 impl<C: PixelFormat> super::Widget<C> for ImageState {
     fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) {
         let Some(f) = self.data.frames.get(self.cur) else { return };
-        c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, 255, clip);
+        c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, clip);
     }
     fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> TickOut {
         if self.data.frames.len() <= 1 {

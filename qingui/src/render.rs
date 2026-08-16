@@ -105,7 +105,7 @@ fn draw_node<C: PixelFormat>(
         };
         let Some(n) = arena.get_mut(obj) else { return };
         if let Some(bg) = resolved.bg_color {
-            d.fill_rounded(abs, resolved.radius, bg, 255, clip);
+            d.fill_rounded(abs, resolved.radius, bg, clip);
         }
         let ctx = crate::widgets::WidgetCtx { abs, resolved: &resolved, edited, now: time_ms };
         n.kind.draw(&ctx, &mut d, clip);
@@ -116,7 +116,7 @@ fn draw_node<C: PixelFormat>(
         // The border is drawn last (mirrors LVGL: border above content) so widget content
         // does not cover it
         if resolved.border_width > 0 {
-            d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, 255, clip);
+            d.draw_border(abs, resolved.border_width, resolved.radius, resolved.border_color, clip);
         }
     }
     // Viewport clipping: the subtree's clip shrinks to this object's rect; if disjoint, the

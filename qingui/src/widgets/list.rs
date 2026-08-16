@@ -102,20 +102,17 @@ impl ListState {
             let hl = Rect::new(abs.x, abs.y + (hl_row_f * self.row_h as f32) as i32 - eff_scroll, abs.w, self.row_h);
             if hl.intersects(&lclip) {
                 // Highlight with rounded corners so it doesn't cover the list's own rounded border
-                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::rgb(50, 70, 120), 255, lclip);
+                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::rgb(50, 70, 120), lclip);
             }
         }
-        // items (with entry/shift effects)
+        // items (with entry/shift effects; the fade-in went away with the opacity system,
+        // items now appear at full opacity while shifting into place)
         for (i, item) in self.items.iter().enumerate() {
             let mut dy = 0;
-            let mut opa = 255;
             for f in &self.fx.item_fx {
                 if f.index == i {
                     let t = lerp_t(f.start, now, self.fx_dur);
                     dy = (f.dy as f32 * (1.0 - t)) as i32;
-                    if f.fade_in {
-                        opa = (255.0 * t) as u8;
-                    }
                 }
             }
             let ry = abs.y + i as i32 * self.row_h + dy - eff_scroll;
@@ -123,7 +120,7 @@ impl ListState {
             if !row.intersects(&lclip) {
                 continue;
             }
-            d.draw_text_opa(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, opa, lclip);
+            d.draw_text(Point { x: abs.x + 4, y: ry + 4 }, ctx.resolved.font, item, ctx.resolved.text_color, lclip);
         }
     }
 

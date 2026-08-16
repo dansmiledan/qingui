@@ -19,7 +19,7 @@ pub(crate) fn draw<C: PixelFormat>(text: &str, ctx: &WidgetCtx, d: &mut Canvas<'
         x: ctx.abs.x + (ctx.abs.w - tw) / 2,
         y: ctx.abs.y + (ctx.abs.h - th) / 2,
     };
-    d.draw_text_opa(p, ctx.resolved.font, text, ctx.resolved.text_color, 255, clip);
+    d.draw_text(p, ctx.resolved.font, text, ctx.resolved.text_color, clip);
 }
 
 /// Builder for the Button widget.

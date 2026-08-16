@@ -104,10 +104,14 @@ impl Flush for SharedFlush {
 
 #[test]
 fn polyline_has_no_bright_bulge_at_joints() {
-    // A colinear polyline should render with uniform per-column brightness.
+    // A colinear polyline should render with uniform per-column thickness.
     // Previously each segment was drawn as an independent capsule whose round
     // caps overlap at the joints, blending the AA fringe twice and leaving a
-    // bright bulge (~+20% ink) at every data point.
+    // bright bulge (~+20% ink) at every data point. With the aliased opaque
+    // renderer blending is gone (pixels are overwritten, not accumulated), so a
+    // brightness bulge is impossible by construction; what remains to guard is
+    // the per-column ink staying within the 2px line's natural aliased
+    // thickness (2 pixels per column, 3 where the Bresenham step stacks).
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let (w, h) = (190i32, 56i32);
     let mut ui: Ui = Ui::new(w, h, h as u32); // the whole screen is one chunk
@@ -130,9 +134,9 @@ fn polyline_has_no_bright_bulge_at_joints() {
         let ink: u32 = (0..h as usize).map(|y| px[y * w as usize + x].r as u32).sum();
         max_ink = max_ink.max(ink);
     }
-    // Ideal is ~2.12 * 255; overlapping joint caps pushed columns to ~2.59 * 255.
+    // Aliased 2px line: 2 fully-opaque pixels per column, 3 on step columns.
     let ink = max_ink as f32 / 255.0;
-    assert!(ink <= 2.45, "joint bulge: max column ink {ink:.3} > 2.45");
+    assert!(ink <= 3.05, "joint bulge: max column ink {ink:.3} > 3.05");
 }
 
 #[test]
