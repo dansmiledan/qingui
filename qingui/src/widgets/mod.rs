@@ -42,13 +42,6 @@ pub struct WidgetCtx<'a> {
     pub now: u64, // current time (ms), for interpolating internal widget effects
 }
 
-impl WidgetCtx<'_> {
-    /// Opacity after compositing with the node's opa
-    pub fn ap(&self, base: u8) -> u8 {
-        (base as u32 * self.resolved.opa as u32 / 255) as u8
-    }
-}
-
 /// Per-frame effect progress result: `redraw` = needs repaint this frame; `active` = effect still running (keeps the widget awake)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TickOut {
@@ -96,7 +89,7 @@ pub struct MeasureCtx {
 /// - deleting your own node is allowed (Ui treats the outcome as consumed).
 /// `C` is the framebuffer pixel format (default RGB888 `Color`); widget drawing code always works in `Color`, the canvas converts.
 pub trait Widget<C = Color> {
-    /// Content drawing (background/border/opa are handled uniformly by Ui). Default: draws nothing.
+    /// Content drawing (background/border are handled uniformly by Ui). Default: draws nothing.
     fn draw(&self, _ctx: &WidgetCtx, _c: &mut Canvas<'_, C>, _clip: Rect) {}
     /// Intrinsic content size; `(0, 0)` means "no intrinsic size" (layout uses the current rect).
     fn measure(&self, _ctx: &MeasureCtx) -> (i32, i32) { (0, 0) }

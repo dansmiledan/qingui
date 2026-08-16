@@ -23,8 +23,8 @@ pub(crate) fn draw<C: PixelFormat>(color: Color, bright: u8, ctx: &WidgetCtx, d:
     }
     // Brightness: gradient from black to the solid color
     let on = Color::BLACK.blend(color, bright);
-    d.fill_circle(c, r, on, ctx.ap(255), clip);
-    d.draw_circle(c, r, 1, Color::rgb(90, 90, 100), ctx.ap(255), clip);
+    d.fill_circle(c, r, on, 255, clip);
+    d.draw_circle(c, r, 1, Color::rgb(90, 90, 100), 255, clip);
 }
 
 /// Builder for the Led widget.
@@ -53,9 +53,7 @@ impl<C> WidgetBuilder<LedCfg, C> {
 
 impl<C: PixelFormat> WidgetCfg<C> for LedCfg {
     fn default_style() -> Style {
-        let mut s = Style::default();
-        s.bg_opa = Some(0);
-        s
+        Style::default()
     }
 
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
@@ -65,10 +63,7 @@ impl<C: PixelFormat> WidgetCfg<C> for LedCfg {
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(LedState { color: self.color, bright: self.bright.unwrap_or(255) }),
         );
-        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
-        if s.bg_opa.is_none() {
-            s.bg_opa = Some(0);
-        }
+        let s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, s);
         common.apply_tail(ui, r);
         r

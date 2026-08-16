@@ -57,9 +57,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     });
 
     let page = ObjCfg::new().build(&mut ui, panel);
-    let mut ps = qingui::style::Style::default();
-    ps.bg_opa = Some(0);
-    ui.set_style(page, ps);
+    ui.set_style(page, qingui::style::Style::default()); // transparent background
     ui.set_sizing(page, Some(Sizing::GROW), Some(Sizing::GROW));
     ui.set_flex(page, Flex {
         dir: FlexDir::Column, wrap: false,

@@ -732,13 +732,6 @@ impl<C: PixelFormat> Ui<C> {
         self.invalidate_obj(obj);
     }
 
-    /// Sets the node opacity multiplier (0..=255) via the base style.
-    pub fn set_opa(&mut self, obj: ObjRef, opa: u8) {
-        self.invalidate_obj(obj);
-        if let Some(n) = self.arena.get_mut(obj) { n.style.opa = Some(opa); }
-        self.invalidate_obj(obj);
-    }
-
     /// Sets viewport clipping: the subtree is drawn clipped to this object's rect (mirrors
     /// LVGL's clip content, for scroll containers).
     pub fn set_clip_children(&mut self, obj: ObjRef, clip: bool) {
@@ -814,13 +807,6 @@ impl<C: PixelFormat> Ui<C> {
             AnimProp::H => {
                 let w = self.rect(target).w;
                 self.set_size(target, w, v);
-            }
-            AnimProp::Opa => {
-                self.invalidate_obj(target);
-                if let Some(n) = self.arena.get_mut(target) {
-                    n.style.opa = Some(v.clamp(0, 255) as u8);
-                }
-                self.invalidate_obj(target);
             }
             AnimProp::Value => self.set_value(target, v),
             AnimProp::TranslateX => {

@@ -70,7 +70,7 @@ impl<C> WidgetBuilder<ArcCfg, C> {
 
 impl<C: PixelFormat> WidgetCfg<C> for ArcCfg {
     fn default_style() -> Style {
-        Style { bg_opa: Some(0), ..Style::default() }
+        Style::default()
     }
 
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
@@ -80,10 +80,7 @@ impl<C: PixelFormat> WidgetCfg<C> for ArcCfg {
             Rect::new(0, 0, w, h),
             alloc::boxed::Box::new(ArcState { min: self.min, max: self.max, value: self.value.unwrap_or(self.min), track_w: self.track_w, start_deg: self.start_deg, sweep_deg: self.sweep_deg }),
         );
-        let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
-        if s.bg_opa.is_none() {
-            s.bg_opa = Some(0);
-        }
+        let s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         ui.set_style(r, s);
         common.apply_tail(ui, r);
         r
@@ -98,15 +95,14 @@ impl ArcState {
         if r <= 0 {
             return;
         }
-        let ap = |b: u8| ctx.ap(b);
         // Background arc (full track)
-        d.draw_arc(c, r, self.track_w, self.start_deg, self.start_deg + self.sweep_deg, Color::rgb(70, 70, 80), ap(255), clip);
+        d.draw_arc(c, r, self.track_w, self.start_deg, self.start_deg + self.sweep_deg, Color::rgb(70, 70, 80), 255, clip);
         // Indicator arc (turns yellow in edit mode)
         let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
         let ind_end = self.start_deg + (self.sweep_deg as f32 * frac) as i32;
         if ind_end > self.start_deg {
             let ic = if ctx.edited { crate::style::EDIT_ACCENT } else { Color::rgb(80, 140, 255) };
-            d.draw_arc(c, r, self.track_w, self.start_deg, ind_end, ic, ap(255), clip);
+            d.draw_arc(c, r, self.track_w, self.start_deg, ind_end, ic, 255, clip);
         }
     }
 }

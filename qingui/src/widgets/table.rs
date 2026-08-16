@@ -75,7 +75,6 @@ impl<C> WidgetBuilder<TableCfg, C> {
 impl<C: PixelFormat> WidgetCfg<C> for TableCfg {
     fn default_style() -> Style {
         let mut s = Style::default();
-        s.bg_opa = Some(0);
         s.text_color = Some(Color::WHITE);
         s
     }
@@ -88,9 +87,6 @@ impl<C: PixelFormat> WidgetCfg<C> for TableCfg {
             alloc::boxed::Box::new(TableState { cols: self.cols, rows: self.rows, cells: self.cells, cell_w: self.cell_w, cell_h: self.cell_h }),
         );
         let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
-        if s.bg_opa.is_none() {
-            s.bg_opa = Some(0);
-        }
         if s.text_color.is_none() {
             s.text_color = Some(Color::WHITE);
         }
@@ -105,15 +101,14 @@ impl TableState {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
         let line_c = Color::rgb(70, 70, 90);
-        let ap = ctx.ap(255);
         // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
         for c in 0..=self.cols as i32 {
             let x = (abs.x + c * self.cell_w).min(abs.right() - 1);
-            d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, ap, lclip);
+            d.draw_line(Point { x, y: abs.y }, Point { x, y: abs.bottom() }, 1, line_c, 255, lclip);
         }
         for r in 0..=self.rows as i32 {
             let y = (abs.y + r * self.cell_h).min(abs.bottom() - 1);
-            d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, ap, lclip);
+            d.draw_line(Point { x: abs.x, y }, Point { x: abs.right(), y }, 1, line_c, 255, lclip);
         }
         // Cell text
         for r in 0..self.rows as usize {
@@ -127,7 +122,7 @@ impl TableState {
                         ctx.resolved.font,
                         text,
                         ctx.resolved.text_color,
-                        ap,
+                        255,
                         lclip,
                     );
                 }

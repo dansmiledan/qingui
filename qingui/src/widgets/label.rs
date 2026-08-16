@@ -21,7 +21,7 @@ pub(crate) fn draw<C: PixelFormat>(text: &str, ctx: &WidgetCtx, d: &mut Canvas<'
         ctx.resolved.font,
         text,
         ctx.resolved.text_color,
-        ctx.ap(255),
+        255,
         clip,
     );
 }

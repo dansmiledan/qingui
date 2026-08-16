@@ -28,9 +28,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 
 /// Transparent background style (what the deleted canvas widget defaulted to).
 fn transparent_style() -> qingui::style::Style {
-    let mut s = qingui::style::Style::default();
-    s.bg_opa = Some(0);
-    s
+    qingui::style::Style::default()
 }
 
 #[test]

@@ -58,9 +58,7 @@ fn column() -> Flex {
 
 /// Transparent container style (layout only, no background drawn)
 fn transparent() -> Style {
-    let mut s = Style::default();
-    s.bg_opa = Some(0);
-    s
+    Style::default()
 }
 
 pub fn build(ui: &mut Ui, charts: &Rc<RefCell<Vec<ObjRef>>>) {

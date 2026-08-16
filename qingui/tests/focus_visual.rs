@@ -131,17 +131,16 @@ fn list_highlight_respects_rounded_corner() {
 }
 
 #[test]
-fn list_ghost_fully_cleared_after_fade() {
+fn list_remove_erases_row_immediately() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
     let l = ListCfg::new(&["a", "b", "c"]).build(&mut ui, scr);
     ui.set_pos(l, 10, 10);
     ui.list_select(l, 2);
     ui.render();
-    assert!(ui.list_remove(l)); // delete "c", ghost fades out
-    ui.tick_inc(500); // beyond FX_DUR
-    ui.timer_handler();
-    // The ghost's row (row 2) area should be restored to the list background color, with no text residue
+    assert!(ui.list_remove(l)); // delete "c": immediate removal, no fade-out ghost
+    ui.render();
+    // The deleted row's (row 2) area is repainted to the list background right away, with no text residue
     for x in 14..40 {
         assert_eq!(px(&rec, x, 50), Color::rgb(34, 34, 44), "x={}", x);
     }

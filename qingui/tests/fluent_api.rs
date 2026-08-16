@@ -9,9 +9,8 @@ use std::rc::Rc;
 
 #[test]
 fn style_builder_chain() {
-    let s = Style::new().bg(Color::RED).bg_opa(200).border(Color::WHITE, 2).radius(4);
+    let s = Style::new().bg(Color::RED).border(Color::WHITE, 2).radius(4);
     assert_eq!(s.bg_color, Some(Color::RED));
-    assert_eq!(s.bg_opa, Some(200));
     assert_eq!(s.border_color, Some(Color::WHITE));
     assert_eq!(s.border_width, Some(2));
     assert_eq!(s.radius, Some(4));

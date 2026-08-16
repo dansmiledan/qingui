@@ -4,10 +4,8 @@ use crate::geometry::Color;
 /// Usable as a struct literal or built with a chained builder: `Style::new().bg(RED).radius(4)`
 #[derive(Clone, Default, PartialEq, Debug)]
 pub struct Style {
-    /// Background color.
+    /// Background color (`None` = no background painted).
     pub bg_color: Option<Color>,
-    /// Background opacity (0..=255).
-    pub bg_opa: Option<u8>,
     /// Border color.
     pub border_color: Option<Color>,
     /// Border width in pixels.
@@ -18,8 +16,6 @@ pub struct Style {
     pub text_color: Option<Color>,
     /// Text font (None = use the Ui default font).
     pub font: Option<&'static embedded_graphics::mono_font::MonoFont<'static>>,
-    /// Node opacity multiplier (0..=255), applied to everything the node draws.
-    pub opa: Option<u8>,
 }
 
 impl Style {
@@ -30,11 +26,6 @@ impl Style {
     /// Sets the background color.
     pub fn bg(mut self, color: Color) -> Self {
         self.bg_color = Some(color);
-        self
-    }
-    /// Sets the background opacity (0..=255).
-    pub fn bg_opa(mut self, opa: u8) -> Self {
-        self.bg_opa = Some(opa);
         self
     }
     /// Sets the border color and width.
@@ -57,24 +48,21 @@ impl Style {
     /// `other`'s `Some` fields override `self`'s same-named fields (style composition).
     pub fn merge(mut self, other: Style) -> Style {
         if other.bg_color.is_some() { self.bg_color = other.bg_color; }
-        if other.bg_opa.is_some() { self.bg_opa = other.bg_opa; }
         if other.border_color.is_some() { self.border_color = other.border_color; }
         if other.border_width.is_some() { self.border_width = other.border_width; }
         if other.radius.is_some() { self.radius = other.radius; }
         if other.text_color.is_some() { self.text_color = other.text_color; }
         if other.font.is_some() { self.font = other.font; }
-        if other.opa.is_some() { self.opa = other.opa; }
         self
     }
 }
 
 /// A fully resolved style: every field concrete, with defaults applied for anything unset.
+/// `bg_color: None` means "no background painted".
 #[derive(Clone, PartialEq, Debug)]
 pub struct ResolvedStyle {
-    /// Background color.
-    pub bg_color: Color,
-    /// Background opacity (0..=255).
-    pub bg_opa: u8,
+    /// Background color (`None` = no background painted).
+    pub bg_color: Option<Color>,
     /// Border color.
     pub border_color: Color,
     /// Border width in pixels.
@@ -85,21 +73,17 @@ pub struct ResolvedStyle {
     pub text_color: Color,
     /// Text font.
     pub font: &'static embedded_graphics::mono_font::MonoFont<'static>,
-    /// Node opacity multiplier (0..=255).
-    pub opa: u8,
 }
 
 impl Default for ResolvedStyle {
     fn default() -> Self {
         Self {
-            bg_color: Color::BLACK,
-            bg_opa: 255,
+            bg_color: None,
             border_color: Color::BLACK,
             border_width: 0,
             radius: 0,
             text_color: Color::WHITE,
             font: crate::font::DEFAULT_FONT,
-            opa: 255,
         }
     }
 }
@@ -114,18 +98,13 @@ pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded
     let pick_i = |o: Option<&Style>, f: fn(&Style) -> Option<i32>| -> Option<i32> {
         o.and_then(f).or_else(|| f(base))
     };
-    let pick_u8 = |o: Option<&Style>, f: fn(&Style) -> Option<u8>| -> Option<u8> {
-        o.and_then(f).or_else(|| f(base))
-    };
     ResolvedStyle {
-        bg_color: pick(overlay, |s| s.bg_color).unwrap_or(d.bg_color),
-        bg_opa: pick_u8(overlay, |s| s.bg_opa).unwrap_or(d.bg_opa),
+        bg_color: pick(overlay, |s| s.bg_color),
         border_color: pick(overlay, |s| s.border_color).unwrap_or(d.border_color),
         border_width: pick_i(overlay, |s| s.border_width).unwrap_or(d.border_width),
         radius: pick_i(overlay, |s| s.radius).unwrap_or(d.radius),
         text_color: pick(overlay, |s| s.text_color).unwrap_or(d.text_color),
         font: overlay.and_then(|s| s.font).or(base.font).unwrap_or(default),
-        opa: pick_u8(overlay, |s| s.opa).unwrap_or(d.opa),
     }
 }
 
@@ -133,7 +112,7 @@ pub fn resolve(base: &Style, overlay: Option<&Style>, default: &'static embedded
 /// Note: only for composing the "base style"; state-overlay styles (edited/focused/selected) stay
 /// sparse — do not build them from this.
 pub fn theme_base() -> Style {
-    Style::new().text_color(Color::WHITE).bg_opa(255).radius(4)
+    Style::new().text_color(Color::WHITE).radius(4)
 }
 
 /// Default style for the screen background.
@@ -146,9 +125,9 @@ pub fn theme_obj() -> Style {
     theme_base().bg(Color::rgb(40, 40, 52))
 }
 
-/// Default style for a label (transparent background).
+/// Default style for a label (no bg_color = transparent background).
 pub fn theme_label() -> Style {
-    theme_base().bg_opa(0) // transparent background
+    theme_base()
 }
 
 /// Default style for a button.

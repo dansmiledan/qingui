@@ -79,12 +79,12 @@ impl SliderState {
             // Draw the indicator clipped to the full track's shape so the left end stays a half-circle aligned with the track
             let band = Rect::new(abs.x, abs.y, iw, abs.h);
             let ind_clip = band.intersect(&clip).unwrap_or(band);
-            d.fill_rounded(abs, ctx.resolved.radius, Color::rgb(80, 140, 255), ctx.ap(255), ind_clip);
+            d.fill_rounded(abs, ctx.resolved.radius, Color::rgb(80, 140, 255), 255, ind_clip);
         }
         let kx = abs.x + iw;
         let knob = Rect::new(kx - self.knob_w / 2, abs.y - 2, self.knob_w, abs.h + 4);
         let kc = if ctx.edited { crate::style::EDIT_ACCENT } else { Color::WHITE };
-        d.fill_rounded(knob, 3, kc, ctx.ap(255), clip);
+        d.fill_rounded(knob, 3, kc, 255, clip);
     }
 }
 
