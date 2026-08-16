@@ -78,6 +78,17 @@ Supported formats: the eight embedded-graphics RGB/BGR color types (`Rgb888`/`Rg
 
 **Migration — `DrawTarget` color type:** `Canvas`'s `DrawTarget` implementation now has `type Color = C` (was `Rgb888` before). Downstream embedded-graphics code that drew `Pixel<Rgb888>` into a default canvas must switch to `Canvas<'_, Rgb888>` (or qingui's `Color`).
 
+## Unreleased / 0.3 breaking changes
+
+Rendering was reworked to delegate all drawing to embedded-graphics primitives; qingui's custom rasterizer (`draw.rs`) and the whole alpha/opacity system are gone.
+
+- `Canvas` drawing methods lost the `opa` parameter; `draw_text_opa` removed (use `draw_text`). There is no alpha blending anywhere.
+- `Style.bg_opa`/`Style.opa` removed; the background now paints iff `bg_color` is `Some` (`ResolvedStyle.bg_color: Option<Color>`).
+- `Ui::set_opa`, `AnimProp::Opa`, and the list delete-ghost effect removed.
+- `qingui::Point` is now embedded-graphics' `Point`; `Rect` ↔ `Rectangle` `From` conversions added.
+- Visual change: no anti-aliasing (aliased corners/arcs/lines), no translucency.
+- Rendering now delegates to embedded-graphics primitives (`Rectangle`/`RoundedRectangle`/`Circle`/`Arc`/`Line`/…); the framebuffer, dirty-rect, and `Flush` pipeline are unchanged.
+
 ## 示例（examples）
 
 仓库内含 minifb 桌面模拟器（不发布到 crates.io）：

@@ -36,7 +36,7 @@ qingui 目前自带一套软件光栅化器：`draw.rs` 的覆盖率/AA 数学�
 
 **Canvas 层**（`qingui/src/canvas.rs`）：
 - 所有绘制方法的 `opa: u8` 参数删除；`draw_text_opa` 合并回 `draw_text`（删旧 `draw_text` 薄封装）。
-- `Color::blend` 删除（`geometry.rs`）；`put`/`put_fast` 只剩 opaque 写入；`fill_rect` 的半透明分支删除。
+- `Color::blend` 保留（`geometry.rs`）——`led.rs` 的亮度混色使用它（它不是 alpha 通道，是不透明颜色混合）；`put`/`put_fast` 只剩 opaque 写入；`fill_rect` 的半透明分支删除。
 
 **`qingui/src/draw.rs` 整个删除**（覆盖率/AA 数学：`circle_cov16`、`ThickLine`、`ArcGeom`、`cov16` 等）。
 
@@ -78,7 +78,7 @@ qingui 目前自带一套软件光栅化器：`draw.rs` 的覆盖率/AA 数学�
 
 - `Canvas` 全部绘制方法去掉 `opa` 参数；`draw_text_opa` 删除（用 `draw_text`）。
 - `Style`/`ResolvedStyle` 删除 `bg_opa`/`opa` 字段；背景语义改为 `bg_color: Option<Color>`。
-- `Ui::set_opa`、`AnimProp::Opa`、`Color::blend` 删除。
+- `Ui::set_opa`、`AnimProp::Opa` 删除。
 - `geometry::Point` 变为 e-g 类型的 re-export（字段相同，行为等价，但类型同一性变化——`Point {}` 字面量构造不受影响）。
 - 视觉效果变化：无 AA（圆角/弧线/斜线边缘锯齿化）、无半透明。
 
