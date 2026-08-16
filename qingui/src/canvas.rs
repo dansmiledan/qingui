@@ -3,6 +3,7 @@ use crate::pixel::PixelFormat;
 use embedded_graphics::draw_target::DrawTargetExt;
 use embedded_graphics::geometry::{Angle, Size};
 use embedded_graphics::mono_font::MonoFont;
+use embedded_graphics::pixelcolor::{raw::RawU16, Rgb565};
 use embedded_graphics::primitives::{Circle, CornerRadii, Line, Primitive, PrimitiveStyle, RoundedRectangle};
 use embedded_graphics::Drawable;
 
@@ -70,7 +71,7 @@ impl<C: PixelFormat> Canvas<'_, C> {
                 let sy = (py - y) as usize;
                 let i = (sy * w as usize + sx) * 2;
                 let v = data[i] as u16 | ((data[i + 1] as u16) << 8);
-                self.put(px, py, crate::pixel::color_from_rgb565(v));
+                self.put(px, py, Color::from(Rgb565::from(RawU16::new(v))));
             }
         }
     }
@@ -375,7 +376,7 @@ mod tests {
         let mut buf = [Rgb565::BLACK; 100];
         let mut d = canvas565(&mut buf);
         d.put(2, 2, Color::WHITE);
-        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), crate::pixel::color_to_rgb565(Color::WHITE));
+        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), 0xFFFF); // Color::WHITE quantizes to full-scale 565
     }
 
     #[test]

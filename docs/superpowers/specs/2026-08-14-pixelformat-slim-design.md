@@ -29,13 +29,13 @@ pub trait PixelFormat: PixelColor + Copy + PartialEq + Default + Into<Color> + F
 
 ### 2. `canvas.rs` 的 `blit565`
 
-u16 → Color 解码从 `color_from_rgb565(v)` 改为 `Color::from(Rgb565::from(RawU16::new(v)))`。e-g 的 565→888 展开（`convert_channel` rounding）与旧位复制展开数学等价（位复制即 5→8/6→8 位的精确 rounding），解码值不变。
+u16 → Color 解码从 `color_from_rgb565(v)` 改为 `Color::from(Rgb565::from(RawU16::new(v)))`。e-g 的 565→888 展开（`convert_channel` rounding）与旧位复制展开在部分中间值上差 ±1 LSB（e-g 为四舍五入，非位复制；如 r5=3 展开为 25，旧代码为 24），解码值可能差 1 LSB。
 
 ### 3. 行为变化（已批准）
 
 - 888→565 量化：截断（掩码）→ 四舍五入（e-g `convert_channel`），极端值差 1 LSB（如 r=250：31 → 30）。
-- 565→888：与旧数学等价，无变化。
-- `blit565` 565→888→565 往返无损性不变（位复制展开是 rounding 量化的不动点）。
+- 565→888：与旧位复制展开在部分中间值上差 ±1 LSB（e-g 为四舍五入，非位复制；如 r5=3 展开为 25，旧代码为 24）。
+- `blit565` 565→888→565 往返无损性不变（e-g 展开值经同规则 rounding 量化还原为原 5/6 位值）。
 - qingui-codegen 的内联 565 公式（编码端、截断）不动：编码端量化规则任意，blit565 解码端展开即还原。
 
 ### 4. 测试

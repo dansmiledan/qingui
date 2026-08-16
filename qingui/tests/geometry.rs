@@ -42,7 +42,7 @@ fn color_rgb565() {
     use embedded_graphics::pixelcolor::Rgb565;
     use embedded_graphics::pixelcolor::raw::{RawData, RawU16};
     use qingui::PixelFormat;
-    // The public Rgb565 PixelFormat impl wraps the crate-internal color_to_rgb565.
+    // The public Rgb565 PixelFormat impl delegates to e-g's From conversions (rounding quantization).
     let to565 = |c: Color| RawU16::from(Rgb565::from_color(c)).into_inner();
     assert_eq!(to565(Color::new(255, 255, 255)), 0xFFFF);
     assert_eq!(to565(Color::new(0, 0, 0)), 0x0000);

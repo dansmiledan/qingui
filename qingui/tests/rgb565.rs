@@ -52,7 +52,7 @@ fn ui_rgb565_flushes_device_native_pixels() {
 }
 
 #[test]
-fn ui_rgb565_quantizes_like_color_helpers() {
+fn ui_rgb565_quantization_is_self_consistent() {
     let bg = Color::new(80, 140, 255);
     let chunks = render_solid(bg);
     let expected = Rgb565::from_color(bg);
