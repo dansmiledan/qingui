@@ -46,8 +46,8 @@ unsafe impl GlobalAlloc for Counting {
 #[global_allocator]
 static G: Counting = Counting;
 
-fn current() -> usize { CURRENT.load(Ordering::Relaxed) }
-fn peak() -> usize { PEAK.load(Ordering::Relaxed) }
+fn current() -> usize {CURRENT.load(Ordering::Relaxed) }
+fn peak() -> usize {PEAK.load(Ordering::Relaxed) }
 
 // Thresholds recalibrated 2026-08-05 after the memory optimization: new baseline x 2.
 // See spec docs/superpowers/specs/2026-08-05-memory-bench-design.md.
@@ -64,7 +64,8 @@ const LIMIT_LIVE_LARGE: usize = 318_992;
 
 fn report_static_sizes() {
     use core::mem::size_of;
-    use qingui::geometry::{Color, Point, Rect};
+    use embedded_graphics::pixelcolor::Rgb888;
+    use qingui::geometry::{Point, Rect};
     use qingui::node::Node;
     use qingui::style::{ResolvedStyle, Style};
     use qingui::widgets::{
@@ -75,7 +76,7 @@ fn report_static_sizes() {
     println!("== static sizes (host 64-bit) ==");
     println!("Rect          {:>6} B", size_of::<Rect>());
     println!("Point         {:>6} B", size_of::<Point>());
-    println!("Color         {:>6} B", size_of::<Color>());
+    println!("Rgb888         {:>6} B", size_of::<Rgb888>());
     println!("Style         {:>6} B", size_of::<Style>());
     println!("ResolvedStyle {:>6} B", size_of::<ResolvedStyle>());
     println!("4 x Style (old inline cost) {:>6} B", 4 * size_of::<Style>());
@@ -109,7 +110,7 @@ fn report_static_sizes() {
     println!("  largest widget state  = {max_state} B");
     println!("  NOTE: every node stores a Box<dyn Widget>; each state is heap-allocated at its actual size");
     macro_rules! row {
-        ($name:literal, $t:ty) => { println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
+        ($name:literal, $t:ty) => {println!("  {:<14} {:>6} B", $name, size_of::<$t>()); };
     }
     row!("Obj", obj::Manual);
     row!("Label", label::LabelState);

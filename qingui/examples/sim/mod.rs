@@ -1,11 +1,11 @@
 //! Shared simulator runtime: minifb window + flush forwarding + key mapping + main loop.
 //! Each example only needs to implement a UI builder function and call `sim::run(build)`.
 
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use minifb::{Key as MKey, Scale, Window, WindowOptions};
 use qingui::display::Flush;
 use qingui::input::Key;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Instant;
@@ -20,7 +20,7 @@ pub const DEBUG_KEEP: usize = 10;
 /// A border record: chunk rect + content snapshot + sequence number
 struct BorderRec {
     rect: Rect,
-    pixels: Vec<Color>,
+    pixels: Vec<Rgb888>,
     seq: u64,
 }
 
@@ -58,7 +58,7 @@ impl SimFlush {
 }
 
 impl Flush for SimFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.expire();
         {
             let mut fb = self.fb.borrow_mut();
@@ -104,7 +104,7 @@ impl Flush for SimFlush {
                 }
             }
             drop(fb);
-            self.history.push_back(BorderRec { rect: area, pixels: pixels.to_vec(), seq: self.seq });
+            self.history.push_back(BorderRec {rect: area, pixels: pixels.to_vec(), seq: self.seq });
         }
         self.seq += 1;
     }
@@ -142,7 +142,7 @@ pub fn run_with_tick(build: impl FnOnce(&mut Ui), mut tick: impl FnMut(&mut Ui))
         "qingui sim",
         WIDTH,
         HEIGHT,
-        WindowOptions { scale: Scale::X2, ..Default::default() },
+        WindowOptions {scale: Scale::X2, ..Default::default() },
     )
     .expect("open window");
     window.set_target_fps(60);

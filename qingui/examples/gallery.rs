@@ -5,7 +5,7 @@
 
 mod sim;
 
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::{Align, Flex, FlexDir};
 use qingui::prelude::*;
@@ -25,7 +25,7 @@ use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::spinner::SpinnerCfg;
 use qingui::widgets::switch::SwitchCfg;
 use qingui::widgets::table::TableCfg;
-use qingui::{Color, ObjRef, Ui};
+use qingui::{ObjRef, Ui};
 
 fn main() {
     let mut demo = Demo::default();
@@ -133,7 +133,7 @@ impl Demo {
         ui.set_size(sp, 26, 26);
         kids.push(sp);
 
-        let led = LedCfg::new(Color::new(60, 180, 90)).build(ui, screen);
+        let led = LedCfg::new(Rgb888::new(60, 180, 90)).build(ui, screen);
         // LED breathing
         ui.anim_start(
             Anim::new(led, AnimProp::Value, 40, 255, 1200)
@@ -168,11 +168,11 @@ impl Demo {
         // viewport height 60 < content height 5*16=80, scrolling the selection demonstrates content scrolling
         let menu = ItemListCfg::new().size(140, 60).build(ui, screen);
         for (color, name) in [
-            (Color::GREEN, "Wi-Fi"),
-            (Color::BLUE, "Bluetooth"),
-            (Color::RED, "Airplane"),
-            (Color::new(255, 200, 0), "Location"),
-            (Color::WHITE, "About"),
+            (Rgb888::GREEN, "Wi-Fi"),
+            (Rgb888::BLUE, "Bluetooth"),
+            (Rgb888::RED, "Airplane"),
+            (Rgb888::new(255, 200, 0), "Location"),
+            (Rgb888::WHITE, "About"),
         ] {
             let it = ui.itemlist_add_item(menu).unwrap();
             ui.set_flex(it, Flex {
@@ -206,10 +206,10 @@ impl Demo {
             .size(36, 36)
             .build(ui, screen);
         ui.set_draw_hook(cv, Some(Box::new(|d, abs, clip, now| {
-            let c = qingui::Point { x: abs.x + 18, y: abs.y + 18 };
+            let c = qingui::Point {x: abs.x + 18, y: abs.y + 18 };
             let end = (now / 10) as i32 % 360;
-            d.draw_arc(c, 14, 4, 0, end, Color::new(80, 140, 255), clip);
-            d.fill_circle(c, 3, Color::WHITE, clip);
+            d.draw_arc(c, 14, 4, 0, end, Rgb888::new(80, 140, 255), clip);
+            d.fill_circle(c, 3, Rgb888::WHITE, clip);
         })));
         kids.push(cv);
         // tick_hook drives the canvas to redraw every frame

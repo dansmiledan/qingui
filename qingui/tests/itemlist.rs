@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::node::State;
@@ -6,21 +6,21 @@ use qingui::prelude::*;
 use qingui::style::Style;
 use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
-use qingui::{Color, EventKind, ObjRef, Rect, Ui};
+use qingui::{EventKind, ObjRef, Rect, Ui};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -98,7 +98,7 @@ fn viewport_clips_scrolled_items() {
     let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut ss = Style::default();
-    ss.bg_color = Some(Color::BLACK);
+    ss.bg_color = Some(Rgb888::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, ss);
     let il = ItemListCfg::new().size(60, 40).build(&mut ui, scr);
@@ -106,15 +106,15 @@ fn viewport_clips_scrolled_items() {
     for _ in 0..4 {
         let it = ui.itemlist_add_item(il).unwrap();
         // Solid white background per item for easy pixel assertions
-        ui.set_style(it, Style::new().bg(Color::WHITE));
+        ui.set_style(it, Style::new().bg(Rgb888::WHITE));
         ui.set_size(it, 60, 20);
     }
     ui.itemlist_select(il, 3); // scroll 40px: item2 → y 30..50, item3 → y 50..70
     ui.render();
-    assert_eq!(px(&rec, 15, 35), Color::WHITE); // item2 visible
-    assert_eq!(px(&rec, 15, 55), Color::new(50, 70, 120)); // item3 selected: default selected style overlaid
-    assert_eq!(px(&rec, 15, 25), Color::BLACK); // item1 (abs y 10..30) scrolled out above the viewport: clipped
-    assert_eq!(px(&rec, 15, 5), Color::BLACK);  // item0 (abs y -10..10) scrolled out above the viewport: clipped
+    assert_eq!(px(&rec, 15, 35), Rgb888::WHITE); // item2 visible
+    assert_eq!(px(&rec, 15, 55), Rgb888::new(50, 70, 120)); // item3 selected: default selected style overlaid
+    assert_eq!(px(&rec, 15, 25), Rgb888::BLACK); // item1 (abs y 10..30) scrolled out above the viewport: clipped
+    assert_eq!(px(&rec, 15, 5), Rgb888::BLACK);  // item0 (abs y -10..10) scrolled out above the viewport: clipped
 }
 
 #[test]

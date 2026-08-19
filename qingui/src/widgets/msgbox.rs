@@ -4,9 +4,8 @@ use crate::arena::ObjRef;
 use crate::event::EventKind;
 use crate::geometry::Rect;
 use crate::layout::{Align, Attach, Flex, FlexDir};
-use crate::pixel::PixelFormat;
 use crate::ui::Ui;
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888, RgbColor};
 
 /// Msgbox widget state: index of the clicked button (-1 if none).
 #[derive(Clone)]
@@ -55,13 +54,13 @@ impl MsgboxBuilder {
     }
 
     /// Builds the message box into the parent node.
-    pub fn build<C: PixelFormat>(self, ui: &mut Ui<C>, parent: ObjRef) -> ObjRef {
+    pub fn build<C: PixelColor + From<Rgb888>>(self, ui: &mut Ui<C>, parent: ObjRef) -> ObjRef {
         let refs: alloc::vec::Vec<&str> = self.buttons.iter().map(|s| s.as_str()).collect();
         create(ui, parent, &self.title, &self.text, &refs, self.size)
     }
 }
 
-pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, title: &str, text: &str, buttons: &[&str], size: Option<(i32, i32)>) -> ObjRef {
+pub(crate) fn create<C: PixelColor + From<Rgb888>>(ui: &mut Ui<C>, parent: ObjRef, title: &str, text: &str, buttons: &[&str], size: Option<(i32, i32)>) -> ObjRef {
     let (w, h) = size.unwrap_or((200, 110));
     let root = ui.insert_node(parent, Rect::new(0, 0, w, h), alloc::boxed::Box::new(MsgboxState { selected: -1 }));
     ui.set_floating(root, parent, Attach::Center);
@@ -69,12 +68,12 @@ pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, title: &str
     // Style: dialog + column layout
     ui.set_style(root,
         crate::style::theme_obj()
-            .border(crate::geometry::Color::WHITE, 2),
+            .border(embedded_graphics::pixelcolor::Rgb888::WHITE.into(), 2),
     );
     ui.set_pad(root, (12, 12, 10, 10));
     // The root's column flex is ROOT_FLEX, run by MsgboxState::layout.
     let t = crate::widgets::label::create(ui, root, title);
-    ui.set_style(t, crate::style::Style::new().text_color(crate::geometry::Color::new(255, 200, 60)));
+    ui.set_style(t, crate::style::Style::new().text_color(embedded_graphics::pixelcolor::Rgb888::new(255, 200, 60).into()));
     let _msg = crate::widgets::label::create(ui, root, text);
     // Button row
     let row = ui.insert_node(root, Rect::default(), alloc::boxed::Box::new(super::obj::Manual));
@@ -106,9 +105,9 @@ pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, title: &str
     root
 }
 
-impl<C: PixelFormat> super::Widget<C> for MsgboxState {
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for MsgboxState {
     // Msgbox is an ordinary container (child objects are drawn normally)
-    fn draw(&self, _ctx: &super::WidgetCtx, _c: &mut super::Canvas<'_, C>, _clip: Rect) {}
+    fn draw(&self, _ctx: &super::WidgetCtx<'_, C>, _c: &mut super::Canvas<'_, C>, _clip: Rect) {}
     // The root's fixed column flex arrangement
     fn layout(&mut self, ui: &mut Ui<C>, obj: ObjRef, content: Rect) {
         crate::layout::layout_flex(ui, obj, &ROOT_FLEX, content);
@@ -123,7 +122,7 @@ pub trait UiMsgboxExt {
     fn msgbox_selected(&self, obj: ObjRef) -> i32;
 }
 
-impl<C: PixelFormat> UiMsgboxExt for Ui<C> {
+impl<C: PixelColor + From<Rgb888>> UiMsgboxExt for Ui<C> {
     fn msgbox_selected(&self, obj: ObjRef) -> i32 {
         self.widget::<MsgboxState>(obj).map(|s| s.selected).unwrap_or(-1)
     }

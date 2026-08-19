@@ -15,11 +15,11 @@ fn custom_constraints_roundtrip_and_mutate() {
     let scr = ui.screen();
     let child = ObjCfg::new().build(&mut ui, scr);
 
-    ui.set_item_custom(child, Box::new(DockProps { edge: 1, weight: 10 }));
+    ui.set_item_custom(child, Box::new(DockProps {edge: 1, weight: 10 }));
 
     // Read back by type.
     let p = ui.item_custom::<DockProps>(child).unwrap();
-    assert_eq!(p, &DockProps { edge: 1, weight: 10 });
+    assert_eq!(p, &DockProps {edge: 1, weight: 10 });
     // Wrong type returns None.
     assert!(ui.item_custom::<u32>(child).is_none());
 
@@ -57,6 +57,6 @@ fn custom_replaces_grid_placement() {
 
     // Mutual exclusivity: attaching custom constraints replaces `specific`,
     // so the grid placement falls back to the default.
-    ui.set_item_custom(child, Box::new(DockProps { edge: 0, weight: 1 }));
+    ui.set_item_custom(child, Box::new(DockProps {edge: 0, weight: 1 }));
     assert_eq!(ui.grid_cell(child), ((0, 1), (0, 1)));
 }

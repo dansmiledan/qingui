@@ -1,8 +1,8 @@
 use crate::arena::ObjRef;
 use crate::geometry::Rect;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb565, Rgb888};
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::{TickOut, WidgetCtx};
 
@@ -26,8 +26,8 @@ pub struct ImageState {
     pub last_switch: u64,
 }
 
-impl<C: PixelFormat> super::Widget<C> for ImageState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) {
+impl<C: PixelColor + From<Rgb565>> super::Widget<C> for ImageState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) {
         let Some(f) = self.data.frames.get(self.cur) else { return };
         c.blit565(ctx.abs.x, ctx.abs.y, f.w, f.h, f.rgb565, clip);
     }
@@ -49,7 +49,7 @@ impl<C: PixelFormat> super::Widget<C> for ImageState {
 }
 
 /// Builder for the Image widget.
-pub type ImageBuilder<C = crate::geometry::Color> = WidgetBuilder<ImageCfg, C>;
+pub type ImageBuilder<C = Rgb888> = WidgetBuilder<ImageCfg, C>;
 
 /// Image configuration: the static image data to display.
 pub struct ImageCfg {
@@ -58,13 +58,13 @@ pub struct ImageCfg {
 
 impl ImageCfg {
     /// Creates a builder for the given image data (default size = first frame size, transparent bg).
-    pub fn new<C: PixelFormat>(data: &'static ImageData) -> WidgetBuilder<ImageCfg, C> {
+    pub fn new<C>(data: &'static ImageData) -> WidgetBuilder<ImageCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ImageCfg { data } }
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for ImageCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb565>> WidgetCfg<C> for ImageCfg {
+    fn default_style() -> Style<C> {
         Style::default()
     }
 

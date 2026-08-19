@@ -1,8 +1,8 @@
 use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_10X20};
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::canvas::Canvas;
 use qingui::font::{advance, line_height, text_size};
-use qingui::{Color, Point, Rect, Ui};
+use qingui::{Point, Rect, Ui};
 
 #[test]
 fn text_size_monospace_metrics() {
@@ -17,13 +17,13 @@ fn text_size_monospace_metrics() {
 #[test]
 fn draw_text_origin_is_top_left() {
     // 'A' in FONT_6X10 should have On pixels in the top-left region of its glyph box, and must not exceed the character_size box
-    let mut buf = [Color::BLACK; 64];
+    let mut buf = [Rgb888::BLACK; 64];
     {
-        let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 8, 8), stride: 8 };
-        d.draw_text(Point { x: 0, y: 0 }, &FONT_6X10, "A", Color::WHITE, Rect::new(0, 0, 8, 8));
+        let mut d = Canvas {pixels: &mut buf, area: Rect::new(0, 0, 8, 8), stride: 8 };
+        d.draw_text(Point {x: 0, y: 0 }, &FONT_6X10, "A", Rgb888::WHITE, Rect::new(0, 0, 8, 8));
     }
-    let on = |x: usize, y: usize| buf[y * 8 + x] == Color::WHITE;
-    assert!(buf.iter().any(|&p| p == Color::WHITE)); // something was drawn
+    let on = |x: usize, y: usize| buf[y * 8 + x] == Rgb888::WHITE;
+    assert!(buf.iter().any(|&p| p == Rgb888::WHITE)); // something was drawn
     // The spacing area to the right of the glyph box has no pixels (the buffer is only 8 rows, so the area below the line height is not asserted)
     for x in 6..8 {
         for y in 0..8 {

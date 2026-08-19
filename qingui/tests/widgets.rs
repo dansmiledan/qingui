@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::bar::BarCfg;
@@ -6,17 +6,17 @@ use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::switch::SwitchCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
@@ -26,13 +26,13 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
-    bg.bg_color = Some(Color::BLACK);
+    bg.bg_color = Some(Rgb888::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, bg);
     (ui, rec)
 }
 
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -52,11 +52,11 @@ fn slider_value_and_indicator() {
     ui.render();
     assert_eq!(ui.value(s), 50);
     // Track y center = 10+6, the indicator reaches 50% ≈ x=10+50
-    assert_eq!(px(&rec, 20, 16), Color::new(80, 140, 255));
+    assert_eq!(px(&rec, 20, 16), Rgb888::new(80, 140, 255));
     // Past the end of the indicator is the track color (not the indicator color)
-    assert_ne!(px(&rec, 100, 16), Color::new(80, 140, 255));
+    assert_ne!(px(&rec, 100, 16), Rgb888::new(80, 140, 255));
     // The knob is white around ~x=10+50-4..
-    assert_eq!(px(&rec, 58, 16), Color::WHITE);
+    assert_eq!(px(&rec, 58, 16), Rgb888::WHITE);
 }
 
 #[test]
@@ -78,8 +78,8 @@ fn switch_toggle_visual() {
     ui.set_pos(sw, 10, 10);
     ui.render();
     // off: track gray, knob on the left (sampling interior points of the circle to avoid anti-aliased edges)
-    assert_eq!(px(&rec, 16, 20), Color::WHITE); // knob left
-    assert_eq!(px(&rec, 44, 20), Color::new(90, 90, 90)); // right-end track
+    assert_eq!(px(&rec, 16, 20), Rgb888::WHITE); // knob left
+    assert_eq!(px(&rec, 44, 20), Rgb888::new(90, 90, 90)); // right-end track
 }
 
 #[test]
@@ -90,8 +90,8 @@ fn bar_renders_progress() {
     ui.set_pos(b, 10, 10);
     ui.set_value(b, 25);
     ui.render();
-    assert_eq!(px(&rec, 20, 14), Color::new(80, 140, 255));
-    assert_ne!(px(&rec, 100, 14), Color::new(80, 140, 255));
+    assert_eq!(px(&rec, 20, 14), Rgb888::new(80, 140, 255));
+    assert_ne!(px(&rec, 100, 14), Rgb888::new(80, 140, 255));
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn bar_small_value_keeps_left_semicircle() {
     ui.set_pos(b, 10, 10); // default size 100x8, radius=4
     ui.set_value(b, 5); // indicator width iw=5
     ui.render();
-    let ind = Color::new(80, 140, 255);
+    let ind = Rgb888::new(80, 140, 255);
     // The left end is clipped to the track shape (radius=4): (11,10) is outside the
     // semicircle → not the indicator color (on e-g's rasterization grid the corner
     // boundary sits half a pixel up-left of the old one, hence (11,10) not (11,11))
@@ -124,7 +124,7 @@ fn list_selected_row_highlighted() {
     ui.tick_inc(300); // let the highlight-slide animation finish
     ui.timer_handler();
     // Row 2 (beta) background = highlight color. Row height 16, row 1 center y = 10+16+8=34, text left at x=12
-    assert_eq!(px(&rec, 12, 34), Color::new(50, 70, 120));
+    assert_eq!(px(&rec, 12, 34), Rgb888::new(50, 70, 120));
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn button_renders_text_centered() {
     let mut found_white = false;
     for y in 10..10 + r.h {
         for x in text_x..text_x + 12 {
-            if px(&rec, x, y) == Color::WHITE {
+            if px(&rec, x, y) == Rgb888::WHITE {
                 found_white = true;
             }
         }

@@ -1,14 +1,14 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
-use crate::pixel::PixelFormat;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
 /// Builder for the Spinner widget.
-pub type SpinnerBuilder<C = crate::geometry::Color> = WidgetBuilder<SpinnerCfg, C>;
+pub type SpinnerBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<SpinnerCfg, C>;
 
 /// Spinner configuration: arc line width and rotation period.
 pub struct SpinnerCfg {
@@ -18,7 +18,7 @@ pub struct SpinnerCfg {
 
 impl SpinnerCfg {
     /// Creates a builder (default 32x32, transparent bg).
-    pub fn new<C: PixelFormat>() -> WidgetBuilder<SpinnerCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>() -> WidgetBuilder<SpinnerCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: SpinnerCfg { line_width: 3, period_ms: 1800 } }
     }
 }
@@ -36,8 +36,8 @@ impl<C> WidgetBuilder<SpinnerCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for SpinnerCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for SpinnerCfg {
+    fn default_style() -> Style<C> {
         Style::default()
     }
 
@@ -62,7 +62,7 @@ pub struct SpinnerState {
 }
 
 impl SpinnerState {
-    fn draw_arc_ind<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_arc_ind<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
         let r = abs.w.min(abs.h) / 2 - 2;
@@ -75,12 +75,12 @@ impl SpinnerState {
         let phase = (ctx.now / 7) as i32 % 300;
         let tri = if phase < 150 { phase } else { 300 - phase };
         let sweep = 60 + tri;
-        d.draw_arc(c, r, self.line_width, start, start + sweep, Color::new(80, 140, 255), clip);
+        d.draw_arc(c, r, self.line_width, start, start + sweep, Rgb888::new(80, 140, 255).into(), clip);
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for SpinnerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_arc_ind(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for SpinnerState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_arc_ind(ctx, c, clip) }
     // Spinner spins forever
     fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, _now: u64) -> super::TickOut { super::TickOut::ACTIVE }
     fn as_any(&self) -> &dyn core::any::Any { self }

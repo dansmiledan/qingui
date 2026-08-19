@@ -1,9 +1,9 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
-use crate::pixel::PixelFormat;
+use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
@@ -26,7 +26,7 @@ pub struct ArcState {
 }
 
 /// Builder for the Arc widget.
-pub type ArcBuilder<C = crate::geometry::Color> = WidgetBuilder<ArcCfg, C>;
+pub type ArcBuilder<C = Rgb888> = WidgetBuilder<ArcCfg, C>;
 
 /// Arc configuration: value range and initial value.
 pub struct ArcCfg {
@@ -40,7 +40,7 @@ pub struct ArcCfg {
 
 impl ArcCfg {
     /// Creates a builder for the given range.
-    pub fn new<C: PixelFormat>(min: i32, max: i32) -> WidgetBuilder<ArcCfg, C> {
+    pub fn new<C>(min: i32, max: i32) -> WidgetBuilder<ArcCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ArcCfg { min, max, value: None, track_w: TRACK_W, start_deg: START_DEG, sweep_deg: SWEEP_DEG } }
     }
 }
@@ -68,8 +68,8 @@ impl<C> WidgetBuilder<ArcCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for ArcCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for ArcCfg {
+    fn default_style() -> Style<C> {
         Style::default()
     }
 
@@ -88,7 +88,7 @@ impl<C: PixelFormat> WidgetCfg<C> for ArcCfg {
 }
 
 impl ArcState {
-    fn draw_dial<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_dial<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let c = Point { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 };
         let r = abs.w.min(abs.h) / 2 - 3;
@@ -96,19 +96,19 @@ impl ArcState {
             return;
         }
         // Background arc (full track)
-        d.draw_arc(c, r, self.track_w, self.start_deg, self.start_deg + self.sweep_deg, Color::new(70, 70, 80), clip);
+        d.draw_arc(c, r, self.track_w, self.start_deg, self.start_deg + self.sweep_deg, Rgb888::new(70, 70, 80).into(), clip);
         // Indicator arc (turns yellow in edit mode)
         let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
         let ind_end = self.start_deg + (self.sweep_deg as f32 * frac) as i32;
         if ind_end > self.start_deg {
-            let ic = if ctx.edited { crate::style::EDIT_ACCENT } else { Color::new(80, 140, 255) };
+            let ic: C = if ctx.edited { crate::style::EDIT_ACCENT.into() } else { Rgb888::new(80, 140, 255).into() };
             d.draw_arc(c, r, self.track_w, self.start_deg, ind_end, ic, clip);
         }
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for ArcState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_dial(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for ArcState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_dial(ctx, c, clip) }
     fn value(&self) -> i32 { self.value }
     fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
     // Arc knob extends ~3px past the edge

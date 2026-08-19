@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::button::ButtonCfg;
@@ -8,17 +8,17 @@ use qingui::prelude::*;
 use qingui::widgets::roller::RollerCfg;
 use qingui::widgets::spinbox::SpinboxCfg;
 use qingui::widgets::table::TableCfg;
-use qingui::{Color, EventKind, Rect, Ui};
+use qingui::{EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
@@ -28,13 +28,13 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
-    bg.bg_color = Some(Color::BLACK);
+    bg.bg_color = Some(Rgb888::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, bg);
     (ui, rec)
 }
 
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -48,10 +48,10 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
 fn led_brightness() {
     let (mut ui, rec) = setup();
     let scr = ui.screen();
-    let led = LedCfg::new(Color::RED).build(&mut ui, scr);
+    let led = LedCfg::new(Rgb888::RED).build(&mut ui, scr);
     ui.set_pos(led, 10, 10);
     ui.render();
-    assert_eq!(px(&rec, 18, 18), Color::RED); // fully-lit center
+    assert_eq!(px(&rec, 18, 18), Rgb888::RED); // fully-lit center
     ui.set_value(led, 128);
     ui.render();
     let dim = px(&rec, 18, 18);
@@ -69,13 +69,13 @@ fn table_cells() {
     ui.table_set_cell(t, 1, 1, "B2");
     ui.render();
     // FONT_6X10 'A' glyph row 1 is 001000 → lit at text origin (14,14) + 2 right, 1 down
-    assert_eq!(px(&rec, 14 + 2, 14 + 1), Color::WHITE);
+    assert_eq!(px(&rec, 14 + 2, 14 + 1), Rgb888::WHITE);
     // Grid lines
-    assert_eq!(px(&rec, 10, 20), Color::new(70, 70, 90));
+    assert_eq!(px(&rec, 10, 20), Rgb888::new(70, 70, 90));
     // Bottom grid line (should exist after the half-open interval fix)
-    assert_eq!(px(&rec, 30, 41), Color::new(70, 70, 90));
+    assert_eq!(px(&rec, 30, 41), Rgb888::new(70, 70, 90));
     // Empty cell has no text
-    assert_eq!(px(&rec, 74, 14), Color::BLACK);
+    assert_eq!(px(&rec, 74, 14), Rgb888::BLACK);
 }
 
 #[test]
@@ -129,13 +129,13 @@ fn spinbox_rotary_encoder_combination_lock() {
     // rotation sets the current digit, Enter locks it and advances to the next digit,
     // so every digit is reachable with a single axis + one confirm button.
     ui.keypad_input(Key::Enter); // edit, cursor at hundreds
-    for _ in 0..5 { ui.keypad_input(Key::Up); }
+    for _ in 0..5 {ui.keypad_input(Key::Up); }
     assert_eq!(ui.value(sb), 500); // hundreds set to 5
     ui.keypad_input(Key::Enter); // lock hundreds, cursor → tens
-    for _ in 0..5 { ui.keypad_input(Key::Down); }
+    for _ in 0..5 {ui.keypad_input(Key::Down); }
     assert_eq!(ui.value(sb), 450); // tens set to 4
     ui.keypad_input(Key::Enter); // lock tens, cursor → units
-    for _ in 0..5 { ui.keypad_input(Key::Up); }
+    for _ in 0..5 {ui.keypad_input(Key::Up); }
     assert_eq!(ui.value(sb), 455); // units set to 5
     ui.keypad_input(Key::Enter); // last digit → Commit
     assert!(!ui.state(sb).contains(qingui::node::State::EDITED));
@@ -154,8 +154,8 @@ fn spinbox_cursor_highlight() {
     // Layout (FONT_6X10: advance 6, line height 10): spinbox default 30x18, starting at (10,10);
     // digits '0','0','5' are at x=16/22/28, glyph top row y=14. Combination-lock editing starts
     // at the most significant digit, so the hundreds highlight block is (15,11,8,16):
-    assert_eq!(px(&rec, 17, 12), Color::new(80, 140, 255)); // hundreds digit highlighted
-    assert_ne!(px(&rec, 28, 12), Color::new(80, 140, 255)); // ones digit not highlighted
+    assert_eq!(px(&rec, 17, 12), Rgb888::new(80, 140, 255)); // hundreds digit highlighted
+    assert_ne!(px(&rec, 28, 12), Rgb888::new(80, 140, 255)); // ones digit not highlighted
 }
 
 #[test]

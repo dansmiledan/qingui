@@ -1,9 +1,9 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Rect};
-use crate::pixel::PixelFormat;
+use crate::geometry::Rect;
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
@@ -16,7 +16,7 @@ pub struct BarState {
     pub value: i32,
 }
 
-pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+pub(crate) fn draw<C: PixelColor + From<Rgb888>>(min: i32, max: i32, value: i32, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
     let abs = ctx.abs;
     let frac = if max > min { (value - min) as f32 / (max - min) as f32 } else { 0.0 };
     let iw = (abs.w as f32 * frac) as i32;
@@ -24,12 +24,12 @@ pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, ctx: &WidgetC
         // Draw the indicator clipped to the full track's shape so the left end stays a half-circle aligned with the track
         let band = Rect::new(abs.x, abs.y, iw, abs.h);
         let ind_clip = band.intersect(&clip).unwrap_or(band);
-        d.fill_rounded(abs, ctx.resolved.radius, Color::new(80, 140, 255), ind_clip);
+        d.fill_rounded(abs, ctx.resolved.radius, Rgb888::new(80, 140, 255).into(), ind_clip);
     }
 }
 
 /// Builder for the Bar widget.
-pub type BarBuilder<C = crate::geometry::Color> = WidgetBuilder<BarCfg, C>;
+pub type BarBuilder<C = Rgb888> = WidgetBuilder<BarCfg, C>;
 
 /// Bar configuration: value range and initial value.
 pub struct BarCfg {
@@ -40,7 +40,7 @@ pub struct BarCfg {
 
 impl BarCfg {
     /// Creates a builder for the given range.
-    pub fn new<C: PixelFormat>(min: i32, max: i32) -> WidgetBuilder<BarCfg, C> {
+    pub fn new<C>(min: i32, max: i32) -> WidgetBuilder<BarCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: BarCfg { min, max, value: None } }
     }
 }
@@ -53,8 +53,8 @@ impl<C> WidgetBuilder<BarCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for BarCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for BarCfg {
+    fn default_style() -> Style<C> {
         crate::style::theme_bar()
     }
 
@@ -71,8 +71,8 @@ impl<C: PixelFormat> WidgetCfg<C> for BarCfg {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for BarState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.min, self.max, self.value, ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for BarState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.min, self.max, self.value, ctx, c, clip) }
     fn value(&self) -> i32 { self.value }
     fn set_value(&mut self, v: i32) -> bool { super::clamp_val(self.min, self.max, &mut self.value, v) }
     fn set_range(&mut self, min: i32, max: i32) { self.min = min; self.max = max; self.value = self.value.clamp(min, max); }

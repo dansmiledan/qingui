@@ -3,7 +3,7 @@ use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 
 fn flex(dir: FlexDir, main: Align, cross: Align, gap: i32) -> Flex {
-    Flex { dir, wrap: false, main, cross, track: Align::Start, gap }
+    Flex {dir, wrap: false, main, cross, track: Align::Start, gap }
 }
 
 fn row_of(ui: &mut Ui, n: usize, w: i32, h: i32) -> Vec<qingui::ObjRef> {

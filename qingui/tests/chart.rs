@@ -1,9 +1,9 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::chart::ChartCfg;
 use qingui::Rect;
-use qingui::{Color, Ui};
+use qingui::Ui;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -12,11 +12,11 @@ fn builder_defaults_and_add_series() {
     let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
     // Default is 0 series; pre-build 1 series (capacity 4)
-    let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().series(Rgb888::BLUE, 4).build(&mut ui, s);
     assert_eq!(ui.chart_point_count(c, 0), 0);
     assert_eq!(ui.chart_point_count(c, 1), 0); // out-of-range series → 0
     // Attach one more series at runtime, index increments
-    assert_eq!(ui.chart_add_series(c, Color::RED, 8), 1);
+    assert_eq!(ui.chart_add_series(c, Rgb888::RED, 8), 1);
     assert_eq!(ui.chart_point_count(c, 1), 0);
 }
 
@@ -24,7 +24,7 @@ fn builder_defaults_and_add_series() {
 fn push_appends_and_clamps() {
     let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).series(Rgb888::BLUE, 4).build(&mut ui, s);
     ui.chart_push(c, 0, -5);  // clamped to 0
     ui.chart_push(c, 0, 150); // clamped to 100
     ui.chart_push(c, 0, 42);
@@ -39,7 +39,7 @@ fn push_appends_and_clamps() {
 fn push_evicts_oldest_when_full() {
     let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).series(Rgb888::BLUE, 3).build(&mut ui, s);
     for v in [1, 2, 3, 4] {
         ui.chart_push(c, 0, v);
     }
@@ -52,7 +52,7 @@ fn push_evicts_oldest_when_full() {
 fn set_points_replaces_and_truncates() {
     let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().range(0, 100).series(Color::BLUE, 3).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).series(Rgb888::BLUE, 3).build(&mut ui, s);
     ui.chart_push(c, 0, 99);
     ui.chart_set_points(c, 0, &[1, 2, 3, 4, 5]); // over capacity: only the newest 3 are kept
     assert_eq!(ui.chart_point_count(c, 0), 3);
@@ -66,7 +66,7 @@ fn set_points_replaces_and_truncates() {
 fn invalid_targets_are_silent_noop() {
     let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().series(Color::BLUE, 3).build(&mut ui, s);
+    let c = ChartCfg::new().series(Rgb888::BLUE, 3).build(&mut ui, s);
     // Out-of-range series index
     ui.chart_push(c, 99, 5);
     ui.chart_set_points(c, 99, &[1, 2]);
@@ -83,7 +83,7 @@ fn invalid_targets_are_silent_noop() {
 fn push_marks_dirty() {
     let mut ui: Ui = Ui::new(160, 120, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().series(Rgb888::BLUE, 4).build(&mut ui, s);
     ui.take_dirty();
     assert!(ui.dirty_is_empty());
     ui.chart_push(c, 0, 10);
@@ -92,13 +92,13 @@ fn push_marks_dirty() {
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 
 /// Rc is not a fundamental type, so the orphan rule requires wrapping it in a local wrapper struct
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
@@ -118,7 +118,7 @@ fn polyline_has_no_bright_bulge_at_joints() {
     let mut ui: Ui = Ui::new(w, h, h as u32); // the whole screen is one chunk
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let s = ui.screen();
-    let c = ChartCfg::new().range(0, 100).size(w, h).series(Color::RED, 48).build(&mut ui, s);
+    let c = ChartCfg::new().range(0, 100).size(w, h).series(Rgb888::RED, 48).build(&mut ui, s);
     // 48 points on the straight line y = 47 - x*43/189 (x = i*189/47)
     for i in 0..48 {
         let x = i * (w - 1) / 47;
@@ -150,7 +150,7 @@ fn renders_flat_line_at_bottom_for_min_values() {
     let c = ChartCfg::new()
         .range(0, 47)
         .size(64, 48)
-        .series(Color::RED, 64)
+        .series(Rgb888::RED, 64)
         .build(&mut ui, s);
     for _ in 0..64 {
         ui.chart_push(c, 0, 0);
@@ -160,8 +160,8 @@ fn renders_flat_line_at_bottom_for_min_values() {
     assert_eq!(chunks.len(), 1);
     let px = &chunks[0].1;
     // y = 47 bottom row: min value maps to abs.y + h - 1; line width 2 → the bottom two rows are both colored
-    assert_eq!(px[47 * 64 + 10], Color::RED);
-    assert_eq!(px[47 * 64 + 60], Color::RED);
+    assert_eq!(px[47 * 64 + 10], Rgb888::RED);
+    assert_eq!(px[47 * 64 + 60], Rgb888::RED);
     // The top row should not have a polyline
-    assert_ne!(px[10], Color::RED);
+    assert_ne!(px[10], Rgb888::RED);
 }

@@ -1,4 +1,5 @@
 use crate::arena::ObjRef;
+use embedded_graphics::pixelcolor::PixelColor;
 use crate::geometry::Rect;
 use crate::layout::Grid;
 use crate::ui::Ui;
@@ -9,7 +10,7 @@ pub struct GridLayout {
     pub grid: Grid,
 }
 
-impl<C: crate::pixel::PixelFormat> Widget<C> for GridLayout {
+impl<C: PixelColor> Widget<C> for GridLayout {
     fn layout(&mut self, ui: &mut Ui<C>, obj: ObjRef, content: Rect) {
         crate::layout::layout_grid(ui, obj, &self.grid, content);
     }

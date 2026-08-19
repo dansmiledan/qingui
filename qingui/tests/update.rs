@@ -1,13 +1,13 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::widgets::bar::BarCfg;
 use qingui::widgets::chart::{ChartCfg, ChartState};
-use qingui::{Color, Ui};
+use qingui::Ui;
 
 #[test]
 fn update_mutates_and_invalidates() {
     let mut ui: Ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().series(Rgb888::BLUE, 4).build(&mut ui, s);
     ui.take_dirty();
     let r = ui.update::<ChartState, _>(c, |st| {
         st.series[0].push(7);
@@ -32,7 +32,7 @@ fn update_wrong_type_is_noop() {
 fn update_deleted_obj_is_noop() {
     let mut ui: Ui = Ui::new(64, 64, 16);
     let s = ui.screen();
-    let c = ChartCfg::new().series(Color::BLUE, 4).build(&mut ui, s);
+    let c = ChartCfg::new().series(Rgb888::BLUE, 4).build(&mut ui, s);
     ui.delete(c);
     ui.take_dirty();
     let r = ui.update::<ChartState, _>(c, |st| st.series.len());

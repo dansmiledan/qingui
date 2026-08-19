@@ -1,8 +1,8 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::{Point, Rect};
 use crate::input::Key;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use embedded_graphics::pixelcolor::RgbColor;
@@ -19,7 +19,7 @@ pub struct SpinboxState {
     pub cursor: u8,
 }
 
-pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+pub(crate) fn draw<C: PixelColor + From<Rgb888>>(min: i32, max: i32, value: i32, digits: u8, cursor: u8, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
     let _ = (min, max);
     let abs = ctx.abs;
     let lclip = abs.intersect(&clip).unwrap_or(clip);
@@ -33,9 +33,9 @@ pub(crate) fn draw<C: PixelFormat>(min: i32, max: i32, value: i32, digits: u8, c
         let x = x0 + i as i32 * adv;
         if i as u8 == cursor && ctx.edited {
             // Cursor position: inverted highlight
-            d.fill_rounded(Rect::new(x - 1, abs.y + 1, adv + 2, abs.h - 2), 2, Color::new(80, 140, 255), lclip);
+            d.fill_rounded(Rect::new(x - 1, abs.y + 1, adv + 2, abs.h - 2), 2, Rgb888::new(80, 140, 255).into(), lclip);
             let mut buf = [0u8; 4];
-            d.draw_text(Point { x, y }, font, ch.encode_utf8(&mut buf), Color::BLACK, lclip);
+            d.draw_text(Point { x, y }, font, ch.encode_utf8(&mut buf), Rgb888::BLACK.into(), lclip);
         } else {
             let mut buf = [0u8; 4];
             d.draw_text(Point { x, y }, font, ch.encode_utf8(&mut buf), ctx.resolved.text_color, lclip);
@@ -57,7 +57,7 @@ pub(crate) fn step_digit(min: i32, max: i32, value: &mut i32, digits: u8, cursor
 }
 
 /// Builder for the Spinbox widget.
-pub type SpinboxBuilder<C = crate::geometry::Color> = WidgetBuilder<SpinboxCfg, C>;
+pub type SpinboxBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<SpinboxCfg, C>;
 
 /// Spinbox configuration: value range, digit count, and initial value.
 pub struct SpinboxCfg {
@@ -69,7 +69,7 @@ pub struct SpinboxCfg {
 
 impl SpinboxCfg {
     /// Creates a builder for the given range and digit count.
-    pub fn new<C: PixelFormat>(min: i32, max: i32, digits: u8) -> WidgetBuilder<SpinboxCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>(min: i32, max: i32, digits: u8) -> WidgetBuilder<SpinboxCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: SpinboxCfg { min, max, digits: digits.max(1), value: None },
@@ -77,11 +77,11 @@ impl SpinboxCfg {
     }
 
     /// Base style: dark rounded background with white text.
-    fn base_style() -> Style {
+    fn base_style<C: From<Rgb888>>() -> Style<C> {
         let mut s = Style::default();
-        s.bg_color = Some(Color::new(40, 40, 52));
+        s.bg_color = Some(Rgb888::new(40, 40, 52).into());
         s.radius = Some(4);
-        s.text_color = Some(Color::WHITE);
+        s.text_color = Some(Rgb888::WHITE.into());
         s
     }
 }
@@ -94,8 +94,8 @@ impl<C> WidgetBuilder<SpinboxCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for SpinboxCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for SpinboxCfg {
+    fn default_style() -> Style<C> {
         Self::base_style()
     }
 
@@ -117,7 +117,7 @@ impl<C: PixelFormat> WidgetCfg<C> for SpinboxCfg {
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
-            s.border_color = Some(Color::WHITE);
+            s.border_color = Some(Rgb888::WHITE.into());
             s.border_width = Some(1);
             s
         });
@@ -128,8 +128,8 @@ impl<C: PixelFormat> WidgetCfg<C> for SpinboxCfg {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for SpinboxState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.min, self.max, self.value, self.digits, self.cursor, ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for SpinboxState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.min, self.max, self.value, self.digits, self.cursor, ctx, c, clip) }
     fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         if !ui.state(obj).contains(crate::node::State::EDITED) {

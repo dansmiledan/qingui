@@ -1,18 +1,18 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::anim::{Anim, AnimProp, Easing};
 use qingui::layout::Sizing;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
-use qingui::{Color, EventKind, Rect, Ui};
+use qingui::{EventKind, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[test]
 fn style_builder_chain() {
-    let s = Style::new().bg(Color::RED).border(Color::WHITE, 2).radius(4);
-    assert_eq!(s.bg_color, Some(Color::RED));
-    assert_eq!(s.border_color, Some(Color::WHITE));
+    let s = Style::new().bg(Rgb888::RED).border(Rgb888::WHITE, 2).radius(4);
+    assert_eq!(s.bg_color, Some(Rgb888::RED));
+    assert_eq!(s.border_color, Some(Rgb888::WHITE));
     assert_eq!(s.border_width, Some(2));
     assert_eq!(s.radius, Some(4));
 }

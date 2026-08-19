@@ -4,11 +4,12 @@ use alloc::vec::Vec;
 use crate::anim::Easing;
 use crate::arena::ObjRef;
 use crate::event::{EventCb, EventKind};
-use crate::geometry::Color;
 use crate::layout::Sizing;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::PixelColor;
+
+type DefaultColor = embedded_graphics::pixelcolor::Rgb888;
 
 /// Container layout kind selected via `WidgetBuilder::layout`.
 #[derive(Clone, PartialEq, Debug)]
@@ -20,11 +21,11 @@ pub enum Layout {
 }
 
 /// Common fields shared by every widget builder.
-pub(crate) struct CommonBuilder<C = Color> {
+pub(crate) struct CommonBuilder<C = DefaultColor> {
     pub size: Option<(i32, i32)>,
-    pub style: Option<Style>,
-    pub style_focused: Option<Style>,
-    pub style_edited: Option<Style>,
+    pub style: Option<Style<C>>,
+    pub style_focused: Option<Style<C>>,
+    pub style_edited: Option<Style<C>>,
     pub layout: Option<Layout>,
     pub pad: Option<(i32, i32, i32, i32)>,
     pub sizing: Option<(Option<Sizing>, Option<Sizing>)>,
@@ -43,7 +44,7 @@ impl<C> Default for CommonBuilder<C> {
     }
 }
 
-impl<C: PixelFormat> CommonBuilder<C> {
+impl<C: PixelColor> CommonBuilder<C> {
     /// Applies the sizing/transition/events tail to an inserted node.
     /// Style defaults are widget-specific and stay in each `WidgetCfg::build`;
     /// `layout` is consumed by `ObjCfg::build` (it decides the widget kind) and
@@ -58,9 +59,9 @@ impl<C: PixelFormat> CommonBuilder<C> {
 }
 
 /// Widget-specific build logic: default size/style and post-insert setup.
-pub(crate) trait WidgetCfg<C = Color> {
+pub(crate) trait WidgetCfg<C = DefaultColor> {
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, common: CommonBuilder<C>) -> ObjRef;
-    fn default_style() -> Style {
+    fn default_style() -> Style<C> {
         Style::default()
     }
 }
@@ -69,7 +70,7 @@ pub(crate) trait WidgetCfg<C = Color> {
 ///
 /// `C` is the target UI's pixel format; it is inferred at `build` from the
 /// `Ui` being built into, so constructors do not name it.
-pub struct WidgetBuilder<Cfg, C = Color> {
+pub struct WidgetBuilder<Cfg, C = DefaultColor> {
     pub(crate) common: CommonBuilder<C>,
     pub(crate) cfg: Cfg,
 }
@@ -78,10 +79,10 @@ impl<Cfg, C> WidgetBuilder<Cfg, C> {
     /// Sets the widget size.
     pub fn size(mut self, w: i32, h: i32) -> Self { self.common.size = Some((w, h)); self }
     /// Sets the style.
-    pub fn style(mut self, s: Style) -> Self { self.common.style = Some(s); self }
+    pub fn style(mut self, s: Style<C>) -> Self { self.common.style = Some(s); self }
     /// Modifies on top of the default style.
     #[allow(private_bounds)]
-    pub fn style_with(mut self, f: impl FnOnce(Style) -> Style) -> Self
+    pub fn style_with(mut self, f: impl FnOnce(Style<C>) -> Style<C>) -> Self
     where
         Cfg: WidgetCfg<C>,
     {
@@ -89,11 +90,11 @@ impl<Cfg, C> WidgetBuilder<Cfg, C> {
         self
     }
     /// Sets the focused style. Only honored by widgets that have a focused-state style (currently Button, Checkbox, Dropdown, ItemList, List, Roller, ScrollView, Slider, Spinbox, Switch).
-    pub fn style_focused(mut self, s: Style) -> Self { self.common.style_focused = Some(s); self }
+    pub fn style_focused(mut self, s: Style<C>) -> Self { self.common.style_focused = Some(s); self }
     /// Sets the edited (inner-mode) style. Only honored by widgets with an inner mode
     /// (ItemList, List, Roller, ScrollView, Slider, Spinbox); when unset it falls back
     /// to `style::theme_edited` derived from the focused style.
-    pub fn style_edited(mut self, s: Style) -> Self { self.common.style_edited = Some(s); self }
+    pub fn style_edited(mut self, s: Style<C>) -> Self { self.common.style_edited = Some(s); self }
     /// Sets the container layout. Layout is a widget kind, not a common property:
     /// only `ObjCfg` honors it (it becomes the node's FlexLayout/GridLayout kind);
     /// every other widget silently ignores it.
@@ -124,7 +125,7 @@ impl<Cfg, C> WidgetBuilder<Cfg, C> {
     pub fn build(self, ui: &mut Ui<C>, parent: ObjRef) -> ObjRef
     where
         Cfg: WidgetCfg<C>,
-        C: PixelFormat,
+        C: PixelColor,
     {
         Cfg::build(self.cfg, ui, parent, self.common)
     }

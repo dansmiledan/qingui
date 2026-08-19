@@ -1,25 +1,25 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::style::theme_screen;
 use qingui::widgets::obj::ObjCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 
 /// Rc is not a fundamental type, so the orphan rule requires wrapping it in a local wrapper struct
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
 
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -38,15 +38,15 @@ fn move_to_front_raises_stacking() {
     let scr = ui.screen();
     let a = ObjCfg::new().size(10, 10).build(&mut ui, scr);
     let b = ObjCfg::new().size(10, 10).build(&mut ui, scr);
-    ui.set_style(a, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::new(255, 0, 0)); s });
-    ui.set_style(b, { let mut s = qingui::style::Style::default(); s.bg_color = Some(Color::new(0, 0, 255)); s });
+    ui.set_style(a, {let mut s = qingui::style::Style::default(); s.bg_color = Some(Rgb888::new(255, 0, 0)); s });
+    ui.set_style(b, {let mut s = qingui::style::Style::default(); s.bg_color = Some(Rgb888::new(0, 0, 255)); s });
     ui.render();
     // Initially B is on top → (5,5) is blue
-    assert_eq!(px(&rec, 5, 5), Color::new(0, 0, 255));
+    assert_eq!(px(&rec, 5, 5), Rgb888::new(0, 0, 255));
     ui.move_to_front(a);
     ui.render();
     // Now A is on top → (5,5) is red
-    assert_eq!(px(&rec, 5, 5), Color::new(255, 0, 0));
+    assert_eq!(px(&rec, 5, 5), Rgb888::new(255, 0, 0));
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn chunked_render_covers_dirty_area() {
     ui.set_pos(o, 8, 8);
     ui.set_size(o, 16, 16);
     let mut s = qingui::style::Style::default();
-    s.bg_color = Some(Color::RED);
+    s.bg_color = Some(Rgb888::RED);
     ui.set_style(o, s);
 
     ui.render();
@@ -71,7 +71,7 @@ fn chunked_render_covers_dirty_area() {
     assert_eq!(chunks[1].0, Rect::new(0, 16, 64, 16));
     assert_eq!(chunks[2].0, Rect::new(0, 32, 64, 16));
     // The object is in chunk0: screen (8,8) → buffer (8,8)
-    assert_eq!(chunks[0].1[8 * 64 + 8], Color::RED);
+    assert_eq!(chunks[0].1[8 * 64 + 8], Rgb888::RED);
     // Outside the object is the screen background color
     assert_eq!(chunks[0].1[0], theme_screen().bg_color.unwrap());
 }
@@ -111,7 +111,7 @@ fn small_dirty_flushes_only_that_area() {
     ui.set_pos(o, 40, 40);
     ui.set_size(o, 8, 8);
     let mut s = qingui::style::Style::default();
-    s.bg_color = Some(Color::GREEN);
+    s.bg_color = Some(Rgb888::GREEN);
     ui.set_style(o, s);
     ui.render();
     let chunks = &rec.borrow().chunks;

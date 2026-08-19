@@ -3,14 +3,13 @@ use crate::dirty::DirtyQueue;
 use crate::display::Flush;
 use crate::geometry::Rect;
 use crate::node::{Flag, Node, State};
-use crate::pixel::PixelFormat;
 use crate::style::ResolvedStyle;
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::RgbColor;
 
 /// Takes the dirty rects and renders each in chunks (PFB). A plain free function: `Ui` calls
 /// it with disjoint fields.
-pub(crate) fn render<C: PixelFormat>(
+pub(crate) fn render<C: RgbColor>(
     screen: ObjRef,
     arena: &mut Arena<Node<C>>,
     buf: &mut [C],
@@ -25,7 +24,7 @@ pub(crate) fn render<C: PixelFormat>(
     }
 }
 
-fn render_area<C: PixelFormat>(
+fn render_area<C: RgbColor>(
     screen: ObjRef,
     arena: &mut Arena<Node<C>>,
     buf: &mut [C],
@@ -45,7 +44,7 @@ fn render_area<C: PixelFormat>(
     }
 }
 
-fn render_chunk<C: PixelFormat>(
+fn render_chunk<C: RgbColor>(
     screen: ObjRef,
     arena: &mut Arena<Node<C>>,
     buf: &mut [C],
@@ -63,7 +62,7 @@ fn render_chunk<C: PixelFormat>(
             area: chunk,
             stride: chunk.w,
         };
-        d.clear(screen_style.bg_color.unwrap_or(crate::geometry::Color::BLACK));
+        d.clear(screen_style.bg_color.unwrap_or(C::BLACK));
     }
     // 2) Draw the object tree in pre-order (the screen itself is not drawn; its background was handled above)
     let nkids = arena.get(screen).map(|n| n.children.len()).unwrap_or(0);
@@ -81,7 +80,7 @@ fn render_chunk<C: PixelFormat>(
 /// and `clip` is the draw clip rect;
 /// they are the same at the top level; a CLIP_CHILDREN parent shrinks its subtree's clip while
 /// the frame stays unchanged.
-fn draw_node<C: PixelFormat>(
+fn draw_node<C: RgbColor>(
     arena: &mut Arena<Node<C>>,
     buf: &mut [C],
     obj: ObjRef,
@@ -137,11 +136,11 @@ fn draw_node<C: PixelFormat>(
     }
 }
 
-fn node_draw_info<C>(
+fn node_draw_info<C: RgbColor>(
     arena: &Arena<Node<C>>,
     obj: ObjRef,
     font: &'static MonoFont<'static>,
-) -> Option<(Rect, Flag, ResolvedStyle)> {
+) -> Option<(Rect, Flag, ResolvedStyle<C>)> {
     arena.get(obj).map(|n| {
         let resolved = resolved_style(arena, obj, font);
         (abs_rect(arena, obj), n.flags, resolved)
@@ -168,7 +167,7 @@ pub(crate) fn abs_rect<C>(arena: &Arena<Node<C>>, obj: ObjRef) -> Rect {
 /// delegated to by `Ui`). While edited, a custom `style_edited` overlay wins; without
 /// one the focus overlay applies. The edited look itself is a style concern: widgets
 /// set their `style_edited` at build time (see `style::theme_edited`).
-pub(crate) fn resolved_style<C>(arena: &Arena<Node<C>>, obj: ObjRef, font: &'static MonoFont<'static>) -> ResolvedStyle {
+pub(crate) fn resolved_style<C: RgbColor>(arena: &Arena<Node<C>>, obj: ObjRef, font: &'static MonoFont<'static>) -> ResolvedStyle<C> {
     let Some(n) = arena.get(obj) else {
         return ResolvedStyle::default();
     };
@@ -192,7 +191,7 @@ fn node_state<C>(arena: &Arena<Node<C>>, obj: ObjRef) -> State {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::Color;
+    use embedded_graphics::pixelcolor::Rgb888;
     use crate::widgets::obj::Manual;
     use alloc::boxed::Box;
     use alloc::rc::Rc;
@@ -202,14 +201,14 @@ mod tests {
     const FONT: &'static MonoFont<'static> = crate::font::DEFAULT_FONT;
 
     #[derive(Default)]
-    struct Rec { chunks: Vec<(Rect, Vec<Color>)> }
+    struct Rec { chunks: Vec<(Rect, Vec<Rgb888>)> }
     struct FakeFlush(Rc<RefCell<Rec>>);
     impl Flush for FakeFlush {
-        fn flush(&mut self, area: Rect, pixels: &[Color]) {
+        fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
             self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
         }
     }
-    fn px(rec: &Rc<RefCell<Rec>>, x: i32, y: i32) -> Color {
+    fn px(rec: &Rc<RefCell<Rec>>, x: i32, y: i32) -> Rgb888 {
         for (area, buf) in rec.borrow().chunks.iter().rev() {
             if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
                 return buf[((y - area.y) * area.w + (x - area.x)) as usize];
@@ -217,7 +216,7 @@ mod tests {
         }
         panic!("pixel not flushed");
     }
-    fn style(bg: Color) -> crate::style::Style {
+    fn style(bg: Rgb888) -> crate::style::Style<Rgb888> {
         let mut s = crate::style::Style::default();
         s.bg_color = Some(bg);
         s
@@ -232,7 +231,7 @@ mod tests {
         arena.get_mut(child).unwrap().style = child_style;
         let mut dirty = DirtyQueue::new(Rect::new(0, 0, w, h), 16);
         dirty.add(Rect::new(0, 0, w, h));
-        let mut buf = alloc::vec![Color::BLACK; (w * h) as usize];
+        let mut buf = alloc::vec![Rgb888::BLACK; (w * h) as usize];
         let rec = Rc::new(RefCell::new(Rec::default()));
         render(screen, &mut arena, &mut buf, &mut dirty, &mut Some(Box::new(FakeFlush(rec.clone()))), FONT, 0);
         (arena, rec)
@@ -240,26 +239,26 @@ mod tests {
 
     #[test]
     fn renders_child_over_screen_bg() {
-        let (_, rec) = render_fixture(style(Color::BLACK), style(Color::WHITE), 40, 30);
-        assert_eq!(px(&rec, 5, 5), Color::WHITE);   // child covers the screen background
-        assert_eq!(px(&rec, 35, 25), Color::WHITE);
+        let (_, rec) = render_fixture(style(Rgb888::BLACK), style(Rgb888::WHITE), 40, 30);
+        assert_eq!(px(&rec, 5, 5), Rgb888::WHITE);   // child covers the screen background
+        assert_eq!(px(&rec, 35, 25), Rgb888::WHITE);
     }
 
     #[test]
     fn hidden_subtree_is_skipped() {
         let mut arena = Arena::new();
         let screen = arena.insert(Node::new(None, Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
-        arena.get_mut(screen).unwrap().style = style(Color::BLACK);
+        arena.get_mut(screen).unwrap().style = style(Rgb888::BLACK);
         let child = arena.insert(Node::new(Some(screen), Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
         arena.get_mut(screen).unwrap().children.push(child);
-        arena.get_mut(child).unwrap().style = style(Color::WHITE);
+        arena.get_mut(child).unwrap().style = style(Rgb888::WHITE);
         arena.get_mut(child).unwrap().flags |= crate::node::Flag::HIDDEN;
         let mut dirty = DirtyQueue::new(Rect::new(0, 0, 40, 30), 16);
         dirty.add(Rect::new(0, 0, 40, 30));
-        let mut buf = alloc::vec![Color::BLACK; 40 * 30];
+        let mut buf = alloc::vec![Rgb888::BLACK; 40 * 30];
         let rec = Rc::new(RefCell::new(Rec::default()));
         render(screen, &mut arena, &mut buf, &mut dirty, &mut Some(Box::new(FakeFlush(rec.clone()))), FONT, 0);
-        assert_eq!(px(&rec, 5, 5), Color::BLACK); // HIDDEN child is not drawn → screen background
+        assert_eq!(px(&rec, 5, 5), Rgb888::BLACK); // HIDDEN child is not drawn → screen background
     }
 
     #[test]
@@ -267,22 +266,22 @@ mod tests {
         let (_arena, rec) = {
             let mut arena = Arena::new();
             let screen = arena.insert(Node::new(None, Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
-            arena.get_mut(screen).unwrap().style = style(Color::BLACK);
+            arena.get_mut(screen).unwrap().style = style(Rgb888::BLACK);
             let vp = arena.insert(Node::new(Some(screen), Rect::new(0, 0, 20, 30), alloc::boxed::Box::new(Manual)));
             arena.get_mut(vp).unwrap().flags |= crate::node::Flag::CLIP_CHILDREN;
             arena.get_mut(screen).unwrap().children.push(vp);
             let child = arena.insert(Node::new(Some(vp), Rect::new(0, 0, 40, 30), alloc::boxed::Box::new(Manual)));
-            arena.get_mut(child).unwrap().style = style(Color::WHITE);
+            arena.get_mut(child).unwrap().style = style(Rgb888::WHITE);
             arena.get_mut(vp).unwrap().children.push(child);
             let mut dirty = DirtyQueue::new(Rect::new(0, 0, 40, 30), 16);
             dirty.add(Rect::new(0, 0, 40, 30));
-            let mut buf = alloc::vec![Color::BLACK; 40 * 30];
+            let mut buf = alloc::vec![Rgb888::BLACK; 40 * 30];
             let rec = Rc::new(RefCell::new(Rec::default()));
             render(screen, &mut arena, &mut buf, &mut dirty, &mut Some(Box::new(FakeFlush(rec.clone()))), FONT, 0);
             (arena, rec)
         };
-        assert_eq!(px(&rec, 5, 5), Color::WHITE);   // visible inside the viewport
-        assert_eq!(px(&rec, 25, 5), Color::BLACK);  // clipped outside the viewport → screen background
+        assert_eq!(px(&rec, 5, 5), Rgb888::WHITE);   // visible inside the viewport
+        assert_eq!(px(&rec, 25, 5), Rgb888::BLACK);  // clipped outside the viewport → screen background
     }
 
     #[test]
@@ -304,12 +303,12 @@ mod tests {
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let n = arena.get_mut(r).unwrap();
         n.state |= crate::node::State::SELECTED | crate::node::State::FOCUSED;
-        n.style_selected = Some(Box::new(style(Color::new(1, 0, 0))));
-        n.style_focused = Some(Box::new(style(Color::new(2, 0, 0))));
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::new(2, 0, 0))); // FOCUSED takes priority
+        n.style_selected = Some(Box::new(style(Rgb888::new(1, 0, 0))));
+        n.style_focused = Some(Box::new(style(Rgb888::new(2, 0, 0))));
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Rgb888::new(2, 0, 0))); // FOCUSED takes priority
 
         arena.get_mut(r).unwrap().state = crate::node::State::SELECTED;
-        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Color::new(1, 0, 0))); // only SELECTED left
+        assert_eq!(resolved_style(&arena, r, FONT).bg_color, Some(Rgb888::new(1, 0, 0))); // only SELECTED left
     }
 
     #[test]
@@ -319,12 +318,12 @@ mod tests {
         let mut arena: Arena<Node> = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let mut f = crate::style::Style::default();
-        f.border_color = Some(Color::WHITE);
+        f.border_color = Some(Rgb888::WHITE);
         f.border_width = Some(2);
         arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
         arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
         let rs = resolved_style(&arena, r, FONT);
-        assert_eq!(rs.border_color, Color::WHITE); // falls back to the focus overlay
+        assert_eq!(rs.border_color, Rgb888::WHITE); // falls back to the focus overlay
         assert_eq!(rs.border_width, 2);
     }
 
@@ -335,18 +334,18 @@ mod tests {
         let mut arena: Arena<Node> = Arena::new();
         let r = arena.insert(Node::new(None, Rect::new(0, 0, 10, 10), alloc::boxed::Box::new(Manual)));
         let mut f = crate::style::Style::default();
-        f.border_color = Some(Color::WHITE);
+        f.border_color = Some(Rgb888::WHITE);
         f.border_width = Some(2);
         let mut e = crate::style::Style::default();
-        e.border_color = Some(Color::new(1, 2, 3));
+        e.border_color = Some(Rgb888::new(1, 2, 3));
         e.border_width = Some(4);
-        e.bg_color = Some(Color::new(4, 5, 6));
+        e.bg_color = Some(Rgb888::new(4, 5, 6));
         arena.get_mut(r).unwrap().style_focused = Some(Box::new(f));
         arena.get_mut(r).unwrap().style_edited = Some(Box::new(e));
         arena.get_mut(r).unwrap().state = crate::node::State::FOCUSED | crate::node::State::EDITED;
         let rs = resolved_style(&arena, r, FONT);
-        assert_eq!(rs.border_color, Color::new(1, 2, 3)); // edited overlay wins, no amber tint
+        assert_eq!(rs.border_color, Rgb888::new(1, 2, 3)); // edited overlay wins, no amber tint
         assert_eq!(rs.border_width, 4);
-        assert_eq!(rs.bg_color, Some(Color::new(4, 5, 6)));
+        assert_eq!(rs.bg_color, Some(Rgb888::new(4, 5, 6)));
     }
 }

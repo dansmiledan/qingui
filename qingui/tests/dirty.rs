@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::widgets::obj::ObjCfg;
 use qingui::{Rect, Ui};
 
@@ -15,8 +15,8 @@ fn move_obj_marks_old_and_new_area() {
     let dirty = ui.take_dirty();
     // The old and new areas do not intersect → two independent dirty rects
     assert_eq!(dirty.len(), 2);
-    assert!(dirty.iter().any(|r| r.contains(qingui::Point { x: 10, y: 10 })));
-    assert!(dirty.iter().any(|r| r.contains(qingui::Point { x: 60, y: 60 })));
+    assert!(dirty.iter().any(|r| r.contains(qingui::Point {x: 10, y: 10 })));
+    assert!(dirty.iter().any(|r| r.contains(qingui::Point {x: 60, y: 60 })));
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn style_change_invalidates_obj() {
     ui.set_size(o, 20, 20);
     ui.take_dirty();
     let mut s = qingui::style::Style::default();
-    s.bg_color = Some(qingui::Color::RED);
+    s.bg_color = Some(Rgb888::RED);
     ui.set_style(o, s);
     assert_eq!(ui.take_dirty(), vec![Rect::new(10, 10, 20, 20)]);
 }
@@ -85,10 +85,10 @@ fn hidden_target_anim_does_not_dirty() {
 
     // timer_handler renders at its end, consuming dirty areas, so flush records the actual redraws
     #[derive(Default)]
-    struct RecFlush { n: usize }
+    struct RecFlush {n: usize }
     struct SharedFlush(Rc<RefCell<RecFlush>>);
     impl Flush for SharedFlush {
-        fn flush(&mut self, _area: Rect, _pixels: &[qingui::Color]) {
+        fn flush(&mut self, _area: Rect, _pixels: &[Rgb888]) {
             self.0.borrow_mut().n += 1;
         }
     }
@@ -100,10 +100,10 @@ fn hidden_target_anim_does_not_dirty() {
     ui.set_size(panel, 40, 40);
     let bar = BarCfg::new(0, 100).build(&mut ui, panel);
     // Infinite value animation (same as the demo animate page) + position animation (set_pos path)
-    ui.anim_start(Anim { target: bar, prop: AnimProp::Value, start: 0, end: 100,
+    ui.anim_start(Anim {target: bar, prop: AnimProp::Value, start: 0, end: 100,
                          duration_ms: 1200, delay_ms: 0, repeat: -1, playback: false,
                          easing: Easing::Linear, on_done: None });
-    ui.anim_start(Anim { target: bar, prop: AnimProp::X, start: 0, end: 50,
+    ui.anim_start(Anim {target: bar, prop: AnimProp::X, start: 0, end: 50,
                          duration_ms: 1000, delay_ms: 0, repeat: -1, playback: false,
                          easing: Easing::Linear, on_done: None });
     ui.set_hidden(panel, true);

@@ -647,6 +647,7 @@ version = "0.1.0"
 dependencies = [
  "cortex-m-rt",
  "cortex-m-semihosting",
+ "embedded-graphics",
  "qingui",
 ]
 
@@ -656,12 +657,13 @@ version = "0.1.0"
 dependencies = [
  "cortex-m-rt",
  "cortex-m-semihosting",
+ "embedded-graphics",
  "qingui",
 ]
 
 [[package]]
 name = "qingui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bitflags 2.13.1",
  "embedded-graphics",

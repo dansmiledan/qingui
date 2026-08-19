@@ -3,8 +3,8 @@ use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
-use crate::pixel::PixelFormat;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::{Point, Rect};
 use crate::style::Style;
 use embedded_graphics::pixelcolor::RgbColor;
 use crate::ui::Ui;
@@ -27,7 +27,7 @@ pub struct TableState {
 }
 
 /// Builder for the Table widget.
-pub type TableBuilder<C = crate::geometry::Color> = WidgetBuilder<TableCfg, C>;
+pub type TableBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<TableCfg, C>;
 
 /// Table configuration: grid dimensions and pre-filled cell contents.
 pub struct TableCfg {
@@ -40,7 +40,7 @@ pub struct TableCfg {
 
 impl TableCfg {
     /// Creates a builder with the given grid dimensions (default cols*CELL_W x rows*CELL_H, transparent bg + white text).
-    pub fn new<C: PixelFormat>(cols: u8, rows: u8) -> WidgetBuilder<TableCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>(cols: u8, rows: u8) -> WidgetBuilder<TableCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: TableCfg {
@@ -73,10 +73,10 @@ impl<C> WidgetBuilder<TableCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for TableCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for TableCfg {
+    fn default_style() -> Style<C> {
         let mut s = Style::default();
-        s.text_color = Some(Color::WHITE);
+        s.text_color = Some(Rgb888::WHITE.into());
         s
     }
 
@@ -89,7 +89,7 @@ impl<C: PixelFormat> WidgetCfg<C> for TableCfg {
         );
         let mut s = common.style.take().unwrap_or_else(<Self as WidgetCfg<C>>::default_style);
         if s.text_color.is_none() {
-            s.text_color = Some(Color::WHITE);
+            s.text_color = Some(Rgb888::WHITE.into());
         }
         ui.set_style(r, s);
         common.apply_tail(ui, r);
@@ -98,10 +98,10 @@ impl<C: PixelFormat> WidgetCfg<C> for TableCfg {
 }
 
 impl TableState {
-    fn draw_grid<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_grid<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
-        let line_c = Color::new(70, 70, 90);
+        let line_c = Rgb888::new(70, 70, 90).into();
         // Grid lines (the bottom/right edges are pulled 1px inside the half-open interval boundary)
         for c in 0..=self.cols as i32 {
             let x = (abs.x + c * self.cell_w).min(abs.right() - 1);
@@ -131,8 +131,8 @@ impl TableState {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for TableState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_grid(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for TableState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_grid(ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
@@ -143,7 +143,7 @@ pub trait UiTableExt {
     fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str);
 }
 
-impl<C: PixelFormat> UiTableExt for Ui<C> {
+impl<C: PixelColor + From<Rgb888>> UiTableExt for Ui<C> {
     fn table_set_cell(&mut self, obj: ObjRef, row: u8, col: u8, text: &str) {
         self.update::<TableState, _>(obj, |s| {
             if row < s.rows && col < s.cols {

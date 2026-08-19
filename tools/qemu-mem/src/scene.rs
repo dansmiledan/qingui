@@ -21,7 +21,8 @@ use qingui::widgets::itemlist::ItemListCfg;
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::slider::SliderCfg;
-use qingui::{Color, ObjRef, Ui};
+use embedded_graphics::pixelcolor::Rgb888;
+use qingui::{ObjRef, Ui};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Tier {
@@ -74,7 +75,7 @@ pub fn build_scene(tier: Tier) -> Scene {
     for _ in 0..n_items / 4 {
         SliderCfg::new(0, 100).build(&mut ui, scr);
     }
-    let _chart = ChartCfg::new().series(Color::new(255, 0, 0), n_chart_pts).build(&mut ui, scr);
+    let _chart = ChartCfg::new().series(Rgb888::new(255, 0, 0), n_chart_pts).build(&mut ui, scr);
     let _il = ItemListCfg::new().build(&mut ui, scr);
     for _ in 0..n_items {
         ui.itemlist_add_item(_il);

@@ -1,21 +1,21 @@
 // Regression: no rendering ghosting after layout transitions (moving a container must mark its subtree dirty)
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir, Grid, Sizing, Track};
 use qingui::widgets::label::LabelCfg;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
-use qingui::{Color, ObjRef, Rect, Ui};
+use qingui::{ObjRef, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    fb: Vec<Color>,
+    fb: Vec<Rgb888>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         let mut r = self.0.borrow_mut();
         let fb = &mut r.fb;
         for y in 0..area.h {
@@ -29,11 +29,11 @@ impl Flush for SharedFlush {
 const TEXT: &str = "qingui subset\nPFB + dirty rect\nanim + keypad\n\narrows/tab: move\nenter: select/edit\nesc: exit edit";
 
 fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRef, ObjRef) {
-    let rec = Rc::new(RefCell::new(RecFlush { fb: vec![Color::BLACK; 320 * 240] }));
+    let rec = Rc::new(RefCell::new(RecFlush {fb: vec![Rgb888::BLACK; 320 * 240] }));
     let mut ui: Ui = Ui::new(320, 240, 24);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let screen = ui.screen();
-    let col = if wide { 108 } else { 180 };
+    let col = if wide {108 } else {180 };
     let ss = qingui::style::theme_screen();
     ui.set_style(screen, ss);
     ui.set_pad(screen, (8, 0, 8, 0));
@@ -74,7 +74,7 @@ fn build(wide: bool, with_transition: bool) -> (Ui, Rc<RefCell<RecFlush>>, ObjRe
     (ui, rec, menu, panel)
 }
 
-fn fb(rec: &Rc<RefCell<RecFlush>>) -> Vec<Color> {
+fn fb(rec: &Rc<RefCell<RecFlush>>) -> Vec<Rgb888> {
     rec.borrow().fb.clone()
 }
 

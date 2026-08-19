@@ -19,14 +19,15 @@
 ## 快速开始
 
 ```rust
+use embedded_graphics::pixelcolor::Rgb888;
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::slider::SliderCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 
 struct MyFlush;
 impl Flush for MyFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         // 把 pixels 写入屏幕的 area 区域（RGB888）
     }
 }
@@ -41,7 +42,7 @@ let scr = ui.screen();
 let slider = SliderCfg::new(0, 100)
     .size(140, 14)
     .value(50)
-    .style_with(|s| s.bg(Color::new(90, 90, 120)))
+    .style_with(|s| s.bg(Rgb888::new(90, 90, 120)))
     .build(&mut ui, scr);
 ui.set_pos(slider, 20, 20);
 
@@ -54,7 +55,7 @@ loop {
 
 ## Pixel formats
 
-`Ui` is generic over the framebuffer pixel format `C` (default: qingui's RGB888 `Color`). To render directly in the display's native format, pick it at construction and implement `Flush` for it:
+`Ui` is generic over the framebuffer pixel format `C` (default: embedded-graphics' `Rgb888`). `C` is the single color type throughout — styles, canvas drawing, `Flush` all use it directly. To render in the display's native format, pick it at construction and implement `Flush` for it:
 
 ```rust
 use embedded_graphics::pixelcolor::Rgb565;
@@ -72,18 +73,18 @@ let mut ui = Ui::<Rgb565>::new(320, 240, 24);
 ui.set_flush(Box::new(MyFlush));
 ```
 
-Supported formats: the eight embedded-graphics RGB/BGR color types (`Rgb888`/`Rgb666`/`Rgb565`/`Rgb555`, `Bgr888`/`Bgr666`/`Bgr565`/`Bgr555`) plus qingui's `Color` (default, RGB888). Embedded-graphics code draws into a qingui canvas of the same format via `DrawTarget<Color = Rgb565>` on `Canvas<'_, Rgb565>`.
+Supported formats: the eight embedded-graphics RGB/BGR color types (`Rgb888`/`Rgb666`/`Rgb565`/`Rgb555`, `Bgr888`/`Bgr666`/`Bgr565`/`Bgr555`). Color literals are written as `Rgb888::new(r, g, b)` and converted with `.into()` where a generic `C` is expected (embedded-graphics provides `From<Rgb888>` for all eight types). Embedded-graphics code draws into a qingui canvas of the same format via `DrawTarget<Color = Rgb565>` on `Canvas<'_, Rgb565>`.
 
-**Caveat — `Ui::new` type inference:** the default type parameter `C = Color` does not participate in expression-level inference, so `let mut ui = Ui::new(...)` followed only by generic builder calls fails with E0283 (nothing pins `C`). Annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use `Ui::<Color>::new(...)`.
+**Caveat — `Ui::new` type inference:** the default type parameter `C = Rgb888` does not participate in expression-level inference, so `let mut ui = Ui::new(...)` followed only by generic builder calls fails with E0283 (nothing pins `C`). Annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use `Ui::<Rgb565>::new(...)`. The same applies to the now-generic theme functions (`theme_button::<Rgb565>()` etc.) when called without other context pinning `C`.
 
-**Migration — `DrawTarget` color type:** `Canvas`'s `DrawTarget` implementation now has `type Color = C` (was `Rgb888` before). Downstream embedded-graphics code that drew `Pixel<Rgb888>` into a default canvas must switch to `Canvas<'_, Rgb888>` (or qingui's `Color`).
+**Migration — `DrawTarget` color type:** `Canvas`'s `DrawTarget` implementation now has `type Color = C` (was `Rgb888` before). Downstream embedded-graphics code that drew `Pixel<Rgb888>` into a default canvas must switch to `Canvas<'_, Rgb888>`.
 
 ## Unreleased / 0.3 breaking changes
 
 Rendering was reworked to delegate all drawing to embedded-graphics primitives; qingui's custom rasterizer (`draw.rs`) and the whole alpha/opacity system are gone.
 
 - `Canvas` drawing methods lost the `opa` parameter; `draw_text_opa` removed (use `draw_text`). There is no alpha blending anywhere.
-- `Style.bg_opa`/`Style.opa` removed; the background now paints iff `bg_color` is `Some` (`ResolvedStyle.bg_color: Option<Color>`).
+- `Style.bg_opa`/`Style.opa` removed; the background now paints iff `bg_color` is `Some` (`ResolvedStyle.bg_color: Option<C>`).
 - `Ui::set_opa`, `AnimProp::Opa`, and the list delete-ghost effect removed.
 - `WidgetCtx::ap` removed (was `pub`): opacity no longer exists — custom widgets calling `ctx.ap(...)` should simply drop the wrapper and pass colors to `Canvas` methods directly.
 - The list widget's `Ghost` struct and `ListFx::ghost` field (both `pub`) removed along with the delete-ghost effect.
@@ -92,8 +93,10 @@ Rendering was reworked to delegate all drawing to embedded-graphics primitives; 
 - `qingui::Point` is now embedded-graphics' `Point`; `Rect` ↔ `Rectangle` `From` conversions added.
 - Visual change: no anti-aliasing (aliased corners/arcs/lines), no translucency.
 - Rendering now delegates to embedded-graphics primitives (`Rectangle`/`RoundedRectangle`/`Circle`/`Arc`/`Line`/…); the framebuffer, dirty-rect, and `Flush` pipeline are unchanged.
-- `Color` is now a re-export of e-g's `Rgb888` (`pub use Rgb888 as Color`). `Color::rgb(r, g, b)` → `Color::new(r, g, b)`; `Color::GRAY`/`LIGHT_GRAY`/`DARK_GRAY` moved to `qingui::geometry::{GRAY, LIGHT_GRAY, DARK_GRAY}`; `Color::blend(a, b, t)` → free function `qingui::geometry::blend(a, b, t)`; `to_rgb565`/`from_rgb565` are now crate-internal. `Color::WHITE` etc. keep working via `Rgb888`'s constants. Note: `Color::WHITE` etc. are `RgbColor` trait consts — bring `embedded_graphics::pixelcolor::RgbColor` into scope where you use them. Direct field access `c.r`/`c.g`/`c.b` (and `Color { r, g, b }` literals/patterns) becomes the `RgbColor` accessor methods `c.r()`/`c.g()`/`c.b()` — same trait import as the constants.
-- `PixelFormat` now requires `Into<Color> + From<Color>` (conversions delegate to embedded-graphics; custom `PixelFormat` impls outside the built-in formats must satisfy the e-g conversion bounds). 888-to-565 quantization now rounds (e-g semantics) instead of truncating — mid-range values can shift by 1 LSB; 565-to-888 expansion also follows e-g rounding and can differ from the old bit-replication by 1 LSB on some mid-range values, while the `blit565` 565→888→565 round-trip stays lossless.
+- **`Color` and `PixelFormat` removed.** The generic pixel format `C` (default `Rgb888`) is now the only color type: `Style<C>`, `ResolvedStyle<C>`, `Canvas` drawing methods, `Flush<C>` all use it directly. There is no intermediate conversion layer — a `Ui<Rgb565>` stays in Rgb565 end to end.
+- Color literals: write `Rgb888::new(r, g, b)` and convert with `.into()` where a generic `C` is expected; `WHITE`/`BLACK` etc. come from the `RgbColor` trait (`Rgb888::WHITE.into()`). Constants like `qingui::geometry::{GRAY, LIGHT_GRAY, DARK_GRAY}` are gone — inline the literal. `blend(a, b, t)` is now generic (`C: Into<Rgb888> + From<Rgb888>`), mixing in 8-bit space and quantizing back (at most ±1 LSB vs. the old 8-bit-only blend).
+- Theme functions (`theme_base`, `theme_button`, …) are now generic over `C: From<Rgb888>`; calls with no context pinning `C` need a turbofish or type annotation (E0283 otherwise).
+- `Canvas::blit565` converts each 565 pixel directly to `C` (`C: From<Rgb565>`) — for `C = Rgb565` this is lossless and skips the previous 565→888→565 detour. Custom (non-embedded-graphics) pixel formats can no longer be used.
 
 ## 示例（examples）
 
@@ -124,7 +127,7 @@ cargo run --example gallery
 |---|---|---|
 | Rect | 16 | 16 |
 | Point | 8 | 8 |
-| Color | 3 | 3 |
+| Rgb888 | 3 | 3 |
 | Style | 40 | 140 \* |
 | ResolvedStyle | 32 | 112 \* |
 | 4 × Style（旧内联成本） | 160 | 560 \* |

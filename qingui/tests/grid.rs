@@ -3,7 +3,7 @@ use qingui::widgets::obj::ObjCfg;
 use qingui::Ui;
 
 fn grid(cols: Vec<Track>, rows: Vec<Track>, gap: i32) -> Grid {
-    Grid { cols, rows, col_gap: gap, row_gap: gap }
+    Grid {cols, rows, col_gap: gap, row_gap: gap }
 }
 
 #[test]

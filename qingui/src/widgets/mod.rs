@@ -1,4 +1,4 @@
-use crate::geometry::{Color, Rect};
+use crate::geometry::Rect;
 use crate::input::Key;
 use crate::style::ResolvedStyle;
 use crate::arena::ObjRef;
@@ -35,9 +35,9 @@ pub mod table;
 
 /// Widget drawing context: the common parts (background/border) are handled by `Ui::draw_node`,
 /// each widget's `draw` only paints its own content.
-pub struct WidgetCtx<'a> {
+pub struct WidgetCtx<'a, C = embedded_graphics::pixelcolor::Rgb888> {
     pub abs: Rect,
-    pub resolved: &'a ResolvedStyle,
+    pub resolved: &'a ResolvedStyle<C>,
     pub edited: bool,
     pub now: u64, // current time (ms), for interpolating internal widget effects
 }
@@ -87,10 +87,11 @@ pub struct MeasureCtx {
 /// - mutate your own state directly on `self`;
 /// - `ui.update(self_obj, ...)` is a silent no-op (your kind is not in the arena);
 /// - deleting your own node is allowed (Ui treats the outcome as consumed).
-/// `C` is the framebuffer pixel format (default RGB888 `Color`); widget drawing code always works in `Color`, the canvas converts.
-pub trait Widget<C = Color> {
+/// `C` is the framebuffer pixel format (default RGB888); widget drawing code works
+/// directly in `C`.
+pub trait Widget<C = embedded_graphics::pixelcolor::Rgb888> {
     /// Content drawing (background/border are handled uniformly by Ui). Default: draws nothing.
-    fn draw(&self, _ctx: &WidgetCtx, _c: &mut Canvas<'_, C>, _clip: Rect) {}
+    fn draw(&self, _ctx: &WidgetCtx<'_, C>, _c: &mut Canvas<'_, C>, _clip: Rect) {}
     /// Intrinsic content size; `(0, 0)` means "no intrinsic size" (layout uses the current rect).
     fn measure(&self, _ctx: &MeasureCtx) -> (i32, i32) { (0, 0) }
     /// Lays out direct children. Default: manual positioning (children keep their rects).

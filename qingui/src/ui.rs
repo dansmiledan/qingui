@@ -1,13 +1,14 @@
 use alloc::vec::Vec;
 use crate::arena::{Arena, ObjRef};
-use crate::geometry::{Color, Rect};
+use crate::geometry::Rect;
 use crate::node::{Flag, Node, State};
-use crate::pixel::PixelFormat;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888, RgbColor};
 
 /// The UI state: owns the widget tree (arena), dirty tracking, animation, focus, and rendering.
 ///
-/// `C` is the framebuffer pixel format; it defaults to the internal RGB888 `Color`.
-pub struct Ui<C = Color> {
+/// `C` is the framebuffer pixel format (any embedded-graphics color type);
+/// it defaults to `Rgb888`.
+pub struct Ui<C = Rgb888> {
     pub(crate) arena: Arena<Node<C>>,
     screen: ObjRef,
     width: i32,
@@ -24,7 +25,60 @@ pub struct Ui<C = Color> {
     default_font: &'static embedded_graphics::mono_font::MonoFont<'static>,
 }
 
-impl<C: PixelFormat> Ui<C> {
+impl<C: RgbColor> Ui<C> {
+    /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
+    /// scanlines (used for chunked rendering).
+    ///
+    /// The pixel format `C` defaults to `Rgb888`, but default type parameters do not drive
+    /// inference: if nothing else in your code pins `C` (e.g. no `set_flush` with a concrete
+    /// `Flush` impl), annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use
+    /// `Ui::<Rgb888>::new(...)`. For a device-native framebuffer use e.g.
+    /// `Ui::<Rgb565>::new(...)`.
+    pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui<C> {
+        let mut arena = Arena::new();
+        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(crate::widgets::obj::Manual)));
+        let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
+        dirty.add(Rect::new(0, 0, width, height)); // build screen: dirty the full screen
+        let buf = alloc::vec![C::BLACK; (width * buf_rows as i32).max(0) as usize];
+        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None, default_font: crate::font::DEFAULT_FONT }
+    }
+
+    /// Returns the fully resolved style of `obj`.
+    pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle<C> {
+        crate::render::resolved_style(&self.arena, obj, self.default_font)
+    }
+
+    /// Advances the whole UI by one frame: steps animations, lays out, ticks widgets, and
+    /// renders. Returns the suggested next timer delay in ms (0 = keep waking, `u32::MAX` = idle).
+    pub fn timer_handler(&mut self) -> u32 {
+        self.step_anims();
+        if self.layout_dirty {
+            self.layout_pass();
+            self.layout_dirty = false;
+        }
+        // Floating layers are repositioned every frame (following the target's movement/animation;
+        // no cost when the position is unchanged)
+        self.layout_floating(self.screen);
+        let fx_active = self.tick_widgets();
+        self.render();
+        if self.anim_running() || fx_active { 0 } else { u32::MAX }
+    }
+
+    /// Renders all pending dirty areas to the flush callback.
+    pub fn render(&mut self) {
+        crate::render::render(
+            self.screen,
+            &mut self.arena,
+            &mut self.buf,
+            &mut self.dirty,
+            &mut self.flush,
+            self.default_font,
+            self.time_ms,
+        );
+    }
+}
+
+impl<C: PixelColor> Ui<C> {
     /// Sets padding (l, r, t, b).
     pub fn set_pad(&mut self, obj: ObjRef, pad: (i32, i32, i32, i32)) {
         if let Some(n) = self.arena.get_mut(obj) { n.pad = pad; }
@@ -34,23 +88,6 @@ impl<C: PixelFormat> Ui<C> {
     /// Returns padding (l, r, t, b).
     pub fn pad(&self, obj: ObjRef) -> (i32, i32, i32, i32) {
         self.arena.get(obj).map(|n| n.pad).unwrap_or((0, 0, 0, 0))
-    }
-
-    /// Creates a UI for a `width` x `height` screen with a pixel buffer holding `buf_rows`
-    /// scanlines (used for chunked rendering).
-    ///
-    /// The pixel format `C` defaults to `Color`, but default type parameters do not drive
-    /// inference: if nothing else in your code pins `C` (e.g. no `set_flush` with a concrete
-    /// `Flush` impl), annotate the binding (`let mut ui: Ui = Ui::new(...)`) or use
-    /// `Ui::<Color>::new(...)`. For a device-native framebuffer use e.g.
-    /// `Ui::<Rgb565>::new(...)`.
-    pub fn new(width: i32, height: i32, buf_rows: u32) -> Ui<C> {
-        let mut arena = Arena::new();
-        let screen = arena.insert(Node::new(None, Rect::new(0, 0, width, height), alloc::boxed::Box::new(crate::widgets::obj::Manual)));
-        let mut dirty = crate::dirty::DirtyQueue::new(Rect::new(0, 0, width, height), 16);
-        dirty.add(Rect::new(0, 0, width, height)); // build screen: dirty the full screen
-        let buf = alloc::vec![C::default(); (width * buf_rows as i32).max(0) as usize];
-        Ui { arena, screen, width, height, dirty, flush: None, buf, time_ms: 0, anims: Vec::new(), group: Vec::new(), focused_idx: None, layout_dirty: false, modal: None, default_font: crate::font::DEFAULT_FONT }
     }
 
     /// Sets the global default font (used by widgets that do not specify a `font` in style);
@@ -300,7 +337,7 @@ impl<C: PixelFormat> Ui<C> {
     }
 
     /// Replaces the base style of `obj`.
-    pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub fn set_style(&mut self, obj: ObjRef, style: crate::style::Style<C>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style = style;
         }
@@ -308,7 +345,7 @@ impl<C: PixelFormat> Ui<C> {
         self.layout_dirty = true;
     }
     /// Replaces the focused-state overlay style of `obj`.
-    pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub fn set_style_focused(&mut self, obj: ObjRef, style: crate::style::Style<C>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_focused = Some(alloc::boxed::Box::new(style));
         }
@@ -316,7 +353,7 @@ impl<C: PixelFormat> Ui<C> {
         self.layout_dirty = true;
     }
     /// Replaces the edited-state overlay style of `obj` (the widget's inner mode).
-    pub fn set_style_edited(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub fn set_style_edited(&mut self, obj: ObjRef, style: crate::style::Style<C>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_edited = Some(alloc::boxed::Box::new(style));
         }
@@ -324,7 +361,7 @@ impl<C: PixelFormat> Ui<C> {
         self.layout_dirty = true;
     }
     /// Replaces the selected-state overlay style of `obj`.
-    pub fn set_style_selected(&mut self, obj: ObjRef, style: crate::style::Style) {
+    pub fn set_style_selected(&mut self, obj: ObjRef, style: crate::style::Style<C>) {
         if let Some(n) = self.arena.get_mut(obj) {
             n.style_selected = Some(alloc::boxed::Box::new(style));
         }
@@ -342,10 +379,6 @@ impl<C: PixelFormat> Ui<C> {
     /// Returns the current state flags of `obj`.
     pub fn state(&self, obj: ObjRef) -> State {
         self.arena.get(obj).map(|n| n.state).unwrap_or_default()
-    }
-    /// Returns the fully resolved style of `obj`.
-    pub fn resolved_style(&self, obj: ObjRef) -> crate::style::ResolvedStyle {
-        crate::render::resolved_style(&self.arena, obj, self.default_font)
     }
 
     /// Sets the display flush callback.
@@ -377,22 +410,6 @@ impl<C: PixelFormat> Ui<C> {
     /// Returns `true` while any animation is in flight.
     pub fn anim_running(&self) -> bool {
         !self.anims.is_empty()
-    }
-
-    /// Advances the whole UI by one frame: steps animations, lays out, ticks widgets, and
-    /// renders. Returns the suggested next timer delay in ms (0 = keep waking, `u32::MAX` = idle).
-    pub fn timer_handler(&mut self) -> u32 {
-        self.step_anims();
-        if self.layout_dirty {
-            self.layout_pass();
-            self.layout_dirty = false;
-        }
-        // Floating layers are repositioned every frame (following the target's movement/animation;
-        // no cost when the position is unchanged)
-        self.layout_floating(self.screen);
-        let fx_active = self.tick_widgets();
-        self.render();
-        if self.anim_running() || fx_active { 0 } else { u32::MAX }
     }
 
     /// Walks the object tree advancing per-frame effects (fx/Spinner/tick_hook), dirtying
@@ -818,19 +835,6 @@ impl<C: PixelFormat> Ui<C> {
                 self.set_translate(target, x, v);
             }
         }
-    }
-
-    /// Renders all pending dirty areas to the flush callback.
-    pub fn render(&mut self) {
-        crate::render::render(
-            self.screen,
-            &mut self.arena,
-            &mut self.buf,
-            &mut self.dirty,
-            &mut self.flush,
-            self.default_font,
-            self.time_ms,
-        );
     }
 
     pub(crate) fn insert_node(&mut self, parent: ObjRef, rect: Rect, kind: alloc::boxed::Box<dyn crate::widgets::Widget<C>>) -> ObjRef {

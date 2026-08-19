@@ -1,9 +1,9 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::event::EventKind;
-use crate::geometry::{Color, Rect};
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::Rect;
 use crate::input::Key;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use embedded_graphics::pixelcolor::RgbColor;
@@ -16,17 +16,17 @@ pub struct SwitchState {
     pub on: bool,
 }
 
-pub(crate) fn draw<C: PixelFormat>(on: bool, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+pub(crate) fn draw<C: PixelColor + From<Rgb888>>(on: bool, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
     let abs = ctx.abs;
-    let tc = if on { Color::new(60, 180, 90) } else { Color::new(90, 90, 90) };
+    let tc = if on { Rgb888::new(60, 180, 90).into() } else { Rgb888::new(90, 90, 90).into() };
     d.fill_rounded(abs, abs.h / 2, tc, clip);
     let k = abs.h - 4;
     let kx = if on { abs.right() - k - 2 } else { abs.x + 2 };
-    d.fill_rounded(Rect::new(kx, abs.y + 2, k, k), k / 2, Color::WHITE, clip);
+    d.fill_rounded(Rect::new(kx, abs.y + 2, k, k), k / 2, Rgb888::WHITE.into(), clip);
 }
 
 /// Builder for the Switch widget.
-pub type SwitchBuilder<C = crate::geometry::Color> = WidgetBuilder<SwitchCfg, C>;
+pub type SwitchBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<SwitchCfg, C>;
 
 /// Switch configuration: initial on/off state.
 pub struct SwitchCfg {
@@ -35,7 +35,7 @@ pub struct SwitchCfg {
 
 impl SwitchCfg {
     /// Creates a builder with the switch initially off.
-    pub fn new<C: PixelFormat>() -> WidgetBuilder<SwitchCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>() -> WidgetBuilder<SwitchCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: SwitchCfg { on: false } }
     }
 }
@@ -48,8 +48,8 @@ impl<C> WidgetBuilder<SwitchCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for SwitchCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for SwitchCfg {
+    fn default_style() -> Style<C> {
         crate::style::theme_switch()
     }
 
@@ -69,7 +69,7 @@ pub trait UiSwitchExt {
     fn toggle_switch(&mut self, obj: ObjRef);
 }
 
-impl<C: PixelFormat> UiSwitchExt for Ui<C> {
+impl<C: PixelColor + From<Rgb888>> UiSwitchExt for Ui<C> {
     fn toggle_switch(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         self.update::<SwitchState, _>(obj, |s| { s.on = !s.on; });
@@ -78,8 +78,8 @@ impl<C: PixelFormat> UiSwitchExt for Ui<C> {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for SwitchState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.on, ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for SwitchState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(self.on, ctx, c, clip) }
     fn on_key(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, key: Key) -> super::KeyOutcome {
         if key == Key::Enter { self.on = !self.on; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
     }

@@ -1,23 +1,23 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::layout::Attach;
 use qingui::widgets::obj::ObjCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
 
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -27,7 +27,7 @@ fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
     panic!("pixel not flushed");
 }
 
-fn solid(ui: &mut Ui, parent: qingui::ObjRef, c: Color) -> qingui::ObjRef {
+fn solid(ui: &mut Ui, parent: qingui::ObjRef, c: Rgb888) -> qingui::ObjRef {
     let o = ObjCfg::new().build(ui, parent);
     let mut s = qingui::style::Style::default();
     s.bg_color = Some(c);
@@ -39,10 +39,10 @@ fn solid(ui: &mut Ui, parent: qingui::ObjRef, c: Color) -> qingui::ObjRef {
 fn floating_center_on_target() {
     let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
-    let target = solid(&mut ui, scr, Color::BLUE);
+    let target = solid(&mut ui, scr, Rgb888::BLUE);
     ui.set_pos(target, 50, 50);
     ui.set_size(target, 100, 60);
-    let tip = solid(&mut ui, scr, Color::RED);
+    let tip = solid(&mut ui, scr, Rgb888::RED);
     ui.set_size(tip, 20, 20);
     ui.set_floating(tip, target, Attach::Center);
     ui.timer_handler();
@@ -54,10 +54,10 @@ fn floating_center_on_target() {
 fn floating_bottom_of_target() {
     let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
-    let target = solid(&mut ui, scr, Color::BLUE);
+    let target = solid(&mut ui, scr, Rgb888::BLUE);
     ui.set_pos(target, 50, 50);
     ui.set_size(target, 100, 60);
-    let tip = solid(&mut ui, scr, Color::RED);
+    let tip = solid(&mut ui, scr, Rgb888::RED);
     ui.set_size(tip, 20, 20);
     ui.set_floating(tip, target, Attach::Bottom);
     ui.timer_handler();
@@ -69,10 +69,10 @@ fn floating_bottom_of_target() {
 fn floating_follows_target_move() {
     let mut ui: Ui = Ui::new(320, 240, 240);
     let scr = ui.screen();
-    let target = solid(&mut ui, scr, Color::BLUE);
+    let target = solid(&mut ui, scr, Rgb888::BLUE);
     ui.set_pos(target, 50, 50);
     ui.set_size(target, 100, 60);
-    let tip = solid(&mut ui, scr, Color::RED);
+    let tip = solid(&mut ui, scr, Rgb888::RED);
     ui.set_size(tip, 20, 20);
     ui.set_floating(tip, target, Attach::Center);
     ui.timer_handler();
@@ -87,20 +87,20 @@ fn move_to_back_changes_draw_order() {
     let mut ui: Ui = Ui::new(64, 48, 48);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
-    bg.bg_color = Some(Color::BLACK);
+    bg.bg_color = Some(Rgb888::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, bg);
-    let a = solid(&mut ui, scr, Color::RED);
+    let a = solid(&mut ui, scr, Rgb888::RED);
     ui.set_pos(a, 0, 0);
     ui.set_size(a, 20, 20);
-    let b = solid(&mut ui, scr, Color::GREEN);
+    let b = solid(&mut ui, scr, Rgb888::GREEN);
     ui.set_pos(b, 10, 10);
     ui.set_size(b, 20, 20);
     ui.render();
     // Later-created b is on top
-    assert_eq!(px(&rec, 15, 15), Color::GREEN);
+    assert_eq!(px(&rec, 15, 15), Rgb888::GREEN);
     // b moved to the back → a is on top
     ui.move_to_back(b);
     ui.render();
-    assert_eq!(px(&rec, 15, 15), Color::RED);
+    assert_eq!(px(&rec, 15, 15), Rgb888::RED);
 }

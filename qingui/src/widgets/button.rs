@@ -1,9 +1,9 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::geometry::{Point, Rect};
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
@@ -13,7 +13,7 @@ pub struct ButtonState {
     pub text: alloc::string::String,
 }
 
-pub(crate) fn draw<C: PixelFormat>(text: &str, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+pub(crate) fn draw<C: PixelColor + From<Rgb888>>(text: &str, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
     let (tw, th) = crate::font::text_size(ctx.resolved.font, text);
     let p = Point {
         x: ctx.abs.x + (ctx.abs.w - tw) / 2,
@@ -23,7 +23,7 @@ pub(crate) fn draw<C: PixelFormat>(text: &str, ctx: &WidgetCtx, d: &mut Canvas<'
 }
 
 /// Builder for the Button widget.
-pub type ButtonBuilder<C = crate::geometry::Color> = WidgetBuilder<ButtonCfg, C>;
+pub type ButtonBuilder<C = Rgb888> = WidgetBuilder<ButtonCfg, C>;
 
 /// Button configuration: label text and the default content padding.
 pub struct ButtonCfg {
@@ -33,7 +33,7 @@ pub struct ButtonCfg {
 
 impl ButtonCfg {
     /// Creates a builder with the given label text.
-    pub fn new<C: PixelFormat>(text: &str) -> WidgetBuilder<ButtonCfg, C> {
+    pub fn new<C>(text: &str) -> WidgetBuilder<ButtonCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ButtonCfg { text: text.into(), content_pad: (24, 12) } }
     }
 }
@@ -46,8 +46,8 @@ impl<C> WidgetBuilder<ButtonCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for ButtonCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for ButtonCfg {
+    fn default_style() -> Style<C> {
         crate::style::theme_button()
     }
 
@@ -68,12 +68,12 @@ impl<C: PixelFormat> WidgetCfg<C> for ButtonCfg {
     }
 }
 
-pub(crate) fn create<C: PixelFormat>(ui: &mut Ui<C>, parent: ObjRef, text: &str) -> ObjRef {
+pub(crate) fn create<C: PixelColor + From<Rgb888>>(ui: &mut Ui<C>, parent: ObjRef, text: &str) -> ObjRef {
     ButtonCfg::new(text).build(ui, parent)
 }
 
-impl<C: PixelFormat> super::Widget<C> for ButtonState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(&self.text, ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for ButtonState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { draw(&self.text, ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }

@@ -1,22 +1,22 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -35,12 +35,12 @@ fn draw_hook_overlays_builtin_widget() {
     let btn = ButtonCfg::new("ok").build(&mut ui, scr);
     ui.set_pos(btn, 10, 10);
     ui.set_draw_hook(btn, Some(Box::new(|d, abs, clip, _now| {
-        d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Color::RED, clip);
+        d.fill_rect(Rect::new(abs.x, abs.y, 3, 3), Rgb888::RED, clip);
     })));
     ui.render();
     // The hook overlays the button's own content (the 3x3 top-left corner is covered in red)
-    assert_eq!(px(&rec, 10, 10), Color::RED);
-    assert_eq!(px(&rec, 11, 11), Color::RED);
+    assert_eq!(px(&rec, 10, 10), Rgb888::RED);
+    assert_eq!(px(&rec, 11, 11), Rgb888::RED);
 }
 
 #[test]

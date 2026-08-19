@@ -1,8 +1,8 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Rect};
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::Rect;
 use crate::input::Key;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use embedded_graphics::pixelcolor::RgbColor;
@@ -19,7 +19,7 @@ pub struct SliderState {
 }
 
 /// Builder for the Slider widget.
-pub type SliderBuilder<C = crate::geometry::Color> = WidgetBuilder<SliderCfg, C>;
+pub type SliderBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<SliderCfg, C>;
 
 /// Slider configuration: value range and initial value.
 pub struct SliderCfg {
@@ -31,7 +31,7 @@ pub struct SliderCfg {
 
 impl SliderCfg {
     /// Creates a builder for the given range.
-    pub fn new<C: PixelFormat>(min: i32, max: i32) -> WidgetBuilder<SliderCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>(min: i32, max: i32) -> WidgetBuilder<SliderCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: SliderCfg { min, max, value: None, knob_w: 8 } }
     }
 }
@@ -50,8 +50,8 @@ impl<C> WidgetBuilder<SliderCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for SliderCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for SliderCfg {
+    fn default_style() -> Style<C> {
         crate::style::theme_slider()
     }
 
@@ -72,7 +72,7 @@ impl<C: PixelFormat> WidgetCfg<C> for SliderCfg {
 }
 
 impl SliderState {
-    fn draw_track<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_track<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let frac = if self.max > self.min { (self.value - self.min) as f32 / (self.max - self.min) as f32 } else { 0.0 };
         let iw = (abs.w as f32 * frac) as i32;
@@ -80,17 +80,17 @@ impl SliderState {
             // Draw the indicator clipped to the full track's shape so the left end stays a half-circle aligned with the track
             let band = Rect::new(abs.x, abs.y, iw, abs.h);
             let ind_clip = band.intersect(&clip).unwrap_or(band);
-            d.fill_rounded(abs, ctx.resolved.radius, Color::new(80, 140, 255), ind_clip);
+            d.fill_rounded(abs, ctx.resolved.radius, Rgb888::new(80, 140, 255).into(), ind_clip);
         }
         let kx = abs.x + iw;
         let knob = Rect::new(kx - self.knob_w / 2, abs.y - 2, self.knob_w, abs.h + 4);
-        let kc = if ctx.edited { crate::style::EDIT_ACCENT } else { Color::WHITE };
+        let kc: C = if ctx.edited { crate::style::EDIT_ACCENT.into() } else { Rgb888::WHITE.into() };
         d.fill_rounded(knob, 3, kc, clip);
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for SliderState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_track(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for SliderState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_track(ctx, c, clip) }
     fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
         let edited = ui.state(obj).contains(crate::node::State::EDITED);

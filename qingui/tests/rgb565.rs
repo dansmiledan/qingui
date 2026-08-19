@@ -8,18 +8,17 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{Circle, PrimitiveStyle};
 
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::anim::{Anim, AnimProp};
 use qingui::canvas::Canvas;
 use qingui::display::Flush;
 use qingui::layout::{Align, Flex, FlexDir};
-use qingui::pixel::PixelFormat;
 use qingui::style::Style;
 use qingui::widgets::button::ButtonCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::switch::{SwitchCfg, UiSwitchExt};
 use qingui::widgets::Layout;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 
 struct Rec(Rc<RefCell<Vec<(Rect, Vec<Rgb565>)>>>);
 
@@ -29,10 +28,10 @@ impl Flush<Rgb565> for Rec {
     }
 }
 
-fn render_solid(bg: Color) -> Vec<(Rect, Vec<Rgb565>)> {
+fn render_solid(bg: Rgb888) -> Vec<(Rect, Vec<Rgb565>)> {
     let mut ui = Ui::<Rgb565>::new(40, 20, 20);
-    let mut s = Style::default();
-    s.bg_color = Some(bg);
+    let mut s: Style<Rgb565> = Style::default();
+    s.bg_color = Some(bg.into());
     let screen = ui.screen();
     ui.set_style(screen, s);
     let rec = Rc::new(RefCell::new(Vec::new()));
@@ -45,7 +44,7 @@ fn render_solid(bg: Color) -> Vec<(Rect, Vec<Rgb565>)> {
 
 #[test]
 fn ui_rgb565_flushes_device_native_pixels() {
-    let chunks = render_solid(Color::RED);
+    let chunks = render_solid(Rgb888::RED);
     let total: usize = chunks.iter().map(|(_, px)| px.len()).sum();
     assert_eq!(total, 40 * 20);
     assert!(chunks.iter().all(|(_, px)| px.iter().all(|&p| p == Rgb565::RED)));
@@ -53,9 +52,9 @@ fn ui_rgb565_flushes_device_native_pixels() {
 
 #[test]
 fn ui_rgb565_quantization_is_self_consistent() {
-    let bg = Color::new(80, 140, 255);
+    let bg = Rgb888::new(80, 140, 255);
     let chunks = render_solid(bg);
-    let expected = Rgb565::from_color(bg);
+    let expected = Rgb565::from(bg);
     assert!(!chunks.is_empty());
     assert!(chunks.iter().all(|(_, px)| px.iter().all(|&p| p == expected)));
 }
@@ -99,7 +98,7 @@ fn ui_rgb565_hosts_builtin_widgets() {
 #[test]
 fn eg_primitives_draw_into_rgb565_canvas() {
     let mut buf = [Rgb565::BLACK; 100];
-    let mut d = Canvas { pixels: &mut buf[..], area: Rect::new(0, 0, 10, 10), stride: 10 };
+    let mut d = Canvas {pixels: &mut buf[..], area: Rect::new(0, 0, 10, 10), stride: 10 };
     Circle::new(Point::new(0, 0), 5)
         .into_styled(PrimitiveStyle::with_fill(Rgb565::GREEN))
         .draw(&mut d)

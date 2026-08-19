@@ -1,9 +1,9 @@
 use core::any::Any;
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::{Canvas, KeyOutcome, TickOut, Widget, WidgetCtx};
-use qingui::{Color, ObjRef, Rect, Ui};
+use qingui::{ObjRef, Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -13,7 +13,7 @@ struct Gauge {
 }
 impl Widget for Gauge {
     fn draw(&self, ctx: &WidgetCtx, d: &mut Canvas, clip: Rect) {
-        d.fill_rect(ctx.abs, Color::RED, clip);
+        d.fill_rect(ctx.abs, Rgb888::RED, clip);
     }
     fn tick(&mut self, _ui: &mut Ui, _obj: ObjRef, _now: u64) -> TickOut {
         self.ticks += 1;
@@ -37,15 +37,15 @@ impl Widget for Gauge {
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     for (area, buf) in chunks.iter().rev() {
         if x >= area.x && x < area.right() && y >= area.y && y < area.bottom() {
@@ -60,10 +60,10 @@ fn custom_widget_draws_and_handles_keys() {
     let rec = Rc::new(RefCell::new(RecFlush::default()));
     let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
-    let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
+    let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge {v: 0, ticks: 0 }));
     ui.set_pos(g, 5, 5);
     ui.render();
-    assert_eq!(px(&rec, 6, 6), Color::RED); // draw was called
+    assert_eq!(px(&rec, 6, 6), Rgb888::RED); // draw was called
 
     assert_eq!(ui.widget::<Gauge>(g).unwrap().v, 0);
     ui.group_add(g);
@@ -106,7 +106,7 @@ fn on_key_receives_mut_ui_via_takeout() {
     let mut ui: Ui = Ui::new(160, 120, 120);
     let scr = ui.screen();
     let before = ui.children(scr).len();
-    let w = ui.create_widget(scr, 10, 10, Box::new(KeyProbe { hit: false }));
+    let w = ui.create_widget(scr, 10, 10, Box::new(KeyProbe {hit: false }));
     ui.group_add(w);
     ui.keypad_input(Key::Enter);
     assert!(ui.widget::<KeyProbe>(w).unwrap().hit, "on_key should have run on the taken-out state");
@@ -116,7 +116,7 @@ fn on_key_receives_mut_ui_via_takeout() {
 #[test]
 fn custom_widget_tick_dispatch() {
     let mut ui: Ui = Ui::new(160, 120, 120);
-    let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge { v: 0, ticks: 0 }));
+    let g = ui.create_widget(ui.screen(), 20, 20, Box::new(Gauge {v: 0, ticks: 0 }));
     // Gauge::tick returns ACTIVE → timer_handler stays awake (returns 0)
     assert_eq!(ui.timer_handler(), 0);
     // The take-out tick dispatch really runs: once per frame, counter increments

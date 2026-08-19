@@ -1,19 +1,20 @@
+use embedded_graphics::pixelcolor::Rgb888;
 use qingui::display::Flush;
 use qingui::widgets::image::{Frame, ImageCfg, ImageData};
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 /// 2x2 all-red image
 static RED: ImageData = ImageData {
-    frames: &[Frame { w: 2, h: 2, rgb565: &[0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8] }],
+    frames: &[Frame {w: 2, h: 2, rgb565: &[0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8] }],
     delays_ms: &[0],
 };
 /// Two-frame animation: red/blue, 100ms each
 static ANIM: ImageData = ImageData {
     frames: &[
-        Frame { w: 2, h: 2, rgb565: &[0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8] },
-        Frame { w: 2, h: 2, rgb565: &[0x1F, 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x1F, 0x00] },
+        Frame {w: 2, h: 2, rgb565: &[0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0xF8] },
+        Frame {w: 2, h: 2, rgb565: &[0x1F, 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x1F, 0x00] },
     ],
     delays_ms: &[100, 100],
 };
@@ -39,10 +40,10 @@ fn static_image_sleeps() {
 #[test]
 fn gif_advances_and_wraps() {
     #[derive(Default)]
-    struct Rec { n: usize }
+    struct Rec {n: usize }
     struct Shared(Rc<RefCell<Rec>>);
     impl Flush for Shared {
-        fn flush(&mut self, _a: Rect, _p: &[Color]) { self.0.borrow_mut().n += 1; }
+        fn flush(&mut self, _a: Rect, _p: &[Rgb888]) {self.0.borrow_mut().n += 1; }
     }
     let rec = Rc::new(RefCell::new(Rec::default()));
     let mut ui: Ui = Ui::new(64, 64, 16);

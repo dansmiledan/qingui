@@ -3,22 +3,22 @@ use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
-use crate::pixel::PixelFormat;
+use crate::geometry::{Point, Rect};
 use crate::ui::Ui;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
 /// One data line: a fixed-capacity ring buffer that drops the oldest point when full
-pub struct Series {
-    pub color: Color,
+pub struct Series<C = Rgb888> {
+    pub color: C,
     pub capacity: usize, // ≥1 (0 is clamped to 1)
     pub points: VecDeque<i32>,
 }
 
-impl Series {
+impl<C> Series<C> {
     /// Creates a series with the given color and capacity (clamped to at least 1).
-    pub fn new(color: Color, capacity: usize) -> Self {
+    pub fn new(color: C, capacity: usize) -> Self {
         let capacity = capacity.max(1);
         Self { color, capacity, points: VecDeque::with_capacity(capacity) }
     }
@@ -32,17 +32,17 @@ impl Series {
 }
 
 /// Chart widget state.
-pub struct ChartState {
+pub struct ChartState<C = Rgb888> {
     pub min: i32, // fixed Y-axis range
     pub max: i32,
-    pub series: Vec<Series>,
+    pub series: Vec<Series<C>>,
     pub line_width: i32,
 }
 
-impl ChartState {
+impl<C: PixelColor + 'static> ChartState<C> {
     /// Draws only the data lines (background/border are handled by the common draw_node):
     /// adjacent points are connected with lines, a single-point series draws a dot, empty series are skipped. No allocation.
-    fn draw_series<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_series(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         if abs.w < 1 || abs.h < 1 {
             return;
@@ -99,19 +99,19 @@ impl ChartState {
 }
 
 /// Builder for the Chart widget.
-pub type ChartBuilder<C = crate::geometry::Color> = WidgetBuilder<ChartCfg, C>;
+pub type ChartBuilder<C = Rgb888> = WidgetBuilder<ChartCfg<C>, C>;
 
 /// Chart configuration: fixed Y-axis range and the initial series.
-pub struct ChartCfg {
+pub struct ChartCfg<C = Rgb888> {
     min: i32,
     max: i32,
-    series: Vec<(Color, usize)>,
+    series: Vec<(C, usize)>,
     line_width: i32,
 }
 
-impl ChartCfg {
+impl<C> ChartCfg<C> {
     /// Creates a builder with the default range 0..100.
-    pub fn new<C: PixelFormat>() -> WidgetBuilder<ChartCfg, C> {
+    pub fn new() -> WidgetBuilder<ChartCfg<C>, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: ChartCfg { min: 0, max: 100, series: Vec::new(), line_width: 2 },
@@ -119,7 +119,7 @@ impl ChartCfg {
     }
 }
 
-impl<C> WidgetBuilder<ChartCfg, C> {
+impl<C> WidgetBuilder<ChartCfg<C>, C> {
     /// Sets the fixed Y-axis range.
     pub fn range(mut self, min: i32, max: i32) -> Self {
         self.cfg.min = min;
@@ -127,7 +127,7 @@ impl<C> WidgetBuilder<ChartCfg, C> {
         self
     }
     /// Pre-creates one series (may be called multiple times)
-    pub fn series(mut self, color: Color, capacity: usize) -> Self {
+    pub fn series(mut self, color: C, capacity: usize) -> Self {
         self.cfg.series.push((color, capacity));
         self
     }
@@ -138,7 +138,7 @@ impl<C> WidgetBuilder<ChartCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for ChartCfg {
+impl<C: PixelColor + 'static> WidgetCfg<C> for ChartCfg<C> {
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 60));
         let state = ChartState {
@@ -154,16 +154,17 @@ impl<C: PixelFormat> WidgetCfg<C> for ChartCfg {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for ChartState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_series(ctx, c, clip) }
+impl<C: PixelColor + 'static> super::Widget<C> for ChartState<C> {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_series(ctx, c, clip) }
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
-/// Chart data API (brought in via prelude or an explicit use)
-pub trait UiChartExt {
+/// Chart data API (brought in via prelude or an explicit use).
+/// `C` is the UI's pixel format (default RGB888).
+pub trait UiChartExt<C = Rgb888> {
     /// Adds a new series and returns its index.
-    fn chart_add_series(&mut self, c: ObjRef, color: Color, capacity: usize) -> usize;
+    fn chart_add_series(&mut self, c: ObjRef, color: C, capacity: usize) -> usize;
     /// Appends a point to a series (clamped to the chart's Y range).
     fn chart_push(&mut self, c: ObjRef, series: usize, v: i32);
     /// Replaces a series' points (keeps the last `capacity` points, clamped to the Y range).
@@ -176,9 +177,9 @@ pub trait UiChartExt {
     fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32>;
 }
 
-impl<C: PixelFormat> UiChartExt for Ui<C> {
-    fn chart_add_series(&mut self, c: ObjRef, color: Color, capacity: usize) -> usize {
-        self.update::<ChartState, _>(c, move |s| {
+impl<C: PixelColor + 'static> UiChartExt<C> for Ui<C> {
+    fn chart_add_series(&mut self, c: ObjRef, color: C, capacity: usize) -> usize {
+        self.update::<ChartState<C>, _>(c, move |s| {
             s.series.push(Series::new(color, capacity));
             s.series.len() - 1
         })
@@ -186,7 +187,7 @@ impl<C: PixelFormat> UiChartExt for Ui<C> {
     }
 
     fn chart_push(&mut self, c: ObjRef, series: usize, v: i32) {
-        self.update::<ChartState, _>(c, |s| {
+        self.update::<ChartState<C>, _>(c, |s| {
             let (min, max) = (s.min, s.max);
             if let Some(ser) = s.series.get_mut(series) {
                 ser.push(v.clamp(min, max));
@@ -195,7 +196,7 @@ impl<C: PixelFormat> UiChartExt for Ui<C> {
     }
 
     fn chart_set_points(&mut self, c: ObjRef, series: usize, points: &[i32]) {
-        self.update::<ChartState, _>(c, |s| {
+        self.update::<ChartState<C>, _>(c, |s| {
             let (min, max) = (s.min, s.max);
             if let Some(ser) = s.series.get_mut(series) {
                 let start = points.len().saturating_sub(ser.capacity);
@@ -206,7 +207,7 @@ impl<C: PixelFormat> UiChartExt for Ui<C> {
     }
 
     fn chart_clear(&mut self, c: ObjRef, series: usize) {
-        self.update::<ChartState, _>(c, |s| {
+        self.update::<ChartState<C>, _>(c, |s| {
             if let Some(ser) = s.series.get_mut(series) {
                 ser.points.clear();
             }
@@ -214,14 +215,14 @@ impl<C: PixelFormat> UiChartExt for Ui<C> {
     }
 
     fn chart_point_count(&self, c: ObjRef, series: usize) -> usize {
-        self.widget::<ChartState>(c)
+        self.widget::<ChartState<C>>(c)
             .and_then(|s| s.series.get(series))
             .map(|ser| ser.points.len())
             .unwrap_or(0)
     }
 
     fn chart_point(&self, c: ObjRef, series: usize, idx: usize) -> Option<i32> {
-        self.widget::<ChartState>(c)
+        self.widget::<ChartState<C>>(c)
             .and_then(|s| s.series.get(series))
             .and_then(|ser| ser.points.get(idx).copied())
     }

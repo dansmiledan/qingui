@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 
 /// A 2D point in screen coordinates (re-exported from embedded-graphics).
 pub use embedded_graphics::geometry::Point;
@@ -78,24 +78,20 @@ impl Rect {
     }
 }
 
-/// The working color type: embedded-graphics' RGB888.
-pub use embedded_graphics::pixelcolor::Rgb888 as Color;
-
-/// Medium gray.
-pub const GRAY: Color = Color::new(128, 128, 128);
-/// Light gray.
-pub const LIGHT_GRAY: Color = Color::new(200, 200, 200);
-/// Dark gray.
-pub const DARK_GRAY: Color = Color::new(40, 40, 40);
-
 /// Mixes `fg` onto `bg` by weight `t` (0..=255), producing an opaque color.
 /// This is plain color mixing (used for LED brightness), not alpha compositing —
 /// qingui has no translucency; the result fully replaces the pixel.
-pub fn blend(bg: Color, fg: Color, t: u8) -> Color {
+/// Mixing happens in 8-bit RGB888 space (via e-g's built-in conversions), so the
+/// result is identical for every target format up to its quantization.
+pub fn blend<C>(bg: C, fg: C, t: u8) -> C
+where
+    C: Into<Rgb888> + From<Rgb888>,
+{
+    let (bg, fg): (Rgb888, Rgb888) = (bg.into(), fg.into());
     let a = t as u32;
     let inv = 255 - a;
     let m = |s: u8, o: u8| ((s as u32 * inv + o as u32 * a + 127) / 255) as u8;
-    Color::new(m(bg.r(), fg.r()), m(bg.g(), fg.g()), m(bg.b(), fg.b()))
+    Rgb888::new(m(bg.r(), fg.r()), m(bg.g(), fg.g()), m(bg.b(), fg.b())).into()
 }
 
 impl From<Rect> for embedded_graphics::primitives::Rectangle {

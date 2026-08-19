@@ -1,17 +1,16 @@
-use crate::geometry::{Color, Point, Rect};
-use crate::pixel::PixelFormat;
+use crate::geometry::{Point, Rect};
 use embedded_graphics::draw_target::DrawTargetExt;
 use embedded_graphics::geometry::{Angle, Size};
 use embedded_graphics::mono_font::MonoFont;
-use embedded_graphics::pixelcolor::{raw::RawU16, Rgb565};
+use embedded_graphics::pixelcolor::{raw::RawU16, PixelColor, Rgb565, Rgb888};
 use embedded_graphics::primitives::{Circle, CornerRadii, Line, Primitive, PrimitiveStyle, RoundedRectangle};
 use embedded_graphics::Drawable;
 
 /// Pixel buffer covering a screen region. All coordinates are absolute screen coordinates;
 /// writes are offset by the `area` origin.
-/// The pixel type `C` defaults to RGB888 `Color`; set it to the display's native
+/// The pixel type `C` defaults to RGB888; set it to the display's native
 /// format (e.g. `Rgb565`) to render directly in device format.
-pub struct Canvas<'a, C = Color> {
+pub struct Canvas<'a, C = Rgb888> {
     /// The backing pixel storage.
     pub pixels: &'a mut [C],
     /// The absolute screen region this buffer covers.
@@ -20,19 +19,19 @@ pub struct Canvas<'a, C = Color> {
     pub stride: i32,
 }
 
-impl<C: PixelFormat> Canvas<'_, C> {
+impl<C: PixelColor> Canvas<'_, C> {
     /// Fills the whole buffer with `c`.
-    pub fn clear(&mut self, c: Color) {
-        self.pixels.fill(C::from_color(c));
+    pub fn clear(&mut self, c: C) {
+        self.pixels.fill(c);
     }
 
     /// Writes a single pixel (opaque, bounds-checked against the buffer area).
-    pub(crate) fn put(&mut self, x: i32, y: i32, c: Color) {
+    pub(crate) fn put(&mut self, x: i32, y: i32, c: C) {
         if !self.area.contains(Point { x, y }) {
             return;
         }
         let idx = ((y - self.area.y) * self.stride + (x - self.area.x)) as usize;
-        self.pixels[idx] = C::from_color(c);
+        self.pixels[idx] = c;
     }
 
     /// Batch-fills the pre-clipped rect rows (terminal write path, no delegation).
@@ -48,13 +47,131 @@ impl<C: PixelFormat> Canvas<'_, C> {
     }
 
     /// Fills `r` with `c`, clipped to `clip` and the buffer area.
-    pub fn fill_rect(&mut self, r: Rect, c: Color, clip: Rect) {
+    pub fn fill_rect(&mut self, r: Rect, c: C, clip: Rect) {
         let Some(r) = r.intersect(&clip).and_then(|r| r.intersect(&self.area)) else {
             return;
         };
-        self.fill_rows(r, C::from_color(c));
+        self.fill_rows(r, c);
     }
 
+    /// Filled rounded rectangle (aliased edges — no AA).
+    pub fn fill_rounded(&mut self, r: Rect, radius: i32, c: C, clip: Rect) {
+        let radius = radius.min(r.w / 2).min(r.h / 2).max(0);
+        if radius == 0 {
+            self.fill_rect(r, c, clip);
+            return;
+        }
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        let _ = RoundedRectangle::new(r.into(), CornerRadii::new(Size::new(radius as u32, radius as u32)))
+            .into_styled(PrimitiveStyle::with_fill(c))
+            .draw(&mut t);
+    }
+
+    /// Border inside `r` (aliased). `width <= 0` draws nothing.
+    pub fn draw_border(&mut self, r: Rect, width: i32, radius: i32, c: C, clip: Rect) {
+        if width <= 0 {
+            return;
+        }
+        let radius = radius.min(r.w / 2).min(r.h / 2).max(0);
+        // e-g centers the stroke on the primitive's edge; inset the path by half the
+        // stroke width so the band lands inside `r` (the old rasterizer's semantics).
+        let inset = width / 2;
+        let path = Rect::new(r.x + inset, r.y + inset, r.w - 2 * inset, r.h - 2 * inset);
+        if path.is_empty() {
+            return;
+        }
+        let path_radius = (radius - inset).max(0);
+        let style = PrimitiveStyle::with_stroke(c, width as u32);
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        if path_radius == 0 {
+            let _ = embedded_graphics::primitives::Rectangle::from(path).into_styled(style).draw(&mut t);
+        } else {
+            let _ = RoundedRectangle::new(path.into(), CornerRadii::new(Size::new(path_radius as u32, path_radius as u32)))
+                .into_styled(style)
+                .draw(&mut t);
+        }
+    }
+
+    /// Filled circle (aliased).
+    pub fn fill_circle(&mut self, center: Point, radius: i32, c: C, clip: Rect) {
+        if radius <= 0 {
+            return;
+        }
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        let _ = Circle::new(center - Point::new(radius, radius), (radius * 2) as u32)
+            .into_styled(PrimitiveStyle::with_fill(c))
+            .draw(&mut t);
+    }
+
+    /// Circle outline with stroke `width` (aliased). The ring sits inside the nominal
+    /// `radius` (see `draw_arc` for the stroke-centering adjustment).
+    pub fn draw_circle(&mut self, center: Point, radius: i32, width: i32, c: C, clip: Rect) {
+        if radius <= 0 || width <= 0 {
+            return;
+        }
+        let r = (radius - width / 2).max(1);
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        let _ = Circle::new(center - Point::new(r, r), (r * 2) as u32)
+            .into_styled(PrimitiveStyle::with_stroke(c, width as u32))
+            .draw(&mut t);
+    }
+
+    /// Arc (LVGL angle convention: 0 deg at 3 o'clock, positive clockwise), stroke `width`,
+    /// square ends (e-g arcs have no round caps).
+    /// Draws only when `end_deg > start_deg` — there is no wraparound, `end_deg <= start_deg`
+    /// draws nothing; express a wrap as `end_deg > 360`.
+    /// e-g centers the stroke on the circle's edge while the old rasterizer kept the ring
+    /// inside the nominal radius (band `(radius - width, radius]`), so the circle is shrunk
+    /// by half the stroke width to land the band in the same place.
+    pub fn draw_arc(&mut self, center: Point, radius: i32, width: i32, start_deg: i32, end_deg: i32, c: C, clip: Rect) {
+        if radius <= 0 || width <= 0 || end_deg <= start_deg {
+            return;
+        }
+        let r = (radius - width / 2).max(1);
+        let arc = embedded_graphics::primitives::Arc::new(
+            center - Point::new(r, r),
+            (r * 2) as u32,
+            Angle::from_degrees(start_deg as f32),
+            Angle::from_degrees((end_deg - start_deg) as f32),
+        );
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        let _ = arc
+            .into_styled(PrimitiveStyle::with_stroke(c, width as u32))
+            .draw(&mut t);
+    }
+
+    /// Thick line with round caps (width >= 2 adds a circle cap at each end); 1px is a plain e-g line.
+    pub fn draw_line(&mut self, p1: Point, p2: Point, width: i32, c: C, clip: Rect) {
+        if width <= 0 {
+            return;
+        }
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        let _ = Line::new(p1, p2)
+            .into_styled(PrimitiveStyle::with_stroke(c, width as u32))
+            .draw(&mut t);
+        if width >= 2 {
+            let off = Point::new(-width / 2, -width / 2);
+            let cap = PrimitiveStyle::with_fill(c);
+            let _ = Circle::new(p1 + off, width as u32).into_styled(cap).draw(&mut t);
+            let _ = Circle::new(p2 + off, width as u32).into_styled(cap).draw(&mut t);
+        }
+    }
+
+    /// Mono text (top-baseline), clipped. No background: only glyph pixels are drawn.
+    pub fn draw_text(&mut self, pos: Point, font: &'static MonoFont<'static>, s: &str, c: C, clip: Rect) {
+        let style = embedded_graphics::mono_font::MonoTextStyle::new(font, c);
+        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
+        let _ = embedded_graphics::text::Text::with_baseline(
+            s,
+            pos,
+            style,
+            embedded_graphics::text::Baseline::Top,
+        )
+        .draw(&mut t);
+    }
+}
+
+impl<C: PixelColor + From<Rgb565>> Canvas<'_, C> {
     /// 1:1 blit of an RGB565 (little-endian) bitmap; silently draws nothing when `data` is
     /// shorter than `w * h * 2`. No allocation.
     pub fn blit565(&mut self, x: i32, y: i32, w: i32, h: i32, data: &[u8], clip: Rect) {
@@ -71,130 +188,13 @@ impl<C: PixelFormat> Canvas<'_, C> {
                 let sy = (py - y) as usize;
                 let i = (sy * w as usize + sx) * 2;
                 let v = data[i] as u16 | ((data[i + 1] as u16) << 8);
-                self.put(px, py, Color::from(Rgb565::from(RawU16::new(v))));
+                self.put(px, py, Rgb565::from(RawU16::new(v)).into());
             }
         }
     }
-
-    /// Filled rounded rectangle (aliased edges — no AA).
-    pub fn fill_rounded(&mut self, r: Rect, radius: i32, c: Color, clip: Rect) {
-        let radius = radius.min(r.w / 2).min(r.h / 2).max(0);
-        if radius == 0 {
-            self.fill_rect(r, c, clip);
-            return;
-        }
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        let _ = RoundedRectangle::new(r.into(), CornerRadii::new(Size::new(radius as u32, radius as u32)))
-            .into_styled(PrimitiveStyle::with_fill(C::from_color(c)))
-            .draw(&mut t);
-    }
-
-    /// Border inside `r` (aliased). `width <= 0` draws nothing.
-    pub fn draw_border(&mut self, r: Rect, width: i32, radius: i32, c: Color, clip: Rect) {
-        if width <= 0 {
-            return;
-        }
-        let radius = radius.min(r.w / 2).min(r.h / 2).max(0);
-        // e-g centers the stroke on the primitive's edge; inset the path by half the
-        // stroke width so the band lands inside `r` (the old rasterizer's semantics).
-        let inset = width / 2;
-        let path = Rect::new(r.x + inset, r.y + inset, r.w - 2 * inset, r.h - 2 * inset);
-        if path.is_empty() {
-            return;
-        }
-        let path_radius = (radius - inset).max(0);
-        let style = PrimitiveStyle::with_stroke(C::from_color(c), width as u32);
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        if path_radius == 0 {
-            let _ = embedded_graphics::primitives::Rectangle::from(path).into_styled(style).draw(&mut t);
-        } else {
-            let _ = RoundedRectangle::new(path.into(), CornerRadii::new(Size::new(path_radius as u32, path_radius as u32)))
-                .into_styled(style)
-                .draw(&mut t);
-        }
-    }
-
-    /// Filled circle (aliased).
-    pub fn fill_circle(&mut self, center: Point, radius: i32, c: Color, clip: Rect) {
-        if radius <= 0 {
-            return;
-        }
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        let _ = Circle::new(center - Point::new(radius, radius), (radius * 2) as u32)
-            .into_styled(PrimitiveStyle::with_fill(C::from_color(c)))
-            .draw(&mut t);
-    }
-
-    /// Circle outline with stroke `width` (aliased). The ring sits inside the nominal
-    /// `radius` (see `draw_arc` for the stroke-centering adjustment).
-    pub fn draw_circle(&mut self, center: Point, radius: i32, width: i32, c: Color, clip: Rect) {
-        if radius <= 0 || width <= 0 {
-            return;
-        }
-        let r = (radius - width / 2).max(1);
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        let _ = Circle::new(center - Point::new(r, r), (r * 2) as u32)
-            .into_styled(PrimitiveStyle::with_stroke(C::from_color(c), width as u32))
-            .draw(&mut t);
-    }
-
-    /// Arc (LVGL angle convention: 0 deg at 3 o'clock, positive clockwise), stroke `width`,
-    /// square ends (e-g arcs have no round caps).
-    /// Draws only when `end_deg > start_deg` — there is no wraparound, `end_deg <= start_deg`
-    /// draws nothing; express a wrap as `end_deg > 360`.
-    /// e-g centers the stroke on the circle's edge while the old rasterizer kept the ring
-    /// inside the nominal radius (band `(radius - width, radius]`), so the circle is shrunk
-    /// by half the stroke width to land the band in the same place.
-    pub fn draw_arc(&mut self, center: Point, radius: i32, width: i32, start_deg: i32, end_deg: i32, c: Color, clip: Rect) {
-        if radius <= 0 || width <= 0 || end_deg <= start_deg {
-            return;
-        }
-        let r = (radius - width / 2).max(1);
-        let arc = embedded_graphics::primitives::Arc::new(
-            center - Point::new(r, r),
-            (r * 2) as u32,
-            Angle::from_degrees(start_deg as f32),
-            Angle::from_degrees((end_deg - start_deg) as f32),
-        );
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        let _ = arc
-            .into_styled(PrimitiveStyle::with_stroke(C::from_color(c), width as u32))
-            .draw(&mut t);
-    }
-
-    /// Thick line with round caps (width >= 2 adds a circle cap at each end); 1px is a plain e-g line.
-    pub fn draw_line(&mut self, p1: Point, p2: Point, width: i32, c: Color, clip: Rect) {
-        if width <= 0 {
-            return;
-        }
-        let c = C::from_color(c);
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        let _ = Line::new(p1, p2)
-            .into_styled(PrimitiveStyle::with_stroke(c, width as u32))
-            .draw(&mut t);
-        if width >= 2 {
-            let off = Point::new(-width / 2, -width / 2);
-            let cap = PrimitiveStyle::with_fill(c);
-            let _ = Circle::new(p1 + off, width as u32).into_styled(cap).draw(&mut t);
-            let _ = Circle::new(p2 + off, width as u32).into_styled(cap).draw(&mut t);
-        }
-    }
-
-    /// Mono text (top-baseline), clipped. No background: only glyph pixels are drawn.
-    pub fn draw_text(&mut self, pos: Point, font: &'static MonoFont<'static>, s: &str, c: Color, clip: Rect) {
-        let style = embedded_graphics::mono_font::MonoTextStyle::new(font, C::from_color(c));
-        let mut t = DrawTargetExt::clipped(&mut *self, &clip.into());
-        let _ = embedded_graphics::text::Text::with_baseline(
-            s,
-            pos,
-            style,
-            embedded_graphics::text::Baseline::Top,
-        )
-        .draw(&mut t);
-    }
 }
 
-impl<C: PixelFormat> embedded_graphics::draw_target::DrawTarget for Canvas<'_, C> {
+impl<C: PixelColor> embedded_graphics::draw_target::DrawTarget for Canvas<'_, C> {
     type Color = C;
     type Error = core::convert::Infallible;
 
@@ -204,7 +204,7 @@ impl<C: PixelFormat> embedded_graphics::draw_target::DrawTarget for Canvas<'_, C
     {
         // Per-pixel path: ecosystem compatibility, no performance promise.
         for embedded_graphics::Pixel(p, color) in pixels {
-            self.put(p.x, p.y, color.to_color());
+            self.put(p.x, p.y, color);
         }
         Ok(())
     }
@@ -251,7 +251,7 @@ impl<C: PixelFormat> embedded_graphics::draw_target::DrawTarget for Canvas<'_, C
     }
 
     fn clear(&mut self, color: Self::Color) -> Result<(), Self::Error> {
-        Canvas::clear(self, color.to_color());
+        Canvas::clear(self, color);
         Ok(())
     }
 }
@@ -278,85 +278,85 @@ mod tests {
     }
 
     #[test]
-    fn rgb565_opaque_fill_quantizes() {
+    fn rgb565_opaque_fill_is_native() {
         let mut buf = [Rgb565::BLACK; 100];
         let mut d = canvas565(&mut buf);
         let clip = Rect::new(0, 0, 10, 10);
-        d.fill_rect(Rect::new(0, 0, 10, 10), Color::new(255, 0, 0), clip);
+        d.fill_rect(Rect::new(0, 0, 10, 10), Rgb565::RED, clip);
         assert!(d.pixels.iter().all(|&p| p == Rgb565::RED));
     }
 
     #[test]
     fn fill_rect_respects_clip() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
-        d.fill_rect(Rect::new(0, 0, 10, 10), Color::WHITE, Rect::new(2, 2, 4, 4));
-        assert_eq!(d.pixels[2 * 10 + 2], Color::WHITE);
-        assert_eq!(d.pixels[0], Color::BLACK);
-        assert_eq!(d.pixels[6 * 10 + 6], Color::BLACK); // just outside the clip
+        d.fill_rect(Rect::new(0, 0, 10, 10), Rgb888::WHITE, Rect::new(2, 2, 4, 4));
+        assert_eq!(d.pixels[2 * 10 + 2], Rgb888::WHITE);
+        assert_eq!(d.pixels[0], Rgb888::BLACK);
+        assert_eq!(d.pixels[6 * 10 + 6], Rgb888::BLACK); // just outside the clip
     }
 
     #[test]
     fn fill_rounded_fills_center_and_spares_corners() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.fill_rounded(Rect::new(1, 1, 8, 8), 3, Color::WHITE, clip);
-        assert_eq!(d.pixels[5 * 10 + 5], Color::WHITE); // center
-        assert_eq!(d.pixels[1 * 10 + 1], Color::BLACK); // rounded-off corner
-        assert_eq!(d.pixels[0], Color::BLACK);          // outside the rect
+        d.fill_rounded(Rect::new(1, 1, 8, 8), 3, Rgb888::WHITE, clip);
+        assert_eq!(d.pixels[5 * 10 + 5], Rgb888::WHITE); // center
+        assert_eq!(d.pixels[1 * 10 + 1], Rgb888::BLACK); // rounded-off corner
+        assert_eq!(d.pixels[0], Rgb888::BLACK);          // outside the rect
     }
 
     #[test]
     fn fill_circle_covers_center_not_corner() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.fill_circle(Point::new(5, 5), 3, Color::WHITE, clip);
-        assert_eq!(d.pixels[5 * 10 + 5], Color::WHITE);
-        assert_eq!(d.pixels[0], Color::BLACK);
+        d.fill_circle(Point::new(5, 5), 3, Rgb888::WHITE, clip);
+        assert_eq!(d.pixels[5 * 10 + 5], Rgb888::WHITE);
+        assert_eq!(d.pixels[0], Rgb888::BLACK);
     }
 
     #[test]
     fn draw_line_hits_endpoints() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.draw_line(Point::new(1, 1), Point::new(8, 8), 1, Color::WHITE, clip);
-        assert_eq!(d.pixels[1 * 10 + 1], Color::WHITE);
-        assert_eq!(d.pixels[8 * 10 + 8], Color::WHITE);
-        assert_eq!(d.pixels[1 * 10 + 8], Color::BLACK); // off the diagonal
+        d.draw_line(Point::new(1, 1), Point::new(8, 8), 1, Rgb888::WHITE, clip);
+        assert_eq!(d.pixels[1 * 10 + 1], Rgb888::WHITE);
+        assert_eq!(d.pixels[8 * 10 + 8], Rgb888::WHITE);
+        assert_eq!(d.pixels[1 * 10 + 8], Rgb888::BLACK); // off the diagonal
     }
 
     #[test]
     fn draw_border_paints_edges_not_center() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.draw_border(Rect::new(2, 2, 6, 6), 1, 0, Color::WHITE, clip);
-        assert_eq!(d.pixels[2 * 10 + 2], Color::WHITE); // top-left edge
-        assert_eq!(d.pixels[5 * 10 + 5], Color::BLACK); // center untouched
+        d.draw_border(Rect::new(2, 2, 6, 6), 1, 0, Rgb888::WHITE, clip);
+        assert_eq!(d.pixels[2 * 10 + 2], Rgb888::WHITE); // top-left edge
+        assert_eq!(d.pixels[5 * 10 + 5], Rgb888::BLACK); // center untouched
     }
 
     #[test]
     fn draw_arc_paints_ring_pixels() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.draw_arc(Point::new(5, 5), 3, 1, 0, 360, Color::WHITE, clip);
+        d.draw_arc(Point::new(5, 5), 3, 1, 0, 360, Rgb888::WHITE, clip);
         // e-g centers an even-diameter circle between pixels: the bounding box is (2,2)..(7,7),
         // so the 3 o'clock ring pixel is at x=7 (not x=8 as with the old integer-centered grid).
-        assert_eq!(d.pixels[5 * 10 + 7], Color::WHITE); // 3 o'clock point on the ring
-        assert_eq!(d.pixels[5 * 10 + 5], Color::BLACK); // center hollow
+        assert_eq!(d.pixels[5 * 10 + 7], Rgb888::WHITE); // 3 o'clock point on the ring
+        assert_eq!(d.pixels[5 * 10 + 5], Rgb888::BLACK); // center hollow
     }
 
     #[test]
     fn draw_text_draws_glyph_pixels_only() {
-        let mut buf = [Color::BLACK; 200];
+        let mut buf = [Rgb888::BLACK; 200];
         let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 20, 10), stride: 20 };
         let clip = Rect::new(0, 0, 20, 10);
-        d.draw_text(Point::new(0, 0), crate::font::DEFAULT_FONT, "I", Color::WHITE, clip);
-        let white = buf.iter().filter(|&&p| p == Color::WHITE).count();
+        d.draw_text(Point::new(0, 0), crate::font::DEFAULT_FONT, "I", Rgb888::WHITE, clip);
+        let white = buf.iter().filter(|&&p| p == Rgb888::WHITE).count();
         assert!(white > 0 && white < 50, "glyph pixels drawn, background untouched ({white})");
     }
 
@@ -372,19 +372,19 @@ mod tests {
     }
 
     #[test]
-    fn rgb565_put_quantizes() {
+    fn rgb565_put_is_native() {
         let mut buf = [Rgb565::BLACK; 100];
         let mut d = canvas565(&mut buf);
-        d.put(2, 2, Color::WHITE);
-        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), 0xFFFF); // Color::WHITE quantizes to full-scale 565
+        d.put(2, 2, Rgb565::WHITE);
+        assert_eq!(RawU16::from(d.pixels[2 * 10 + 2]).into_inner(), 0xFFFF); // full-scale 565 passes through unchanged
     }
 
     #[test]
     fn default_canvas_still_rgb888() {
-        let mut buf = [Color::BLACK; 100];
+        let mut buf = [Rgb888::BLACK; 100];
         let mut d: Canvas<'_> = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 10, 10), stride: 10 };
         let clip = Rect::new(0, 0, 10, 10);
-        d.fill_rect(Rect::new(0, 0, 10, 10), Color::new(80, 140, 255), clip);
-        assert!(d.pixels.iter().all(|&p| p == Color::new(80, 140, 255)));
+        d.fill_rect(Rect::new(0, 0, 10, 10), Rgb888::new(80, 140, 255), clip);
+        assert!(d.pixels.iter().all(|&p| p == Rgb888::new(80, 140, 255)));
     }
 }

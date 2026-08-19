@@ -1,8 +1,8 @@
 use crate::arena::ObjRef;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
 use crate::geometry::Rect;
 use crate::input::Key;
 use crate::layout::{Align, Flex, FlexDir, Sizing};
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -33,7 +33,7 @@ pub struct ScrollViewState {
     pub step: i32,
 }
 
-impl<C: PixelFormat> super::Widget<C> for ScrollViewState {
+impl<C: PixelColor> super::Widget<C> for ScrollViewState {
     // Container: content is drawn by child nodes (CLIP_CHILDREN handled by the pipeline).
     fn on_key(&mut self, ui: &mut Ui<C>, obj: ObjRef, key: Key) -> super::KeyOutcome {
         use super::KeyOutcome::*;
@@ -73,7 +73,7 @@ impl<C: PixelFormat> super::Widget<C> for ScrollViewState {
 
 /// Core of scroll_to: clamps `y`, writes `state.scroll`, applies the translate.
 /// Callable both from the ext trait (kind in arena) and from `on_key` (kind taken out).
-pub(crate) fn apply_scroll<C: PixelFormat>(ui: &mut Ui<C>, sv: ObjRef, state: &mut ScrollViewState, y: i32) {
+pub(crate) fn apply_scroll<C: PixelColor>(ui: &mut Ui<C>, sv: ObjRef, state: &mut ScrollViewState, y: i32) {
     // Child rects are produced by layout: flush pending layout first so the rects read below are current (same as itemlist ensure_visible)
     if ui.layout_dirty {
         ui.layout_pass();
@@ -94,7 +94,7 @@ pub(crate) fn apply_scroll<C: PixelFormat>(ui: &mut Ui<C>, sv: ObjRef, state: &m
 }
 
 /// Builder for the ScrollView widget.
-pub type ScrollViewBuilder<C = crate::geometry::Color> = WidgetBuilder<ScrollViewCfg, C>;
+pub type ScrollViewBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<ScrollViewCfg, C>;
 
 /// ScrollView configuration: scroll step per key press.
 pub struct ScrollViewCfg {
@@ -103,7 +103,7 @@ pub struct ScrollViewCfg {
 
 impl ScrollViewCfg {
     /// Creates an empty builder.
-    pub fn new<C: PixelFormat>() -> WidgetBuilder<ScrollViewCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>() -> WidgetBuilder<ScrollViewCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: ScrollViewCfg { step: STEP } }
     }
 }
@@ -116,7 +116,7 @@ impl<C> WidgetBuilder<ScrollViewCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for ScrollViewCfg {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for ScrollViewCfg {
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
         let (w, h) = common.size.unwrap_or((120, 100));
         // The viewport is first created as a Manual placeholder: the content node
@@ -153,7 +153,7 @@ pub trait UiScrollViewExt {
     fn scrollview_scroll_by(&mut self, sv: ObjRef, delta: i32);
 }
 
-impl<C: PixelFormat> UiScrollViewExt for Ui<C> {
+impl<C: PixelColor> UiScrollViewExt for Ui<C> {
     fn scrollview_content(&self, sv: ObjRef) -> Option<ObjRef> {
         self.widget::<ScrollViewState>(sv).map(|s| s.content)
     }

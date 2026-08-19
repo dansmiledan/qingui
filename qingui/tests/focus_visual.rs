@@ -1,26 +1,26 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::prelude::*;
 use qingui::widgets::list::ListCfg;
 use qingui::widgets::obj::ObjCfg;
 use qingui::widgets::slider::SliderCfg;
 use qingui::widgets::switch::SwitchCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    chunks: Vec<(Rect, Vec<Color>)>,
+    chunks: Vec<(Rect, Vec<Rgb888>)>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         self.0.borrow_mut().chunks.push((area, pixels.to_vec()));
     }
 }
 
-fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Color {
+fn px(rec: &Rc<RefCell<RecFlush>>, x: i32, y: i32) -> Rgb888 {
     let chunks = &rec.borrow().chunks;
     // Search backwards: later-rendered chunks cover earlier ones
     for (area, buf) in chunks.iter().rev() {
@@ -36,7 +36,7 @@ fn setup() -> (Ui, Rc<RefCell<RecFlush>>) {
     let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
-    bg.bg_color = Some(Color::BLACK);
+    bg.bg_color = Some(Rgb888::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, bg);
     (ui, rec)
@@ -51,7 +51,7 @@ fn slider_shows_focus_border() {
     ui.group_add(s); // becomes focused
     ui.render();
     // Focused state: white border, midpoint of the track's top edge
-    assert_eq!(px(&rec, 60, 10), Color::WHITE);
+    assert_eq!(px(&rec, 60, 10), Rgb888::WHITE);
 }
 
 #[test]
@@ -65,14 +65,14 @@ fn moving_container_repaints_children_old_area() {
     ui.set_pos(child, -10, 0); // child extends beyond the parent's left edge
     ui.set_size(child, 10, 10);
     let mut s = qingui::style::Style::default();
-    s.bg_color = Some(Color::RED);
+    s.bg_color = Some(Rgb888::RED);
     ui.set_style(child, s);
     ui.render();
-    assert_eq!(px(&rec, 5, 15), Color::RED); // child's old position
+    assert_eq!(px(&rec, 5, 15), Rgb888::RED); // child's old position
     ui.set_pos(parent, 40, 10); // move the parent container
     ui.render();
-    assert_eq!(px(&rec, 5, 15), Color::BLACK); // the old area must be repainted (no ghosting)
-    assert_eq!(px(&rec, 35, 15), Color::RED); // new position
+    assert_eq!(px(&rec, 5, 15), Rgb888::BLACK); // the old area must be repainted (no ghosting)
+    assert_eq!(px(&rec, 35, 15), Rgb888::RED); // new position
 }
 
 #[test]
@@ -83,10 +83,10 @@ fn moving_slider_repaints_knob_overflow() {
     ui.set_pos(s, 10, 10);
     ui.set_value(s, 0); // knob at the far left, overflowing into x 6..14
     ui.render();
-    assert_eq!(px(&rec, 7, 16), Color::WHITE); // the knob overflow area's old position
+    assert_eq!(px(&rec, 7, 16), Rgb888::WHITE); // the knob overflow area's old position
     ui.set_pos(s, 40, 10); // move the slider (same path as layout animations)
     ui.render();
-    assert_eq!(px(&rec, 7, 16), Color::BLACK); // old overflow pixels must be cleared
+    assert_eq!(px(&rec, 7, 16), Rgb888::BLACK); // old overflow pixels must be cleared
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn switch_shows_focus_border() {
     ui.group_add(sw);
     ui.render();
     // Focused state: white border, midpoint of the track's top edge
-    assert_eq!(px(&rec, 30, 10), Color::WHITE);
+    assert_eq!(px(&rec, 30, 10), Rgb888::WHITE);
 }
 
 #[test]
@@ -109,13 +109,13 @@ fn slider_knob_overflow_area_redrawn_on_move() {
     ui.set_pos(s, 10, 10);
     ui.render();
     // Initially the knob is at x 6..14, y 8..24 (overflows 2px above the track)
-    assert_eq!(px(&rec, 10, 8), Color::WHITE);
+    assert_eq!(px(&rec, 10, 8), Rgb888::WHITE);
     ui.set_value(s, 50);
     ui.render();
     // The old knob overflow area is repainted as background (no ghosting)
-    assert_eq!(px(&rec, 10, 8), Color::BLACK);
+    assert_eq!(px(&rec, 10, 8), Rgb888::BLACK);
     // New knob position (kx = 10+50 = 60, knob x 56..64)
-    assert_eq!(px(&rec, 60, 8), Color::WHITE);
+    assert_eq!(px(&rec, 60, 8), Rgb888::WHITE);
 }
 
 #[test]
@@ -126,9 +126,9 @@ fn list_highlight_respects_rounded_corner() {
     ui.set_pos(l, 10, 10);
     ui.render();
     // The first row highlight's top-left corner (inside the rounded-corner area) should not be the highlight color
-    assert_ne!(px(&rec, 10, 12), Color::new(50, 70, 120));
+    assert_ne!(px(&rec, 10, 12), Rgb888::new(50, 70, 120));
     // Inside the first row (below the border) is the highlight color
-    assert_eq!(px(&rec, 60, 12), Color::new(50, 70, 120));
+    assert_eq!(px(&rec, 60, 12), Rgb888::new(50, 70, 120));
 }
 
 #[test]
@@ -143,6 +143,6 @@ fn list_remove_erases_row_immediately() {
     ui.render();
     // The deleted row's (row 2) area is repainted to the list background right away, with no text residue
     for x in 14..40 {
-        assert_eq!(px(&rec, x, 50), Color::new(34, 34, 44), "x={}", x);
+        assert_eq!(px(&rec, x, 50), Rgb888::new(34, 34, 44), "x={}", x);
     }
 }

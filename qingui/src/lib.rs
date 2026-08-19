@@ -14,7 +14,6 @@ pub mod input;
 pub mod render;
 pub mod layout;
 pub mod node;
-pub mod pixel;
 pub mod style;
 pub mod ui;
 pub mod widgets;
@@ -22,10 +21,8 @@ pub mod widgets;
 pub use arena::ObjRef;
 /// Event kinds delivered to widget event callbacks.
 pub use event::EventKind;
-/// Core geometry and color types.
-pub use geometry::{Color, Point, Rect};
-/// Framebuffer pixel format bridge between internal RGB888 `Color` and e-g pixel types.
-pub use pixel::PixelFormat;
+/// Core geometry types.
+pub use geometry::{Point, Rect};
 /// Main UI state and entry point for all object operations.
 pub use ui::Ui;
 /// The widget behavior trait: implement it and mount via `Ui::create_widget` (the single extension point).

@@ -35,7 +35,7 @@ use cortex_m_semihosting::debug::{exit, EXIT_FAILURE, EXIT_SUCCESS};
 #[cfg(target_arch = "arm")]
 use cortex_m_semihosting::hprintln;
 #[cfg(target_arch = "arm")]
-use qingui::geometry::{Color, Point, Rect};
+use embedded_graphics::pixelcolor::Rgb888;
 #[cfg(target_arch = "arm")]
 use qingui::node::Node;
 #[cfg(target_arch = "arm")]
@@ -59,7 +59,7 @@ fn report_static_sizes() {
     hprintln!("== static sizes (thumbv7em-none-eabihf, 32-bit) ==");
     hprintln!("Rect          {:>6} B", size_of::<Rect>());
     hprintln!("Point         {:>6} B", size_of::<Point>());
-    hprintln!("Color         {:>6} B", size_of::<Color>());
+    hprintln!("Rgb888         {:>6} B", size_of::<Rgb888>());
     hprintln!("Style         {:>6} B", size_of::<Style>());
     hprintln!("ResolvedStyle {:>6} B", size_of::<ResolvedStyle>());
     hprintln!("4 x Style (old inline cost) {:>6} B", 4 * size_of::<Style>());

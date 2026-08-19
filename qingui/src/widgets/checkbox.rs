@@ -1,12 +1,11 @@
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
 use crate::event::EventKind;
-use crate::geometry::{Color, Point, Rect};
+use crate::geometry::{Point, Rect};
 use crate::input::Key;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888, RgbColor};
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
 use super::WidgetCtx;
 
@@ -22,21 +21,21 @@ pub struct CheckboxState {
 }
 
 impl CheckboxState {
-    fn draw_box<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_box<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let box_size = self.box_size;
         let abs = ctx.abs;
         let by = abs.y + (abs.h - box_size) / 2;
         let brect = Rect::new(abs.x, by, box_size, box_size);
         // Box
-        d.draw_border(brect, 1, 2, Color::new(150, 150, 160), clip);
+        d.draw_border(brect, 1, 2, Rgb888::new(150, 150, 160).into(), clip);
         if self.checked {
             // Check mark: two lines, the canonical 12px shape scaled to box_size
             let sc = |v: i32| v * box_size / BOX;
             let p1 = Point { x: abs.x + sc(2), y: by + sc(6) };
             let p2 = Point { x: abs.x + sc(5), y: by + sc(9) };
             let p3 = Point { x: abs.x + sc(10), y: by + sc(3) };
-            d.draw_line(p1, p2, 2, Color::new(80, 140, 255), clip);
-            d.draw_line(p2, p3, 2, Color::new(80, 140, 255), clip);
+            d.draw_line(p1, p2, 2, Rgb888::new(80, 140, 255).into(), clip);
+            d.draw_line(p2, p3, 2, Rgb888::new(80, 140, 255).into(), clip);
         }
         d.draw_text(
             Point { x: abs.x + box_size + self.gap, y: abs.y + (abs.h - crate::font::line_height(ctx.resolved.font)) / 2 },
@@ -49,7 +48,7 @@ impl CheckboxState {
 }
 
 /// Builder for the Checkbox widget.
-pub type CheckboxBuilder<C = crate::geometry::Color> = WidgetBuilder<CheckboxCfg, C>;
+pub type CheckboxBuilder<C = Rgb888> = WidgetBuilder<CheckboxCfg, C>;
 
 /// Checkbox configuration: label text and initial checked state.
 pub struct CheckboxCfg {
@@ -61,7 +60,7 @@ pub struct CheckboxCfg {
 
 impl CheckboxCfg {
     /// Creates a builder with the given label text.
-    pub fn new<C: PixelFormat>(text: &str) -> WidgetBuilder<CheckboxCfg, C> {
+    pub fn new<C>(text: &str) -> WidgetBuilder<CheckboxCfg, C> {
         WidgetBuilder { common: CommonBuilder::default(), cfg: CheckboxCfg { text: text.into(), checked: false, box_size: BOX, gap: 6 } }
     }
 }
@@ -84,9 +83,9 @@ impl<C> WidgetBuilder<CheckboxCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for CheckboxCfg {
-    fn default_style() -> Style {
-        Style { text_color: Some(Color::WHITE), ..Style::default() }
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for CheckboxCfg {
+    fn default_style() -> Style<C> {
+        Style { text_color: Some(Rgb888::WHITE.into()), ..Style::default() }
     }
 
     fn build(self, ui: &mut Ui<C>, parent: ObjRef, mut common: CommonBuilder<C>) -> ObjRef {
@@ -104,7 +103,7 @@ impl<C: PixelFormat> WidgetCfg<C> for CheckboxCfg {
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
-            s.border_color = Some(Color::WHITE);
+            s.border_color = Some(Rgb888::WHITE.into());
             s.border_width = Some(1);
             s
         });
@@ -120,7 +119,7 @@ pub trait UiCheckboxExt {
     fn toggle_checkbox(&mut self, obj: ObjRef);
 }
 
-impl<C: PixelFormat> UiCheckboxExt for Ui<C> {
+impl<C: PixelColor> UiCheckboxExt for Ui<C> {
     fn toggle_checkbox(&mut self, obj: ObjRef) {
         self.invalidate_obj(obj);
         self.update::<CheckboxState, _>(obj, |s| { s.checked = !s.checked; });
@@ -129,8 +128,8 @@ impl<C: PixelFormat> UiCheckboxExt for Ui<C> {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for CheckboxState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_box(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for CheckboxState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_box(ctx, c, clip) }
     fn on_key(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, key: Key) -> super::KeyOutcome {
         if key == Key::Enter { self.checked = !self.checked; super::KeyOutcome::ValueChanged } else { super::KeyOutcome::Pass }
     }

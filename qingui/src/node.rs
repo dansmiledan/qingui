@@ -5,10 +5,10 @@ use crate::layout::Sizing;
 
 /// Overlay draw hook: called after the widget draws its own content, with
 /// (draw buffer, widget absolute rect, clip rect, current time ms).
-pub type DrawHook<C = crate::geometry::Color> = alloc::boxed::Box<dyn FnMut(&mut crate::canvas::Canvas<'_, C>, Rect, Rect, u64)>;
+pub type DrawHook<C = embedded_graphics::pixelcolor::Rgb888> = alloc::boxed::Box<dyn FnMut(&mut crate::canvas::Canvas<'_, C>, Rect, Rect, u64)>;
 /// Per-frame hook: returning `true` means still active (dirties the node and keeps the
 /// timer handler awake).
-pub type TickHook<C = crate::geometry::Color> = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui<C>, ObjRef, u64) -> bool>;
+pub type TickHook<C = embedded_graphics::pixelcolor::Rgb888> = alloc::boxed::Box<dyn FnMut(&mut crate::ui::Ui<C>, ObjRef, u64) -> bool>;
 
 bitflags::bitflags! {
     /// Object state (mirrors LVGL's state).
@@ -65,7 +65,7 @@ pub struct ItemProps {
 }
 
 /// A node in the widget tree: geometry, style, state, and widget behavior.
-pub struct Node<C = crate::geometry::Color> {
+pub struct Node<C = embedded_graphics::pixelcolor::Rgb888> {
     /// Parent object, or `None` for the screen root.
     pub parent: Option<ObjRef>,
     /// Direct children, in paint/layout order.
@@ -80,14 +80,14 @@ pub struct Node<C = crate::geometry::Color> {
     /// The widget behavior carried by this node.
     pub kind: alloc::boxed::Box<dyn crate::widgets::Widget<C>>,
     /// Base style.
-    pub style: crate::style::Style,
+    pub style: crate::style::Style<C>,
     /// Style overlay while focused.
-    pub style_focused: Option<alloc::boxed::Box<crate::style::Style>>,
+    pub style_focused: Option<alloc::boxed::Box<crate::style::Style<C>>>,
     /// Style overlay while edited (the widget's inner mode; falls back to the focused
     /// overlay with an amber border tint when unset).
-    pub style_edited: Option<alloc::boxed::Box<crate::style::Style>>,
+    pub style_edited: Option<alloc::boxed::Box<crate::style::Style<C>>>,
     /// Style overlay while selected.
-    pub style_selected: Option<alloc::boxed::Box<crate::style::Style>>,
+    pub style_selected: Option<alloc::boxed::Box<crate::style::Style<C>>>,
     /// Registered event callbacks, in order.
     pub events: Vec<(crate::event::EventKind, crate::event::EventCb<C>)>,
     /// Overlay draw hook, drawn after the widget's own content.

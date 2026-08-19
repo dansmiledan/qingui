@@ -75,7 +75,7 @@ impl Easing {
 }
 
 /// A single animation tweening one property of one object from a start to an end value.
-pub struct Anim<C = crate::geometry::Color> {
+pub struct Anim<C = embedded_graphics::pixelcolor::Rgb888> {
     /// The animated object.
     pub target: ObjRef,
     /// The property being animated.

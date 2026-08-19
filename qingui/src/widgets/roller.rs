@@ -3,9 +3,9 @@ use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::{Point, Rect};
 use crate::input::Key;
-use crate::pixel::PixelFormat;
 use embedded_graphics::pixelcolor::RgbColor;
 use crate::style::Style;
 use crate::ui::Ui;
@@ -43,12 +43,12 @@ impl RollerState {
         self.sel_from.is_some_and(|(_, s)| now.saturating_sub(s) < self.roll_dur)
     }
 
-    fn draw_rows<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_rows<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
         let cy = abs.y + abs.h / 2;
         // Highlight of the center selected row (the wheel slides beneath the row)
-        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Color::new(50, 70, 120), lclip);
+        d.fill_rounded(Rect::new(abs.x, cy - self.row_h / 2, abs.w, self.row_h), 3, Rgb888::new(50, 70, 120).into(), lclip);
         let sf = self.sel_f(ctx.now);
         let lh = crate::font::line_height(ctx.resolved.font);
         for (i, item) in self.items.iter().enumerate() {
@@ -84,7 +84,7 @@ impl RollerState {
 }
 
 /// Roller builder: default 80 x (min(3,n)*16+8), bg(34,34,44) r4 + white focused border
-pub type RollerBuilder<C = crate::geometry::Color> = WidgetBuilder<RollerCfg, C>;
+pub type RollerBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<RollerCfg, C>;
 
 /// Roller configuration: items, initial selection, and geometry/timing props.
 pub struct RollerCfg {
@@ -97,7 +97,7 @@ pub struct RollerCfg {
 
 impl RollerCfg {
     /// Creates a builder with the given items.
-    pub fn new<C: PixelFormat>(items: &[&str]) -> WidgetBuilder<RollerCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>(items: &[&str]) -> WidgetBuilder<RollerCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: RollerCfg {
@@ -134,12 +134,12 @@ impl<C> WidgetBuilder<RollerCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for RollerCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for RollerCfg {
+    fn default_style() -> Style<C> {
         let mut s = Style::default();
-        s.bg_color = Some(Color::new(34, 34, 44));
+        s.bg_color = Some(Rgb888::new(34, 34, 44).into());
         s.radius = Some(4);
-        s.text_color = Some(Color::WHITE);
+        s.text_color = Some(Rgb888::WHITE.into());
         s
     }
 
@@ -156,7 +156,7 @@ impl<C: PixelFormat> WidgetCfg<C> for RollerCfg {
         ui.set_style(r, base.clone());
         let focused = common.style_focused.take().unwrap_or_else(|| {
             let mut s = base;
-            s.border_color = Some(Color::WHITE);
+            s.border_color = Some(Rgb888::WHITE.into());
             s.border_width = Some(1);
             s
         });
@@ -167,8 +167,8 @@ impl<C: PixelFormat> WidgetCfg<C> for RollerCfg {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for RollerState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_rows(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for RollerState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_rows(ctx, c, clip) }
     fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> super::TickOut {
         let had_fx = self.sel_from.is_some();
         let active = self.fx_active(now);
@@ -211,7 +211,7 @@ pub trait UiRollerExt {
     fn roller_selected(&self, obj: ObjRef) -> usize;
 }
 
-impl<C: PixelFormat> UiRollerExt for Ui<C> {
+impl<C: PixelColor + From<Rgb888>> UiRollerExt for Ui<C> {
     fn roller_selected(&self, obj: ObjRef) -> usize {
         self.widget::<RollerState>(obj).map(|s| s.selected).unwrap_or(0)
     }

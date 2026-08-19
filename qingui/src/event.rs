@@ -19,4 +19,4 @@ pub enum EventKind {
 }
 
 /// Event callback: invoked with the UI, the source object, and the event kind.
-pub type EventCb<C = crate::geometry::Color> = Box<dyn FnMut(&mut Ui<C>, ObjRef, EventKind)>;
+pub type EventCb<C = embedded_graphics::pixelcolor::Rgb888> = Box<dyn FnMut(&mut Ui<C>, ObjRef, EventKind)>;

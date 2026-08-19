@@ -1,19 +1,19 @@
 // Regression: after rapid presses the Roller settles, and the render must match a fresh build (no ghosting/overlap)
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::display::Flush;
 use qingui::input::Key;
 use qingui::widgets::roller::RollerCfg;
-use qingui::{Color, Rect, Ui};
+use qingui::{Rect, Ui};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
 struct RecFlush {
-    fb: Vec<Color>,
+    fb: Vec<Rgb888>,
 }
 struct SharedFlush(Rc<RefCell<RecFlush>>);
 impl Flush for SharedFlush {
-    fn flush(&mut self, area: Rect, pixels: &[Color]) {
+    fn flush(&mut self, area: Rect, pixels: &[Rgb888]) {
         let mut r = self.0.borrow_mut();
         let fb = &mut r.fb;
         for y in 0..area.h {
@@ -25,11 +25,11 @@ impl Flush for SharedFlush {
 }
 
 fn build() -> (Ui, Rc<RefCell<RecFlush>>) {
-    let rec = Rc::new(RefCell::new(RecFlush { fb: vec![Color::BLACK; 160 * 120] }));
+    let rec = Rc::new(RefCell::new(RecFlush {fb: vec![Rgb888::BLACK; 160 * 120] }));
     let mut ui: Ui = Ui::new(160, 120, 120);
     ui.set_flush(Box::new(SharedFlush(rec.clone())));
     let mut bg = qingui::style::Style::default();
-    bg.bg_color = Some(Color::BLACK);
+    bg.bg_color = Some(Rgb888::BLACK);
     let scr = ui.screen();
     ui.set_style(scr, bg);
     (ui, rec)

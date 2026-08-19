@@ -49,7 +49,7 @@ fn flex_grow_respects_max() {
     let mut ui: Ui = Ui::new(320, 240, 240);
     let c = container(&mut ui, 200, 40);
     let a = ObjCfg::new().build(&mut ui, c);
-    ui.set_sizing(a, Some(Sizing::Grow { min: 0, max: 100 }), None);
+    ui.set_sizing(a, Some(Sizing::Grow {min: 0, max: 100 }), None);
     ui.timer_handler();
     assert_eq!(ui.rect(a).w, 100); // 200 remaining but clamped to max
 }

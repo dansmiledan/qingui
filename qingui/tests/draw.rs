@@ -1,9 +1,9 @@
-use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use qingui::canvas::Canvas;
-use qingui::{Color, Rect};
+use qingui::Rect;
 
-fn buf(w: i32, h: i32) -> (Vec<Color>, Rect) {
-    (vec![Color::BLACK; (w * h) as usize], Rect::new(0, 0, w, h))
+fn buf(w: i32, h: i32) -> (Vec<Rgb888>, Rect) {
+    (vec![Rgb888::BLACK; (w * h) as usize], Rect::new(0, 0, w, h))
 }
 
 /// Build a buffer from ASCII art: `.` = BLACK, `#` = WHITE. Every row must be the
@@ -20,18 +20,18 @@ fn buf(w: i32, h: i32) -> (Vec<Color>, Rect) {
 /// ................................
 /// ................................
 /// ```
-fn ascii_buf(art: &str) -> (Vec<Color>, Rect) {
+fn ascii_buf(art: &str) -> (Vec<Rgb888>, Rect) {
     let lines: Vec<&str> = art.lines().map(str::trim_end).collect();
     assert!(!lines.is_empty(), "empty ascii art");
     let w = lines[0].chars().count() as i32;
     let h = lines.len() as i32;
-    let mut px = vec![Color::BLACK; (w * h) as usize];
+    let mut px = vec![Rgb888::BLACK; (w * h) as usize];
     for (y, line) in lines.iter().enumerate() {
         assert_eq!(line.chars().count() as i32, w, "row {y} has a different width");
         for (x, ch) in line.chars().enumerate() {
             match ch {
                 '.' => {}
-                '#' => px[(y * w as usize) + x] = Color::WHITE,
+                '#' => px[(y * w as usize) + x] = Rgb888::WHITE,
                 other => panic!("unexpected char {other:?} in ascii art"),
             }
         }
@@ -49,7 +49,7 @@ fn to_ascii(d: &Canvas) -> String {
         }
         for x in 0..d.area.w {
             let c = d.pixels[(y * d.stride + x) as usize];
-            out.push(if c == Color::BLACK { '.' } else { '#' });
+            out.push(if c == Rgb888::BLACK {'.' } else {'#' });
         }
     }
     out
@@ -64,7 +64,7 @@ fn ascii_buf_roundtrip() {
 #..#..#.#
 .........";
     let (mut px, area) = ascii_buf(art);
-    let d = Canvas { pixels: &mut px, area, stride: area.w };
+    let d = Canvas {pixels: &mut px, area, stride: area.w };
     assert_eq!(to_ascii(&d), art);
 }
 
@@ -80,8 +80,8 @@ fn draw_onto_ascii_background() {
 ########
 ########
 ########");
-    let mut d = Canvas { pixels: &mut px, area, stride: 8 };
-    d.fill_rect(Rect::new(2, 2, 4, 4), Color::BLACK, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 8 };
+    d.fill_rect(Rect::new(2, 2, 4, 4), Rgb888::BLACK, area);
     assert_eq!(to_ascii(&d), "\
 ########
 ########
@@ -96,8 +96,8 @@ fn draw_onto_ascii_background() {
 #[test]
 fn fill_rect_basic() {
     let (mut px, area) = buf(10, 10);
-    let mut d = Canvas { pixels: &mut px, area, stride: 10 };
-    d.fill_rect(Rect::new(2, 2, 3, 3), Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 10 };
+    d.fill_rect(Rect::new(2, 2, 3, 3), Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ..........
 ..........
@@ -114,9 +114,9 @@ fn fill_rect_basic() {
 #[test]
 fn fill_rect_clipped() {
     let (mut px, area) = buf(10, 10);
-    let mut d = Canvas { pixels: &mut px, area, stride: 10 };
+    let mut d = Canvas {pixels: &mut px, area, stride: 10 };
     let clip = Rect::new(0, 0, 3, 10);
-    d.fill_rect(Rect::new(0, 0, 10, 10), Color::RED, clip);
+    d.fill_rect(Rect::new(0, 0, 10, 10), Rgb888::RED, clip);
     assert_eq!(to_ascii(&d), "\
 ###.......
 ###.......
@@ -133,8 +133,8 @@ fn fill_rect_clipped() {
 #[test]
 fn fill_rounded_corners_cut() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.fill_rounded(Rect::new(0, 0, 20, 20), 6, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.fill_rounded(Rect::new(0, 0, 20, 20), 6, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ....############....
 ..################..
@@ -161,8 +161,8 @@ fn fill_rounded_corners_cut() {
 #[test]
 fn draw_border_ring() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.draw_border(Rect::new(0, 0, 20, 20), 2, 0, Color::GREEN, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.draw_border(Rect::new(0, 0, 20, 20), 2, 0, Rgb888::GREEN, area);
     assert_eq!(to_ascii(&d), "\
 ####################
 ####################
@@ -190,19 +190,19 @@ fn draw_border_ring() {
 fn buffer_offset_area_coords() {
     // area does not start at (0,0): simulates a PFB chunk (screen coords 0..10 x 100..110)
     let area = Rect::new(0, 100, 10, 10);
-    let mut px = vec![Color::BLACK; 100];
-    let mut d = Canvas { pixels: &mut px, area, stride: 10 };
-    d.fill_rect(Rect::new(0, 105, 10, 5), Color::RED, area);
-    assert_eq!(d.pixels[0], Color::BLACK); // screen y=100 row not drawn
-    assert_eq!(d.pixels[5 * 10], Color::RED); // screen y=105 row
+    let mut px = vec![Rgb888::BLACK; 100];
+    let mut d = Canvas {pixels: &mut px, area, stride: 10 };
+    d.fill_rect(Rect::new(0, 105, 10, 5), Rgb888::RED, area);
+    assert_eq!(d.pixels[0], Rgb888::BLACK); // screen y=100 row not drawn
+    assert_eq!(d.pixels[5 * 10], Rgb888::RED); // screen y=105 row
 }
 
 #[test]
 fn fill_rounded_corner_is_aliased() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.clear(Color::BLACK);
-    d.fill_rounded(Rect::new(0, 0, 20, 20), 6, Color::WHITE, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.clear(Rgb888::BLACK);
+    d.fill_rounded(Rect::new(0, 0, 20, 20), 6, Rgb888::WHITE, area);
     let at = |x: usize, y: usize| d.pixels[y * 20 + x];
     // No anti-aliasing: every pixel is either fully black or fully white.
     for y in 0..20 {
@@ -237,9 +237,9 @@ fn fill_rounded_corner_is_aliased() {
 #[test]
 fn fill_circle_basic_aliased_edge() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.clear(Color::BLACK);
-    d.fill_circle(qingui::Point { x: 10, y: 10 }, 5, Color::WHITE, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.clear(Rgb888::BLACK);
+    d.fill_circle(qingui::Point {x: 10, y: 10 }, 5, Rgb888::WHITE, area);
     let at = |x: usize, y: usize| d.pixels[y * 20 + x];
     assert_eq!(to_ascii(&d), "\
 ....................
@@ -274,9 +274,9 @@ fn fill_circle_basic_aliased_edge() {
 #[test]
 fn draw_circle_ring_hollow_center() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.clear(Color::BLACK);
-    d.draw_circle(qingui::Point { x: 10, y: 10 }, 5, 2, Color::GREEN, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.clear(Rgb888::BLACK);
+    d.draw_circle(qingui::Point {x: 10, y: 10 }, 5, 2, Rgb888::GREEN, area);
     assert_eq!(to_ascii(&d), "\
 ....................
 ....................
@@ -303,10 +303,10 @@ fn draw_circle_ring_hollow_center() {
 #[test]
 fn draw_arc_quarter_pie() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.clear(Color::BLACK);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.clear(Rgb888::BLACK);
     // 0°..90° (bottom-right quadrant) pie sector
-    d.draw_arc(qingui::Point { x: 10, y: 10 }, 5, 5, 0, 90, Color::RED, area);
+    d.draw_arc(qingui::Point {x: 10, y: 10 }, 5, 5, 0, 90, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ....................
 ....................
@@ -333,9 +333,9 @@ fn draw_arc_quarter_pie() {
 #[test]
 fn draw_arc_full_sweep_equals_ring() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.clear(Color::BLACK);
-    d.draw_arc(qingui::Point { x: 10, y: 10 }, 5, 2, 0, 360, Color::GREEN, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.clear(Rgb888::BLACK);
+    d.draw_arc(qingui::Point {x: 10, y: 10 }, 5, 2, 0, 360, Rgb888::GREEN, area);
     assert_eq!(to_ascii(&d), "\
 ....................
 ....................
@@ -362,11 +362,11 @@ fn draw_arc_full_sweep_equals_ring() {
 #[test]
 fn draw_arc_wraparound_sweep() {
     let (mut px, area) = buf(20, 20);
-    let mut d = Canvas { pixels: &mut px, area, stride: 20 };
-    d.clear(Color::BLACK);
+    let mut d = Canvas {pixels: &mut px, area, stride: 20 };
+    d.clear(Rgb888::BLACK);
     // 270°..450° (right-half pie sector crossing 0°, sweep=180; the new API requires
     // start < end, wraparound is expressed with end > 360)
-    d.draw_arc(qingui::Point { x: 10, y: 10 }, 5, 5, 270, 450, Color::RED, area);
+    d.draw_arc(qingui::Point {x: 10, y: 10 }, 5, 5, 270, 450, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ....................
 ....................
@@ -395,8 +395,8 @@ fn draw_line_diagonal_32x8() {
     // A 32x8 screen: '.' = 0, '#' = 1. The line (20,1)..(24,5) shows up as a
     // visible diagonal instead of five scattered one-pixel asserts.
     let (mut px, area) = buf(32, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 32 };
-    d.draw_line(qingui::Point { x: 20, y: 1 }, qingui::Point { x: 24, y: 5 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 32 };
+    d.draw_line(qingui::Point {x: 20, y: 1 }, qingui::Point {x: 24, y: 5 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ................................
 ....................#...........
@@ -411,8 +411,8 @@ fn draw_line_diagonal_32x8() {
 #[test]
 fn draw_line_horizontal() {
     let (mut px, area) = buf(8, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 8 };
-    d.draw_line(qingui::Point { x: 1, y: 3 }, qingui::Point { x: 6, y: 3 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 8 };
+    d.draw_line(qingui::Point {x: 1, y: 3 }, qingui::Point {x: 6, y: 3 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ........
 ........
@@ -428,8 +428,8 @@ fn draw_line_horizontal() {
 fn draw_line_45deg_short() {
     // Short 45° diagonal (length 5) across an 8x8 buffer.
     let (mut px, area) = buf(8, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 8 };
-    d.draw_line(qingui::Point { x: 2, y: 1 }, qingui::Point { x: 6, y: 5 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 8 };
+    d.draw_line(qingui::Point {x: 2, y: 1 }, qingui::Point {x: 6, y: 5 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ........
 ..#.....
@@ -445,8 +445,8 @@ fn draw_line_45deg_short() {
 fn draw_line_45deg_full() {
     // Full 45° diagonal spanning the whole 16x16 buffer.
     let (mut px, area) = buf(16, 16);
-    let mut d = Canvas { pixels: &mut px, area, stride: 16 };
-    d.draw_line(qingui::Point { x: 0, y: 0 }, qingui::Point { x: 15, y: 15 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 16 };
+    d.draw_line(qingui::Point {x: 0, y: 0 }, qingui::Point {x: 15, y: 15 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 #...............
 .#..............
@@ -470,8 +470,8 @@ fn draw_line_45deg_full() {
 fn draw_line_steep() {
     // Steep (near-vertical) diagonal: dx=2, dy=7.
     let (mut px, area) = buf(16, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 16 };
-    d.draw_line(qingui::Point { x: 10, y: 0 }, qingui::Point { x: 12, y: 7 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 16 };
+    d.draw_line(qingui::Point {x: 10, y: 0 }, qingui::Point {x: 12, y: 7 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ..........#.....
 ..........#.....
@@ -487,8 +487,8 @@ fn draw_line_steep() {
 fn draw_line_shallow() {
     // Shallow (near-horizontal) diagonal: dx=15, dy=2.
     let (mut px, area) = buf(16, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 16 };
-    d.draw_line(qingui::Point { x: 0, y: 4 }, qingui::Point { x: 15, y: 6 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 16 };
+    d.draw_line(qingui::Point {x: 0, y: 4 }, qingui::Point {x: 15, y: 6 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ................
 ................
@@ -504,8 +504,8 @@ fn draw_line_shallow() {
 fn draw_line_up_right() {
     // Negative-slope diagonal (going up to the right).
     let (mut px, area) = buf(16, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 16 };
-    d.draw_line(qingui::Point { x: 5, y: 7 }, qingui::Point { x: 11, y: 1 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 16 };
+    d.draw_line(qingui::Point {x: 5, y: 7 }, qingui::Point {x: 11, y: 1 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ................
 ...........#....
@@ -521,8 +521,8 @@ fn draw_line_up_right() {
 fn draw_line_long_diag() {
     // Long shallow diagonal (dx=27, dy=11) across a 32x16 buffer.
     let (mut px, area) = buf(32, 16);
-    let mut d = Canvas { pixels: &mut px, area, stride: 32 };
-    d.draw_line(qingui::Point { x: 2, y: 2 }, qingui::Point { x: 29, y: 13 }, 1, Color::RED, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 32 };
+    d.draw_line(qingui::Point {x: 2, y: 2 }, qingui::Point {x: 29, y: 13 }, 1, Rgb888::RED, area);
     assert_eq!(to_ascii(&d), "\
 ................................
 ................................
@@ -546,17 +546,16 @@ fn draw_line_long_diag() {
 fn rgb565_roundtrip() {
     use embedded_graphics::pixelcolor::Rgb565;
     use embedded_graphics::pixelcolor::raw::{RawData, RawU16};
-    use qingui::Color;
-    use qingui::PixelFormat;
-    // The public Rgb565 PixelFormat impl wraps the crate-internal 565 helpers.
-    let from565 = |v: u16| Rgb565::from(RawU16::new(v)).to_color();
-    let to565 = |c: Color| RawU16::from(Rgb565::from_color(c)).into_inner();
+    use embedded_graphics::pixelcolor::Rgb888;
+    // e-g's built-in Rgb565 <-> Rgb888 conversions (rounding quantization).
+    let from565 = |v: u16| Rgb888::from(Rgb565::from(RawU16::new(v)));
+    let to565 = |c: Rgb888| RawU16::from(Rgb565::from(c)).into_inner();
     // Solid-color endpoints
-    assert_eq!(from565(0xF800), Color::new(255, 0, 0));
-    assert_eq!(from565(0x07E0), Color::new(0, 255, 0));
-    assert_eq!(from565(0x001F), Color::new(0, 0, 255));
-    assert_eq!(from565(0xFFFF), Color::new(255, 255, 255));
-    assert_eq!(from565(0x0000), Color::new(0, 0, 0));
+    assert_eq!(from565(0xF800), Rgb888::new(255, 0, 0));
+    assert_eq!(from565(0x07E0), Rgb888::new(0, 255, 0));
+    assert_eq!(from565(0x001F), Rgb888::new(0, 0, 255));
+    assert_eq!(from565(0xFFFF), Rgb888::new(255, 255, 255));
+    assert_eq!(from565(0x0000), Rgb888::new(0, 0, 0));
     // Full round-trip loses no bits
     for v in [0x0001u16, 0x1234, 0x7BEF, 0x8C51, 0xFFFE] {
         assert_eq!(to565(from565(v)), v);
@@ -566,42 +565,42 @@ fn rgb565_roundtrip() {
 #[test]
 fn blit565_pixels_and_clip() {
     use qingui::canvas::Canvas;
-    use qingui::{Color, Rect};
+    use qingui::Rect;
     // 2x2 image: red green / blue white (565 little-endian byte order)
     let data: [u8; 8] = [0x00, 0xF8, 0xE0, 0x07, 0x1F, 0x00, 0xFF, 0xFF];
-    let mut buf = [Color::new(0, 0, 0); 16];
+    let mut buf = [Rgb888::new(0, 0, 0); 16];
     {
-        let mut d = Canvas { pixels: &mut buf, area: Rect::new(0, 0, 4, 4), stride: 4 };
+        let mut d = Canvas {pixels: &mut buf, area: Rect::new(0, 0, 4, 4), stride: 4 };
         d.blit565(1, 1, 2, 2, &data, Rect::new(0, 0, 4, 4));
     }
-    assert_eq!(buf[1 * 4 + 1], Color::new(255, 0, 0));
-    assert_eq!(buf[1 * 4 + 2], Color::new(0, 255, 0));
-    assert_eq!(buf[2 * 4 + 1], Color::new(0, 0, 255));
-    assert_eq!(buf[2 * 4 + 2], Color::new(255, 255, 255));
+    assert_eq!(buf[1 * 4 + 1], Rgb888::new(255, 0, 0));
+    assert_eq!(buf[1 * 4 + 2], Rgb888::new(0, 255, 0));
+    assert_eq!(buf[2 * 4 + 1], Rgb888::new(0, 0, 255));
+    assert_eq!(buf[2 * 4 + 2], Rgb888::new(255, 255, 255));
     // clip: only the left column is allowed
-    let mut buf2 = [Color::new(0, 0, 0); 16];
+    let mut buf2 = [Rgb888::new(0, 0, 0); 16];
     {
-        let mut d = Canvas { pixels: &mut buf2, area: Rect::new(0, 0, 4, 4), stride: 4 };
+        let mut d = Canvas {pixels: &mut buf2, area: Rect::new(0, 0, 4, 4), stride: 4 };
         d.blit565(1, 1, 2, 2, &data, Rect::new(0, 0, 2, 4));
     }
-    assert_eq!(buf2[1 * 4 + 1], Color::new(255, 0, 0));
-    assert_eq!(buf2[1 * 4 + 2], Color::new(0, 0, 0)); // clipped off
+    assert_eq!(buf2[1 * 4 + 1], Rgb888::new(255, 0, 0));
+    assert_eq!(buf2[1 * 4 + 2], Rgb888::new(0, 0, 0)); // clipped off
     // insufficient data draws nothing and does not panic
-    let mut buf3 = [Color::new(1, 2, 3); 4];
+    let mut buf3 = [Rgb888::new(1, 2, 3); 4];
     {
-        let mut d = Canvas { pixels: &mut buf3, area: Rect::new(0, 0, 2, 2), stride: 2 };
+        let mut d = Canvas {pixels: &mut buf3, area: Rect::new(0, 0, 2, 2), stride: 2 };
         d.blit565(0, 0, 4, 4, &data, Rect::new(0, 0, 2, 2)); // insufficient length
     }
-    assert_eq!(buf3, [Color::new(1, 2, 3); 4]);
+    assert_eq!(buf3, [Rgb888::new(1, 2, 3); 4]);
 }
 
 #[test]
 fn fill_rect_full_coverage() {
     // Full-screen fill must paint every pixel exactly (slice-fill path).
     let (mut px, area) = buf(5, 4);
-    let mut d = Canvas { pixels: &mut px, area, stride: 5 };
-    d.fill_rect(area, Color::WHITE, area);
-    assert!(d.pixels.iter().all(|&c| c == Color::WHITE), "opaque fill must cover every pixel");
+    let mut d = Canvas {pixels: &mut px, area, stride: 5 };
+    d.fill_rect(area, Rgb888::WHITE, area);
+    assert!(d.pixels.iter().all(|&c| c == Rgb888::WHITE), "opaque fill must cover every pixel");
     assert_eq!(to_ascii(&d), "\
 #####
 #####
@@ -614,12 +613,12 @@ fn draw_line_thick_no_stamp_reuse() {
     // A thick line must be a continuous band with correct width, drawn once per
     // pixel (regression: old code stamped a fill_circle at every Bresenham step).
     let (mut px, area) = buf(16, 16);
-    let mut d = Canvas { pixels: &mut px, area, stride: 16 };
-    d.draw_line(qingui::Point { x: 2, y: 2 }, qingui::Point { x: 13, y: 13 }, 3, Color::WHITE, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 16 };
+    d.draw_line(qingui::Point {x: 2, y: 2 }, qingui::Point {x: 13, y: 13 }, 3, Rgb888::WHITE, area);
     // Center of the line at (7,7) must be filled.
-    assert_eq!(d.pixels[7 * 16 + 7], Color::WHITE);
+    assert_eq!(d.pixels[7 * 16 + 7], Rgb888::WHITE);
     // Band half-width = 1, so (7,4) (3px away from center) must be untouched.
-    assert_eq!(d.pixels[4 * 16 + 7], Color::BLACK);
+    assert_eq!(d.pixels[4 * 16 + 7], Rgb888::BLACK);
 }
 
 #[test]
@@ -627,10 +626,10 @@ fn draw_line_width1_single_pixel_path() {
     // width=1 degenerate: the line must cover at least every integer point on the
     // dominant axis (no gaps), endpoints inclusive.
     let (mut px, area) = buf(8, 8);
-    let mut d = Canvas { pixels: &mut px, area, stride: 8 };
-    d.draw_line(qingui::Point { x: 1, y: 1 }, qingui::Point { x: 6, y: 6 }, 1, Color::WHITE, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 8 };
+    d.draw_line(qingui::Point {x: 1, y: 1 }, qingui::Point {x: 6, y: 6 }, 1, Rgb888::WHITE, area);
     for i in 1..=6 {
-        assert_eq!(d.pixels[i * 8 + i], Color::WHITE, "diagonal (x={i}) must be covered");
+        assert_eq!(d.pixels[i * 8 + i], Rgb888::WHITE, "diagonal (x={i}) must be covered");
     }
 }
 
@@ -641,12 +640,12 @@ fn fill_rounded_radius_clamp_and_corners() {
     // straight top edge; on a square rect the radius consumes the whole width and the
     // edge apex is an anti-aliased arc, not a filled straight edge.
     let (mut px, area) = buf(16, 10);
-    let mut d = Canvas { pixels: &mut px, area, stride: 16 };
-    d.fill_rounded(Rect::new(0, 0, 16, 10), 99, Color::WHITE, area);
+    let mut d = Canvas {pixels: &mut px, area, stride: 16 };
+    d.fill_rounded(Rect::new(0, 0, 16, 10), 99, Rgb888::WHITE, area);
     // Top-left corner pixel must be empty (radius clamps to 5, cutting the corner).
-    assert_eq!(d.pixels[0], Color::BLACK, "corner must be cut");
+    assert_eq!(d.pixels[0], Rgb888::BLACK, "corner must be cut");
     // Center must be filled.
-    assert_eq!(d.pixels[5 * 16 + 8], Color::WHITE);
+    assert_eq!(d.pixels[5 * 16 + 8], Rgb888::WHITE);
     // Edge midpoint (top edge, x=8) must be filled.
-    assert_eq!(d.pixels[0 * 16 + 8], Color::WHITE);
+    assert_eq!(d.pixels[8], Rgb888::WHITE);
 }

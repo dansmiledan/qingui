@@ -3,9 +3,9 @@ use alloc::vec::Vec;
 
 use crate::arena::ObjRef;
 use crate::canvas::Canvas;
-use crate::geometry::{Color, Point, Rect};
+use embedded_graphics::pixelcolor::{PixelColor, Rgb888};
+use crate::geometry::{Point, Rect};
 use crate::input::Key;
-use crate::pixel::PixelFormat;
 use crate::style::Style;
 use crate::ui::Ui;
 use super::builder::{CommonBuilder, WidgetBuilder, WidgetCfg};
@@ -80,7 +80,7 @@ fn lerp_t(start: u64, now: u64, dur: u64) -> f32 {
 }
 
 impl ListState {
-    fn draw_rows<C: PixelFormat>(&self, ctx: &WidgetCtx, d: &mut Canvas<'_, C>, clip: Rect) {
+    fn draw_rows<C: PixelColor + From<Rgb888>>(&self, ctx: &WidgetCtx<'_, C>, d: &mut Canvas<'_, C>, clip: Rect) {
         let abs = ctx.abs;
         let now = ctx.now;
         let lclip = abs.intersect(&clip).unwrap_or(clip);
@@ -102,7 +102,7 @@ impl ListState {
             let hl = Rect::new(abs.x, abs.y + (hl_row_f * self.row_h as f32) as i32 - eff_scroll, abs.w, self.row_h);
             if hl.intersects(&lclip) {
                 // Highlight with rounded corners so it doesn't cover the list's own rounded border
-                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Color::new(50, 70, 120), lclip);
+                d.fill_rounded(hl, ctx.resolved.radius.min(self.row_h / 2), Rgb888::new(50, 70, 120).into(), lclip);
             }
         }
         // items (with entry/shift effects; the fade-in went away with the opacity system,
@@ -212,7 +212,7 @@ impl ListState {
 }
 
 /// List builder: default 120 x (min(5,n)*16+2), theme_list/focused
-pub type ListBuilder<C = crate::geometry::Color> = WidgetBuilder<ListCfg, C>;
+pub type ListBuilder<C = embedded_graphics::pixelcolor::Rgb888> = WidgetBuilder<ListCfg, C>;
 
 /// List configuration: items, the initially selected index, and the geometry/fx props.
 pub struct ListCfg {
@@ -225,7 +225,7 @@ pub struct ListCfg {
 
 impl ListCfg {
     /// Creates a builder with the given items.
-    pub fn new<C: PixelFormat>(items: &[&str]) -> WidgetBuilder<ListCfg, C> {
+    pub fn new<C: PixelColor + From<Rgb888>>(items: &[&str]) -> WidgetBuilder<ListCfg, C> {
         WidgetBuilder {
             common: CommonBuilder::default(),
             cfg: ListCfg {
@@ -262,8 +262,8 @@ impl<C> WidgetBuilder<ListCfg, C> {
     }
 }
 
-impl<C: PixelFormat> WidgetCfg<C> for ListCfg {
-    fn default_style() -> Style {
+impl<C: PixelColor + From<Rgb888>> WidgetCfg<C> for ListCfg {
+    fn default_style() -> Style<C> {
         crate::style::theme_list()
     }
 
@@ -285,8 +285,8 @@ impl<C: PixelFormat> WidgetCfg<C> for ListCfg {
     }
 }
 
-impl<C: PixelFormat> super::Widget<C> for ListState {
-    fn draw(&self, ctx: &WidgetCtx, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_rows(ctx, c, clip) }
+impl<C: PixelColor + From<Rgb888>> super::Widget<C> for ListState {
+    fn draw(&self, ctx: &WidgetCtx<'_, C>, c: &mut super::Canvas<'_, C>, clip: Rect) { self.draw_rows(ctx, c, clip) }
     fn tick(&mut self, _ui: &mut Ui<C>, _obj: ObjRef, now: u64) -> super::TickOut {
         let was_active = self.fx.active(now, self.fx_dur);
         let removed = self.fx.prune(now, self.fx_dur);
@@ -336,7 +336,7 @@ pub trait UiListExt {
     fn list_len(&self, obj: ObjRef) -> usize;
 }
 
-impl<C: PixelFormat> UiListExt for Ui<C> {
+impl<C: PixelColor + From<Rgb888>> UiListExt for Ui<C> {
     fn list_select(&mut self, obj: ObjRef, idx: usize) {
         let now = self.time();
         let vis_h = self.rect(obj).h;
